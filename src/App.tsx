@@ -7,7 +7,7 @@ interface ShipClass {
   name_zh: string;
   category: string;
   nato_code?: string;
-  visual_features: string[];
+  visual_features?: string[];
   weapons_summary?: string;
 }
 
@@ -32,16 +32,16 @@ export default function App() {
   const [editingClass, setEditingClass] = useState<ShipClass | null>(null);
   const [editingShip, setEditingShip] = useState<Ship | null>(null);
 
-  const [newClass, setNewClass] = useState({ id: '', code: '', name_zh: '', category: '驅逐艦', nato_code: '', visual_features: '', weapons_summary: '' });
-  const [newShip, setNewShip] = useState({ id: '', class_id: '', hull_number: '', name_zh: '', status: '現役' });
+  const [newClass, setNewClass] = useState({ code: '', name_zh: '', category: '驅逐艦', nato_code: '', visual_features: '', weapons_summary: '' });
+  const [newShip, setNewShip] = useState({ class_id: '', hull_number: '', name_zh: '', status: '現役' });
 
   const fetchData = async () => {
     if (!supabase) return;
     try {
       const { data: cData } = await supabase.from('ship_classes').select('*').order('code');
       const { data: sData } = await supabase.from('ships').select('*').order('hull_number');
-      if (cData) setClasses(cData);
-      if (sData) setShips(sData);
+      if (cData) setClasses(cData as ShipClass[]);
+      if (sData) setShips(sData as Ship[]);
       setLastUpdated(new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }));
     } catch (e) {
       console.error(e);
@@ -60,15 +60,15 @@ export default function App() {
   const filteredClasses = classes.filter(c =>
     c.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.name_zh.includes(searchTerm) ||
-    c.nato_code?.toLowerCase().includes(searchTerm.toLowerCase())
+    (c.nato_code && c.nato_code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const saveClassEdit = async () => {
     if (!editingClass || !supabase) return;
     await supabase.from('ship_classes').update({
       name_zh: editingClass.name_zh,
-      weapons_summary: editingClass.weapons_summary,
-      visual_features: editingClass.visual_features
+      weapons_summary: editingClass.weapons_summary || '',
+      visual_features: editingClass.visual_features || []
     }).eq('id', editingClass.id);
     setEditingClass(null);
     fetchData();
@@ -87,7 +87,7 @@ export default function App() {
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
-    const cid = newClass.id || `c-${newClass.code.toLowerCase()}`;
+    const cid = `c-${newClass.code.toLowerCase()}`;
     await supabase.from('ship_classes').insert([{
       id: cid,
       code: newClass.code,
@@ -97,7 +97,7 @@ export default function App() {
       visual_features: newClass.visual_features.split(/[,，]/).map(s => s.trim()).filter(Boolean),
       weapons_summary: newClass.weapons_summary
     }]);
-    setNewClass({ id: '', code: '', name_zh: '', category: '驅逐艦', nato_code: '', visual_features: '', weapons_summary: '' });
+    setNewClass({ code: '', name_zh: '', category: '驅逐艦', nato_code: '', visual_features: '', weapons_summary: '' });
     fetchData();
     alert('艦型新增成功！');
   };
@@ -105,7 +105,7 @@ export default function App() {
   const handleCreateShip = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
-    const sid = newShip.id || `s-${newShip.hull_number}`;
+    const sid = `s-${newShip.hull_number}`;
     await supabase.from('ships').insert([{
       id: sid,
       class_id: newShip.class_id,
@@ -113,7 +113,7 @@ export default function App() {
       name_zh: newShip.name_zh,
       status: newShip.status
     }]);
-    setNewShip({ id: '', class_id: '', hull_number: '', name_zh: '', status: '現役' });
+    setNewShip({ class_id: '', hull_number: '', name_zh: '', status: '現役' });
     fetchData();
     alert('單艦新增成功！');
   };
@@ -147,7 +147,7 @@ export default function App() {
           />
         </div>
 
-        {/* 內容區塊（純單頁往下滾動，不跨頁） */}
+        {/* 內容區塊 */}
         <section className="mt-5 space-y-4">
           {searchTerm && filteredShips.length > 0 && (
             <div className="bg-slate-900/80 border border-cyan-900/40 rounded-xl p-3">
@@ -305,7 +305,7 @@ export default function App() {
               <label className="text-xs text-slate-400">辨識特徵 (逗號隔開)</label>
               <textarea
                 rows={3}
-                value={editingClass.visual_features?.join('，')}
+                value={editingClass.visual_features?.join('，') || ''}
                 onChange={e => setEditingClass({ ...editingClass, visual_features: e.target.value.split(/[,，]/) })}
                 className="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-sm mt-1 text-white"
               />

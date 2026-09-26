@@ -7,6 +7,7 @@ interface ShipClass {
   name_zh: string;
   category: string;
   nato_code?: string;
+  image_url?: string;
   visual_features?: string[];
   weapons_summary?: string;
 }
@@ -26,7 +27,7 @@ export default function App() {
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27');
 
-  // 後台與授權狀態
+  // 後台通行碼授權狀態
   const [showAdmin, setShowAdmin] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
@@ -39,17 +40,8 @@ export default function App() {
   const [editingClass, setEditingClass] = useState<ShipClass | null>(null);
   const [editingShip, setEditingShip] = useState<Ship | null>(null);
 
-  const [newClass, setNewClass] = useState({ code: '', name_zh: '', category: '', nato_code: '', visual_features: '', weapons_summary: '' });
+  const [newClass, setNewClass] = useState({ code: '', name_zh: '', category: '', nato_code: '', image_url: '', visual_features: '', weapons_summary: '' });
   const [newShip, setNewShip] = useState({ class_id: '', hull_number: '', name_zh: '', status: '現役' });
-
-  // 本機離線圖片儲存 (Key: class_id, Value: base64/url)
-  const [localImages, setLocalImages] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('tn_ship_images');
-    return saved ? JSON.parse(saved) : {};
-  });
-  const [imageInputClassId, setImageInputClassId] = useState<string | null>(null);
-  const [tempImageUrl, setTempImageUrl] = useState('');
-  const [isDownloadingImg, setIsDownloadingImg] = useState(false);
 
   useEffect(() => {
     document.title = "TAIWAN NAVY";
@@ -94,44 +86,6 @@ export default function App() {
     }
   };
 
-  // 下載圖片並轉存至本機離線儲存區
-  const handleSaveLocalImage = async (classId: string) => {
-    if (!tempImageUrl.trim()) return;
-    setIsDownloadingImg(true);
-
-    try {
-      // 嘗試轉為 Base64 離線儲存；若因跨域阻擋則儲存直連快取
-      const resp = await fetch(tempImageUrl);
-      const blob = await resp.blob();
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64data = reader.result as string;
-        const updated = { ...localImages, [classId]: base64data };
-        setLocalImages(updated);
-        localStorage.setItem('tn_ship_images', JSON.stringify(updated));
-        setIsDownloadingImg(false);
-        setImageInputClassId(null);
-        setTempImageUrl('');
-      };
-      reader.readAsDataURL(blob);
-    } catch {
-      // 跨域退回直接保存網址 (瀏覽器 PWA 依然會離線 Cache)
-      const updated = { ...localImages, [classId]: tempImageUrl.trim() };
-      setLocalImages(updated);
-      localStorage.setItem('tn_ship_images', JSON.stringify(updated));
-      setIsDownloadingImg(false);
-      setImageInputClassId(null);
-      setTempImageUrl('');
-    }
-  };
-
-  const handleRemoveImage = (classId: string) => {
-    const updated = { ...localImages };
-    delete updated[classId];
-    setLocalImages(updated);
-    localStorage.setItem('tn_ship_images', JSON.stringify(updated));
-  };
-
   const filteredShips = ships.filter(s => 
     s.hull_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.name_zh.includes(searchTerm)
@@ -149,6 +103,7 @@ export default function App() {
       name_zh: editingClass.name_zh,
       category: editingClass.category,
       nato_code: editingClass.nato_code || '',
+      image_url: editingClass.image_url || '',
       weapons_summary: editingClass.weapons_summary || '',
       visual_features: editingClass.visual_features || []
     }).eq('id', editingClass.id);
@@ -176,10 +131,11 @@ export default function App() {
       name_zh: newClass.name_zh.trim(),
       category: newClass.category.trim(),
       nato_code: newClass.nato_code.trim(),
+      image_url: newClass.image_url.trim(),
       visual_features: newClass.visual_features.split(/[,，]/).map(s => s.trim()).filter(Boolean),
       weapons_summary: newClass.weapons_summary.trim()
     }]);
-    setNewClass({ code: '', name_zh: '', category: '', nato_code: '', visual_features: '', weapons_summary: '' });
+    setNewClass({ code: '', name_zh: '', category: '', nato_code: '', image_url: '', visual_features: '', weapons_summary: '' });
     setShowAdmin(false);
     fetchData();
   };
@@ -246,7 +202,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* 主內容區 */}
+        {/* 艦型清單 */}
         <section className="space-y-4">
           {searchTerm && filteredShips.length > 0 && (
             <div className="bg-gradient-to-b from-cyan-950/30 to-slate-900/80 border border-cyan-500/30 rounded-2xl p-4 shadow-lg">
@@ -275,7 +231,6 @@ export default function App() {
             </div>
           )}
 
-          {/* 艦型清單 */}
           <div className="space-y-3">
             <div className="text-[11px] font-mono tracking-wider text-slate-500 font-bold uppercase px-1">
               艦型清單 INDEX ({filteredClasses.length})
@@ -284,7 +239,6 @@ export default function App() {
             {filteredClasses.map(c => {
               const isExpanded = expandedClassId === c.id;
               const classShips = ships.filter(s => s.class_id === c.id);
-              const shipImg = localImages[c.id];
 
               return (
                 <div 
@@ -314,78 +268,24 @@ export default function App() {
                   {isExpanded && (
                     <div className="px-4 pb-4 pt-2 border-t border-slate-800/80 bg-slate-950/40 space-y-4">
                       
-                      {/* --- 本機離線艦艇影像展示區 --- */}
-                      <div>
-                        {shipImg ? (
-                          <div className="relative rounded-xl overflow-hidden border border-slate-700/80 shadow-md group">
-                            <img 
-                              src={shipImg} 
-                              alt={c.name_zh} 
-                              className="w-full h-44 object-cover object-center bg-slate-950" 
-                            />
-                            <div className="absolute bottom-2 right-2 flex gap-1.5 opacity-90">
-                              <button 
-                                onClick={() => { setImageInputClassId(c.id); setTempImageUrl(''); }}
-                                className="px-2 py-1 bg-black/70 hover:bg-black text-[11px] text-cyan-300 rounded-lg backdrop-blur border border-cyan-500/30"
-                              >
-                                🔄 更換
-                              </button>
-                              <button 
-                                onClick={() => handleRemoveImage(c.id)}
-                                className="px-2 py-1 bg-black/70 hover:bg-red-950/80 text-[11px] text-red-400 rounded-lg backdrop-blur border border-red-500/30"
-                              >
-                                ✕ 移除
-                              </button>
-                            </div>
-                            <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[10px] font-mono text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                              <span>●</span> 本機離線快取就緒
-                            </div>
+                      {/* 全裝置同步的艦艇影像 */}
+                      {c.image_url ? (
+                        <div className="relative rounded-xl overflow-hidden border border-slate-700/80 shadow-md">
+                          <img 
+                            src={c.image_url} 
+                            alt={c.name_zh} 
+                            loading="lazy"
+                            className="w-full h-44 object-cover object-center bg-slate-950" 
+                          />
+                          <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[10px] font-mono text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                            <span>⚓️</span> 官方艦影
                           </div>
-                        ) : (
-                          <div className="rounded-xl border border-dashed border-slate-800 p-4 bg-slate-900/40 text-center space-y-2">
-                            <div className="text-2xl opacity-60">📷</div>
-                            <p className="text-xs text-slate-400">尚未匯入艦艇影像（免伺服器，存於本機）</p>
-                            <button
-                              onClick={() => { setImageInputClassId(c.id); setTempImageUrl(''); }}
-                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-cyan-300 transition"
-                            >
-                              ＋ 輸入圖片網址匯入本機
-                            </button>
-                          </div>
-                        )}
-
-                        {/* 匯入網址輸入框 */}
-                        {imageInputClassId === c.id && (
-                          <div className="mt-3 p-3 bg-slate-900 border border-cyan-500/40 rounded-xl space-y-2.5">
-                            <div className="text-[11px] font-bold text-cyan-300 flex items-center justify-between">
-                              <span>🔗 貼上圖片網址（將自動下載至手機本機）</span>
-                              <button onClick={() => setImageInputClassId(null)} className="text-slate-400 hover:text-white">✕</button>
-                            </div>
-                            <input 
-                              type="url" 
-                              placeholder="https://.../ship.jpg"
-                              value={tempImageUrl}
-                              onChange={e => setTempImageUrl(e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-400"
-                            />
-                            <div className="flex justify-end gap-2">
-                              <button 
-                                onClick={() => setImageInputClassId(null)}
-                                className="px-3 py-1 text-xs text-slate-400"
-                              >
-                                取消
-                              </button>
-                              <button 
-                                disabled={isDownloadingImg || !tempImageUrl.trim()}
-                                onClick={() => handleSaveLocalImage(c.id)}
-                                className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs"
-                              >
-                                {isDownloadingImg ? '下載快取中...' : '確認匯入離線存檔'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-slate-800 p-3.5 bg-slate-900/40 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                          <span>📷</span> <span>暫無艦影照片（可在下方編輯資料直接設定圖片網址）</span>
+                        </div>
+                      )}
 
                       {/* 視覺辨識特徵 */}
                       {c.visual_features && c.visual_features.length > 0 && (
@@ -447,7 +347,7 @@ export default function App() {
                           onClick={() => setEditingClass(c)}
                           className="px-3.5 py-1.5 bg-cyan-950/50 hover:bg-cyan-900/50 border border-cyan-500/40 text-cyan-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
                         >
-                          ✏️ 編輯艦型資料 (Wiki)
+                          ✏️ 編輯艦型資料 / 照片
                         </button>
                       </div>
                     </div>
@@ -460,7 +360,7 @@ export default function App() {
 
         <footer className="mt-12 text-center text-xs text-slate-500 space-y-1">
           <p className="font-mono text-[10px] tracking-widest uppercase">戰術艦艇辨識系統</p>
-          <p className="text-[11px]">離線優先架構 · 本機影像儲存就緒</p>
+          <p className="text-[11px]">全端同步 · 離線優先架構</p>
         </footer>
       </main>
 
@@ -507,52 +407,10 @@ export default function App() {
         </div>
       )}
 
-      {/* 單艦修改彈窗 */}
-      {editingShip && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full max-w-sm bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4">
-            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2"></div>
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-base text-white flex items-center gap-2">
-                ✏️ 修改單艦 <span className="font-mono text-cyan-400 font-bold">{editingShip.hull_number}</span>
-              </h3>
-              <button onClick={() => setEditingShip(null)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 mb-1 block">艦名</label>
-                <input
-                  type="text"
-                  value={editingShip.name_zh}
-                  onChange={e => setEditingShip({ ...editingShip, name_zh: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 mb-1 block">服役狀態</label>
-                <input
-                  type="text"
-                  placeholder="例如：現役、海試、退役"
-                  value={editingShip.status}
-                  onChange={e => setEditingShip({ ...editingShip, status: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2.5 pt-2">
-              <button onClick={() => setEditingShip(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
-              <button onClick={saveShipEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">儲存更新</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 艦型編輯彈窗 */}
+      {/* 艦型編輯彈窗 (含圖片網址設定) */}
       {editingClass && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full max-w-sm bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4">
+          <div className="w-full max-w-sm bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2"></div>
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-base text-white flex items-center gap-2">
@@ -569,6 +427,16 @@ export default function App() {
                   value={editingClass.name_zh}
                   onChange={e => setEditingClass({ ...editingClass, name_zh: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-cyan-300 mb-1 block">🔗 官方艦艇照片網址 (全體同步 + 自動離線快取)</label>
+                <input
+                  type="url"
+                  placeholder="https://.../ship.jpg"
+                  value={editingClass.image_url || ''}
+                  onChange={e => setEditingClass({ ...editingClass, image_url: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-400"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -615,13 +483,55 @@ export default function App() {
 
             <div className="flex gap-2.5 pt-2">
               <button onClick={() => setEditingClass(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
-              <button onClick={saveClassEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">發布修改</button>
+              <button onClick={saveClassEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">發布修改至雲端</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 後台管理抽屜 */}
+      {/* 單艦修改彈窗 */}
+      {editingShip && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full max-w-sm bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4">
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2"></div>
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-base text-white flex items-center gap-2">
+                ✏️ 修改單艦 <span className="font-mono text-cyan-400 font-bold">{editingShip.hull_number}</span>
+              </h3>
+              <button onClick={() => setEditingShip(null)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">艦名</label>
+                <input
+                  type="text"
+                  value={editingShip.name_zh}
+                  onChange={e => setEditingShip({ ...editingShip, name_zh: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">服役狀態</label>
+                <input
+                  type="text"
+                  placeholder="例如：現役、海試、退役"
+                  value={editingShip.status}
+                  onChange={e => setEditingShip({ ...editingShip, status: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button onClick={() => setEditingShip(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
+              <button onClick={saveShipEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">儲存更新</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 後台管理抽屜 (含新增艦型圖片網址) */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
           <div className="w-full max-w-md bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl">
@@ -672,6 +582,16 @@ export default function App() {
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
                     />
                   </div>
+                  <div>
+                    <label className="text-slate-400 font-bold mb-1 block">艦艇照片網址 (選填，全體同步)</label>
+                    <input 
+                      type="url"
+                      placeholder="例: https://.../ship.jpg"
+                      value={newClass.image_url} 
+                      onChange={e => setNewClass({ ...newClass, image_url: e.target.value })} 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-slate-400 font-bold mb-1 block">艦種分類 (手動輸入)</label>
@@ -713,7 +633,7 @@ export default function App() {
                     />
                   </div>
                   <button type="submit" className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-bold text-white shadow-lg shadow-cyan-950 active:scale-95 transition">
-                    新增艦型至資料庫
+                    新增艦型至雲端資料庫
                   </button>
                 </form>
               ) : (
@@ -765,7 +685,7 @@ export default function App() {
                     />
                   </div>
                   <button type="submit" className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-bold text-white shadow-lg shadow-cyan-950 active:scale-95 transition">
-                    新增單艦至資料庫
+                    新增單艦至雲端資料庫
                   </button>
                 </form>
               )}

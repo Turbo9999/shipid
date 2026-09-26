@@ -26,34 +26,14 @@ export default function App() {
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27');
 
+  // 後台與授權狀態
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('tn_admin_auth') === 'true';
   });
-  const [adminPasswordInput, setAdminPasswordInput] = useState('');
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  const handleAdminClick = () => {
-    if (isAuthenticated) {
-      setShowAdmin(true);
-    } else {
-      setAdminPasswordInput('');
-      setShowPasswordModal(true);
-    }
-  };
-
-  const handlePasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adminPasswordInput.trim() === '750120') {
-      localStorage.setItem('tn_admin_auth', 'true');
-      setIsAuthenticated(true);
-      setShowPasswordModal(false);
-      setShowAdmin(true);
-    } else {
-      alert('密碼錯誤，請重新輸入！');
-      setAdminPasswordInput('');
-    }
-  };
   const [activeTab, setActiveTab] = useState<'classes' | 'ships'>('classes');
 
   const [editingClass, setEditingClass] = useState<ShipClass | null>(null);
@@ -61,6 +41,15 @@ export default function App() {
 
   const [newClass, setNewClass] = useState({ code: '', name_zh: '', category: '', nato_code: '', visual_features: '', weapons_summary: '' });
   const [newShip, setNewShip] = useState({ class_id: '', hull_number: '', name_zh: '', status: '現役' });
+
+  // 本機離線圖片儲存 (Key: class_id, Value: base64/url)
+  const [localImages, setLocalImages] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('tn_ship_images');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [imageInputClassId, setImageInputClassId] = useState<string | null>(null);
+  const [tempImageUrl, setTempImageUrl] = useState('');
+  const [isDownloadingImg, setIsDownloadingImg] = useState(false);
 
   useEffect(() => {
     document.title = "TAIWAN NAVY";
@@ -82,6 +71,66 @@ export default function App() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleOpenAdmin = () => {
+    if (isAuthenticated) {
+      setShowAdmin(true);
+    } else {
+      setAdminPasswordInput('');
+      setShowPasswordModal(true);
+    }
+  };
+
+  const handleVerifyPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPasswordInput.trim() === '750120') {
+      localStorage.setItem('tn_admin_auth', 'true');
+      setIsAuthenticated(true);
+      setShowPasswordModal(false);
+      setShowAdmin(true);
+    } else {
+      alert('授權碼錯誤，請重新輸入！');
+      setAdminPasswordInput('');
+    }
+  };
+
+  // 下載圖片並轉存至本機離線儲存區
+  const handleSaveLocalImage = async (classId: string) => {
+    if (!tempImageUrl.trim()) return;
+    setIsDownloadingImg(true);
+
+    try {
+      // 嘗試轉為 Base64 離線儲存；若因跨域阻擋則儲存直連快取
+      const resp = await fetch(tempImageUrl);
+      const blob = await resp.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        const updated = { ...localImages, [classId]: base64data };
+        setLocalImages(updated);
+        localStorage.setItem('tn_ship_images', JSON.stringify(updated));
+        setIsDownloadingImg(false);
+        setImageInputClassId(null);
+        setTempImageUrl('');
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      // 跨域退回直接保存網址 (瀏覽器 PWA 依然會離線 Cache)
+      const updated = { ...localImages, [classId]: tempImageUrl.trim() };
+      setLocalImages(updated);
+      localStorage.setItem('tn_ship_images', JSON.stringify(updated));
+      setIsDownloadingImg(false);
+      setImageInputClassId(null);
+      setTempImageUrl('');
+    }
+  };
+
+  const handleRemoveImage = (classId: string) => {
+    const updated = { ...localImages };
+    delete updated[classId];
+    setLocalImages(updated);
+    localStorage.setItem('tn_ship_images', JSON.stringify(updated));
+  };
 
   const filteredShips = ships.filter(s => 
     s.hull_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -153,7 +202,6 @@ export default function App() {
 
   return (
     <div className="w-full min-h-screen bg-[#0b0f17] text-slate-100 flex flex-col items-center overflow-x-hidden antialiased selection:bg-cyan-500/30">
-      {/* 限制手機版寬度，iOS 安全邊距向下推避開瀏海/動態島 */}
       <main className="w-full max-w-md px-5 pt-14 pb-28 flex flex-col flex-1" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.5rem)" }}>
         
         {/* 頂部 Header */}
@@ -169,7 +217,7 @@ export default function App() {
           </div>
 
           <button 
-            onClick={handleAdminClick}
+            onClick={handleOpenAdmin}
             className="px-3.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-full text-xs font-semibold text-slate-300 hover:text-cyan-400 shadow-sm active:scale-95 transition-all flex items-center gap-1.5 backdrop-blur"
           >
             <span>⚙️</span> 管理後台
@@ -236,6 +284,7 @@ export default function App() {
             {filteredClasses.map(c => {
               const isExpanded = expandedClassId === c.id;
               const classShips = ships.filter(s => s.class_id === c.id);
+              const shipImg = localImages[c.id];
 
               return (
                 <div 
@@ -253,7 +302,7 @@ export default function App() {
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-slate-400">
                         {c.category && <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium">{c.category}</span>}
-                        {c.nato_code && <span className="font-mono text-slate-400">英文代號: {c.nato_code}</span>}
+                        {c.nato_code && <span className="font-mono text-slate-400">代號: {c.nato_code}</span>}
                       </div>
                     </div>
                     
@@ -264,6 +313,81 @@ export default function App() {
 
                   {isExpanded && (
                     <div className="px-4 pb-4 pt-2 border-t border-slate-800/80 bg-slate-950/40 space-y-4">
+                      
+                      {/* --- 本機離線艦艇影像展示區 --- */}
+                      <div>
+                        {shipImg ? (
+                          <div className="relative rounded-xl overflow-hidden border border-slate-700/80 shadow-md group">
+                            <img 
+                              src={shipImg} 
+                              alt={c.name_zh} 
+                              className="w-full h-44 object-cover object-center bg-slate-950" 
+                            />
+                            <div className="absolute bottom-2 right-2 flex gap-1.5 opacity-90">
+                              <button 
+                                onClick={() => { setImageInputClassId(c.id); setTempImageUrl(''); }}
+                                className="px-2 py-1 bg-black/70 hover:bg-black text-[11px] text-cyan-300 rounded-lg backdrop-blur border border-cyan-500/30"
+                              >
+                                🔄 更換
+                              </button>
+                              <button 
+                                onClick={() => handleRemoveImage(c.id)}
+                                className="px-2 py-1 bg-black/70 hover:bg-red-950/80 text-[11px] text-red-400 rounded-lg backdrop-blur border border-red-500/30"
+                              >
+                                ✕ 移除
+                              </button>
+                            </div>
+                            <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[10px] font-mono text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                              <span>●</span> 本機離線快取就緒
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-slate-800 p-4 bg-slate-900/40 text-center space-y-2">
+                            <div className="text-2xl opacity-60">📷</div>
+                            <p className="text-xs text-slate-400">尚未匯入艦艇影像（免伺服器，存於本機）</p>
+                            <button
+                              onClick={() => { setImageInputClassId(c.id); setTempImageUrl(''); }}
+                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-cyan-300 transition"
+                            >
+                              ＋ 輸入圖片網址匯入本機
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 匯入網址輸入框 */}
+                        {imageInputClassId === c.id && (
+                          <div className="mt-3 p-3 bg-slate-900 border border-cyan-500/40 rounded-xl space-y-2.5">
+                            <div className="text-[11px] font-bold text-cyan-300 flex items-center justify-between">
+                              <span>🔗 貼上圖片網址（將自動下載至手機本機）</span>
+                              <button onClick={() => setImageInputClassId(null)} className="text-slate-400 hover:text-white">✕</button>
+                            </div>
+                            <input 
+                              type="url" 
+                              placeholder="https://.../ship.jpg"
+                              value={tempImageUrl}
+                              onChange={e => setTempImageUrl(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-400"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button 
+                                onClick={() => setImageInputClassId(null)}
+                                className="px-3 py-1 text-xs text-slate-400"
+                              >
+                                取消
+                              </button>
+                              <button 
+                                disabled={isDownloadingImg || !tempImageUrl.trim()}
+                                onClick={() => handleSaveLocalImage(c.id)}
+                                className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs"
+                              >
+                                {isDownloadingImg ? '下載快取中...' : '確認匯入離線存檔'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 視覺辨識特徵 */}
                       {c.visual_features && c.visual_features.length > 0 && (
                         <div>
                           <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-2 flex items-center gap-1.5">
@@ -279,6 +403,7 @@ export default function App() {
                         </div>
                       )}
 
+                      {/* 武裝配置 */}
                       {c.weapons_summary && (
                         <div>
                           <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -290,6 +415,7 @@ export default function App() {
                         </div>
                       )}
 
+                      {/* 單艦清單 */}
                       <div>
                         <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-2 flex items-center justify-between">
                           <span className="flex items-center gap-1.5"><span>⚓️</span> 已建檔單艦 ({classShips.length})</span>
@@ -333,10 +459,53 @@ export default function App() {
         </section>
 
         <footer className="mt-12 text-center text-xs text-slate-500 space-y-1">
-          <p className="font-mono text-[10px] tracking-widest uppercase">TACTICAL NAVAL IDENTIFIER</p>
-          <p className="text-[11px]">離線優先架構 · 資料庫同步正常</p>
+          <p className="font-mono text-[10px] tracking-widest uppercase">戰術艦艇辨識系統</p>
+          <p className="text-[11px]">離線優先架構 · 本機影像儲存就緒</p>
         </footer>
       </main>
+
+      {/* 授權密碼彈窗 */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="text-center space-y-1">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-950/80 border border-cyan-500/30 flex items-center justify-center mx-auto text-xl text-cyan-400">
+                🔒
+              </div>
+              <h3 className="font-bold text-base text-white tracking-wide pt-2">後台管理驗證</h3>
+              <p className="text-[11px] text-slate-400">請輸入管理通行密碼以存取資料庫</p>
+            </div>
+
+            <form onSubmit={handleVerifyPassword} className="space-y-3">
+              <input
+                type="password"
+                autoFocus
+                required
+                maxLength={10}
+                placeholder="請輸入 6 位授權碼"
+                value={adminPasswordInput}
+                onChange={e => setAdminPasswordInput(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-cyan-500"
+              />
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-400"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950 active:scale-95 transition"
+                >
+                  確認驗證
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* 單艦修改彈窗 */}
       {editingShip && (
@@ -361,7 +530,7 @@ export default function App() {
                 />
               </div>
               <div>
-                <label className="text-[11px] font-bold text-slate-400 mb-1 block">服役狀態 (輸入文字，如現役、海試)</label>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">服役狀態</label>
                 <input
                   type="text"
                   placeholder="例如：現役、海試、退役"
@@ -448,50 +617,6 @@ export default function App() {
               <button onClick={() => setEditingClass(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
               <button onClick={saveClassEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">發布修改</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      
-      {/* 後台管理授權密碼彈窗 */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="text-center space-y-1">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-950/80 border border-cyan-500/30 flex items-center justify-center mx-auto text-xl text-cyan-400">
-                🔒
-              </div>
-              <h3 className="font-bold text-base text-white tracking-wide pt-2">後台管理驗證</h3>
-              <p className="text-[11px] text-slate-400">請輸入管理通行密碼以存取資料庫</p>
-            </div>
-
-            <form onSubmit={handlePasswordSubmit} className="space-y-3">
-              <input
-                type="password"
-                autoFocus
-                required
-                maxLength={10}
-                placeholder="請輸入 6 位授權碼"
-                value={adminPasswordInput}
-                onChange={e => setAdminPasswordInput(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-cyan-500"
-              />
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordModal(false)}
-                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-400"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950 active:scale-95 transition"
-                >
-                  確認驗證
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

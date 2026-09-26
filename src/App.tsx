@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Compass, Wifi, WifiOff, ShieldCheck } from 'lucide-react';
 import { db } from './lib/db';
 

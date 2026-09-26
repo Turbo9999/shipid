@@ -27,6 +27,33 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27');
 
   const [showAdmin, setShowAdmin] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('tn_admin_auth') === 'true';
+  });
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+  const handleAdminClick = () => {
+    if (isAuthenticated) {
+      setShowAdmin(true);
+    } else {
+      setAdminPasswordInput('');
+      setShowPasswordModal(true);
+    }
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPasswordInput.trim() === '750120') {
+      localStorage.setItem('tn_admin_auth', 'true');
+      setIsAuthenticated(true);
+      setShowPasswordModal(false);
+      setShowAdmin(true);
+    } else {
+      alert('密碼錯誤，請重新輸入！');
+      setAdminPasswordInput('');
+    }
+  };
   const [activeTab, setActiveTab] = useState<'classes' | 'ships'>('classes');
 
   const [editingClass, setEditingClass] = useState<ShipClass | null>(null);
@@ -142,7 +169,7 @@ export default function App() {
           </div>
 
           <button 
-            onClick={() => setShowAdmin(true)}
+            onClick={handleAdminClick}
             className="px-3.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-full text-xs font-semibold text-slate-300 hover:text-cyan-400 shadow-sm active:scale-95 transition-all flex items-center gap-1.5 backdrop-blur"
           >
             <span>⚙️</span> 管理後台
@@ -425,6 +452,50 @@ export default function App() {
         </div>
       )}
 
+      
+      {/* 後台管理授權密碼彈窗 */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="text-center space-y-1">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-950/80 border border-cyan-500/30 flex items-center justify-center mx-auto text-xl text-cyan-400">
+                🔒
+              </div>
+              <h3 className="font-bold text-base text-white tracking-wide pt-2">後台管理驗證</h3>
+              <p className="text-[11px] text-slate-400">請輸入管理通行密碼以存取資料庫</p>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-3">
+              <input
+                type="password"
+                autoFocus
+                required
+                maxLength={10}
+                placeholder="請輸入 6 位授權碼"
+                value={adminPasswordInput}
+                onChange={e => setAdminPasswordInput(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-cyan-500"
+              />
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-400"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950 active:scale-95 transition"
+                >
+                  確認驗證
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* 後台管理抽屜 */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
@@ -490,7 +561,7 @@ export default function App() {
                     <div>
                       <label className="text-slate-400 font-bold mb-1 block">英文代號</label>
                       <input 
-                        placeholder="例: Luyang III"
+                        placeholder="例: LHA、DDG、FFG"
                         value={newClass.nato_code} 
                         onChange={e => setNewClass({ ...newClass, nato_code: e.target.value })} 
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 

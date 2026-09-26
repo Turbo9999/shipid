@@ -417,7 +417,7 @@ export default function App() {
                   <label className="text-[11px] font-bold text-slate-400 mb-1 block">英文代號</label>
                   <input
                     type="text"
-                    placeholder="例如：Luyang III"
+                    placeholder="例: LHA、DDG、FFG"
                     value={editingClass.nato_code || ''}
                     onChange={e => setEditingClass({ ...editingClass, nato_code: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"

@@ -121,7 +121,7 @@ export default function App() {
   return (
     <div className="w-full min-h-screen bg-[#0b0f17] text-slate-100 flex flex-col items-center overflow-x-hidden antialiased selection:bg-cyan-500/30">
       {/* 限制手機版寬度，精緻居中 */}
-      <main className="w-full max-w-md px-5 py-4 flex flex-col flex-1 pb-28">
+      <main className="w-full max-w-md px-5 pt-12 sm:pt-6 pb-28 flex flex-col flex-1" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.25rem)" }}>
         
         {/* 頂部 Header */}
         <header className="flex justify-between items-center pb-4 pt-1">

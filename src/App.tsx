@@ -128,7 +128,7 @@ export default function App() {
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
-              <h1 className="text-lg font-black tracking-wider text-slate-100 uppercase">SHIP ID // REF</h1>
+              <h1 className="text-lg font-black tracking-wider text-slate-100 uppercase">TAIWAN NAVY</h1>
             </div>
             <p className="text-[11px] font-mono text-slate-400 pl-4.5">
               DB BUILD <span className="text-cyan-400 font-semibold">{lastUpdated}</span>

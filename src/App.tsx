@@ -222,7 +222,7 @@ export default function App() {
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-slate-400">
                         <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium">{c.category}</span>
-                        {c.nato_code && <span className="font-mono text-slate-400">NATO: {c.nato_code}</span>}
+                        {c.nato_code && <span className="font-mono text-slate-400">英文代號: {c.nato_code}</span>}
                       </div>
                     </div>
                     
@@ -337,143 +337,16 @@ export default function App() {
               </div>
               <div>
                 <label className="text-[11px] font-bold text-slate-400 mb-1 block">服役狀態</label>
-                <select
-                  value={editingShip.status}
-                  onChange={e => setEditingShip({ ...editingShip, status: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
-                >
-                  <option value="現役">現役</option>
-                  <option value="海試">海試</option>
-                  <option value="下水舾裝">下水舾裝</option>
-                  <option value="退役">退役</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-2.5 pt-2">
-              <button onClick={() => setEditingShip(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
-              <button onClick={saveShipEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">儲存更新</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- 現代彈出抽屜：艦型快速修改 --- */}
-      {editingClass && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full max-w-sm bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4">
-            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2"></div>
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-base text-white flex items-center gap-2">
-                ✏️ 編輯艦型 <span className="font-mono text-cyan-400 font-bold">{editingClass.code}</span>
-              </h3>
-              <button onClick={() => setEditingClass(null)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 mb-1 block">艦型全名</label>
-                <input
-                  type="text"
-                  value={editingClass.name_zh}
-                  onChange={e => setEditingClass({ ...editingClass, name_zh: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 mb-1 block">視覺辨識特徵 (用逗號隔開)</label>
-                <textarea
-                  rows={3}
-                  value={editingClass.visual_features?.join('，') || ''}
-                  onChange={e => setEditingClass({ ...editingClass, visual_features: e.target.value.split(/[,，]/) })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 leading-relaxed"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 mb-1 block">武裝配置總結</label>
-                <input
-                  type="text"
-                  value={editingClass.weapons_summary || ''}
-                  onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2.5 pt-2">
-              <button onClick={() => setEditingClass(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
-              <button onClick={saveClassEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">發布修改</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- 後台管理 iOS 風格底層抽屜 --- */}
-      {showAdmin && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
-          <div className="w-full max-w-md bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl">
-            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mt-3 mb-1"></div>
-            
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-              <h2 className="font-bold text-base text-white flex items-center gap-2">
-                <span>⚙️</span> 資料庫管理後台
-              </h2>
-              <button onClick={() => setShowAdmin(false)} className="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-full bg-slate-800">✕ 關閉</button>
-            </div>
-
-            <div className="flex border-b border-slate-800 text-xs font-bold p-1 bg-slate-950/60 mx-4 mt-3 rounded-xl">
-              <button 
-                onClick={() => setActiveTab('classes')}
-                className={`flex-1 py-2 rounded-lg text-center transition ${activeTab === 'classes' ? 'text-cyan-400 bg-slate-800 shadow-sm' : 'text-slate-400'}`}
-              >
-                ＋ 新增艦型
-              </button>
-              <button 
-                onClick={() => setActiveTab('ships')}
-                className={`flex-1 py-2 rounded-lg text-center transition ${activeTab === 'ships' ? 'text-cyan-400 bg-slate-800 shadow-sm' : 'text-slate-400'}`}
-              >
-                ＋ 新增單艦舷號
-              </button>
-            </div>
-
-            <div className="p-5 overflow-y-auto space-y-4 text-xs">
-              {activeTab === 'classes' ? (
-                <form onSubmit={handleCreateClass} className="space-y-3.5">
-                  <div>
-                    <label className="text-slate-400 font-bold mb-1 block">艦型代號 (例: 052D)</label>
-                    <input 
-                      required 
-                      value={newClass.code} 
-                      onChange={e => setNewClass({ ...newClass, code: e.target.value })} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-400 font-bold mb-1 block">艦型全名 (例: 052D型飛彈驅逐艦)</label>
-                    <input 
-                      required 
-                      value={newClass.name_zh} 
-                      onChange={e => setNewClass({ ...newClass, name_zh: e.target.value })} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-slate-400 font-bold mb-1 block">分類</label>
-                      <select 
-                        value={newClass.category} 
-                        onChange={e => setNewClass({ ...newClass, category: e.target.value })} 
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white"
-                      >
-                        <option value="驅逐艦">驅逐艦</option>
-                        <option value="護衛艦">護衛艦</option>
-                        <option value="登陸艦">登陸艦</option>
-                        <option value="補給艦">補給艦</option>
-                        <option value="潛艦">潛艦</option>
-                      </select>
+                <input 
+  required 
+  placeholder="例如：驅逐艦、巡防艦" 
+  value={newClass.category} 
+  onChange={e => setNewClass({ ...newClass, category: e.target.value })} 
+  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+/>
                     </div>
                     <div>
-                      <label className="text-slate-400 font-bold mb-1 block">NATO 代號</label>
+                      <label className="text-slate-400 font-bold mb-1 block">英文代號</label>
                       <input 
                         value={newClass.nato_code} 
                         onChange={e => setNewClass({ ...newClass, nato_code: e.target.value })} 

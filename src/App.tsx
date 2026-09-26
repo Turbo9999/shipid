@@ -26,19 +26,15 @@ export default function App() {
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27');
 
-  // 後台管理 Drawer / Modal 狀態
   const [showAdmin, setShowAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState<'classes' | 'ships'>('classes');
 
-  // 「立即修改」Wiki 編輯狀態
   const [editingClass, setEditingClass] = useState<ShipClass | null>(null);
   const [editingShip, setEditingShip] = useState<Ship | null>(null);
 
-  // 新增表單暫存
   const [newClass, setNewClass] = useState({ id: '', code: '', name_zh: '', category: '驅逐艦', nato_code: '', visual_features: '', weapons_summary: '' });
   const [newShip, setNewShip] = useState({ id: '', class_id: '', hull_number: '', name_zh: '', status: '現役' });
 
-  // 讀取資料
   const fetchData = async () => {
     if (!supabase) return;
     try {
@@ -56,7 +52,6 @@ export default function App() {
     fetchData();
   }, []);
 
-  // 搜尋過濾
   const filteredShips = ships.filter(s => 
     s.hull_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.name_zh.includes(searchTerm)
@@ -68,7 +63,6 @@ export default function App() {
     c.nato_code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 儲存修改 (立即修改)
   const saveClassEdit = async () => {
     if (!editingClass || !supabase) return;
     await supabase.from('ship_classes').update({
@@ -90,7 +84,6 @@ export default function App() {
     fetchData();
   };
 
-  // 後台新增
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
@@ -127,18 +120,17 @@ export default function App() {
 
   return (
     <div className="w-full min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center overflow-x-hidden select-none">
-      {/* 限制最大寬度且絕不橫向溢出 */}
       <main className="w-full max-w-lg px-4 py-3 flex flex-col flex-1 pb-24 overflow-x-hidden">
         
-        {/* 頂部 Header & 版本資訊 */}
+        {/* 頂部 Header & 資料版本日期 */}
         <header className="flex justify-between items-center py-2 border-b border-slate-800">
           <div>
             <h1 className="text-xl font-bold tracking-wider text-cyan-400">SHIP ID // REF</h1>
-            <p className="text-[11px] text-slate-400">系統資料庫版本：<span className="text-emerald-400 font-mono">{lastUpdated}</span></p>
+            <p className="text-[11px] text-slate-400">資料庫版本：<span className="text-emerald-400 font-mono">{lastUpdated}</span></p>
           </div>
           <button 
             onClick={() => setShowAdmin(!showAdmin)}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-cyan-300 shadow-sm active:scale-95 transition"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 text-cyan-300 active:scale-95 transition"
           >
             ⚙️ 後台管理
           </button>
@@ -155,9 +147,8 @@ export default function App() {
           />
         </div>
 
-        {/* 主要清單（單頁垂直向下展開） */}
+        {/* 內容區塊（純單頁往下滾動，不跨頁） */}
         <section className="mt-5 space-y-4">
-          {/* 舷號快速比對結果 */}
           {searchTerm && filteredShips.length > 0 && (
             <div className="bg-slate-900/80 border border-cyan-900/40 rounded-xl p-3">
               <h2 className="text-xs font-semibold text-cyan-400 tracking-wider mb-2">舷號比對結果 ({filteredShips.length})</h2>
@@ -189,8 +180,7 @@ export default function App() {
               const classShips = ships.filter(s => s.class_id === c.id);
 
               return (
-                <div key={c.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition shadow-sm">
-                  {/* 卡片標題 - 點擊向下開闔 */}
+                <div key={c.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
                   <div 
                     onClick={() => setExpandedClassId(isExpanded ? null : c.id)}
                     className="p-3.5 flex justify-between items-center cursor-pointer hover:bg-slate-800/50"
@@ -207,7 +197,6 @@ export default function App() {
                     <span className="text-slate-500 text-sm">{isExpanded ? '▲' : '▼'}</span>
                   </div>
 
-                  {/* 向下展開之詳細內容 */}
                   {isExpanded && (
                     <div className="px-3.5 pb-3.5 pt-1 border-t border-slate-800/80 bg-slate-950/40 space-y-3 text-xs">
                       <div>
@@ -226,7 +215,6 @@ export default function App() {
                         </div>
                       )}
 
-                      {/* 該級舷號清單 */}
                       <div>
                         <div className="text-slate-400 font-semibold mb-1">⚓️ 已知在役單艦 ({classShips.length})：</div>
                         <div className="grid grid-cols-2 gap-1.5 mt-1">
@@ -239,7 +227,6 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* 維基風格立即修改按鈕 */}
                       <div className="pt-2 flex justify-end">
                         <button 
                           onClick={() => setEditingClass(c)}
@@ -256,13 +243,12 @@ export default function App() {
           </div>
         </section>
 
-        {/* 底部維基版權/版本備註 */}
         <footer className="mt-8 text-center text-[11px] text-slate-500 pb-6 border-t border-slate-900 pt-4">
           SHIP ID 資料庫 · 離線優先架構 · 最後維護：{lastUpdated}
         </footer>
       </main>
 
-      {/* --- 彈窗 1：單艦「立即修改」 --- */}
+      {/* 單艦立即修改彈窗 */}
       {editingShip && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl space-y-3">
@@ -299,7 +285,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- 彈窗 2：艦型「立即修改」 --- */}
+      {/* 艦型立即修改彈窗 */}
       {editingClass && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl space-y-3">
@@ -316,7 +302,7 @@ export default function App() {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-400">辨識特徵 (用逗號隔開)</label>
+              <label className="text-xs text-slate-400">辨識特徵 (逗號隔開)</label>
               <textarea
                 rows={3}
                 value={editingClass.visual_features?.join('，')}
@@ -341,17 +327,15 @@ export default function App() {
         </div>
       )}
 
-      {/* --- 側滑抽屜 / 滿版：後台管理面板 --- */}
+      {/* 後台管理面板抽屜 */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
           <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl max-h-[85vh] flex flex-col shadow-2xl">
-            {/* Header */}
             <div className="p-4 border-b border-slate-800 flex justify-between items-center">
               <h2 className="font-bold text-base text-cyan-400">⚙️ 資料庫後台管理</h2>
               <button onClick={() => setShowAdmin(false)} className="text-slate-400 hover:text-white text-sm px-2 py-1">✕ 關閉</button>
             </div>
 
-            {/* Tab 切換 */}
             <div className="flex border-b border-slate-800 text-xs font-bold">
               <button 
                 onClick={() => setActiveTab('classes')}
@@ -367,7 +351,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* 表單內容 */}
             <div className="p-4 overflow-y-auto space-y-4 text-xs">
               {activeTab === 'classes' ? (
                 <form onSubmit={handleCreateClass} className="space-y-3">

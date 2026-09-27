@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.2';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.3';
 
 interface ShipClass {
   id: string;
@@ -769,6 +769,13 @@ export default function App() {
         .shipid-app nav span { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; }
 
         @media (max-width: 767px) {
+          .shipid-app .shipid-brand-title {
+            transform: scaleY(1.16);
+            transform-origin: left center;
+            line-height: 1;
+            margin-top: 3px;
+            margin-bottom: 3px;
+          }
           .shipid-app .shipid-mobile-header {
             align-items: flex-start !important;
             gap: 12px !important;
@@ -817,7 +824,7 @@ export default function App() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 whitespace-nowrap">
               <span className={`w-2.5 h-2.5 shrink-0 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
-              <h1 className="font-black tracking-widest text-lg md:text-2xl font-mono whitespace-nowrap">TAIWAN NAVY</h1>
+              <h1 className="shipid-brand-title font-black tracking-widest text-lg md:text-2xl font-mono whitespace-nowrap">TAIWAN NAVY</h1>
             </div>
 
             {/* Desktop 狀態列：維持原本位置 */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.7';
+const CURRENT_APP_VERSION = '2026.09.28 v5.8';
 
 interface ShipClass {
   id: string;
@@ -615,8 +615,20 @@ export default function App() {
           const name = (nameIndex >= 0 ? cells[nameIndex] : cells.find(value => value && value !== hull && !/^\d{4}/.test(value))) || '';
           if (!name) continue;
           const commissioned = commissionedIndex >= 0 ? cells[commissionedIndex] || '' : '';
-          const statusText = statusIndex >= 0 ? cells[statusIndex] || '' : '';
-          const statusCode: Ship['status_code'] = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('航行試驗') || statusText.includes('試航') ? 'sea_trial' : statusText.includes('計畫') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') ? 'fitting_out' : statusText.includes('改裝') ? 'refit' : statusText.includes('現役') || statusText.includes('服役') ? 'active' : 'unknown';
+          // Wikipedia tables often use rowspan/colspan, so the visual column index can drift.
+          // Prefer the declared status column, but fall back to scanning the whole row for a known status keyword.
+          const indexedStatusText = statusIndex >= 0 ? cells[statusIndex] || '' : '';
+          const rowStatusText = cells.join(' ');
+          const hasKnownStatus = (value: string) => /現役|服役中|退役|除役|海試|航行試驗|試航|計畫|規劃|建造中|建造|舾裝中|舾裝|改裝中|改裝/.test(value);
+          const statusText = hasKnownStatus(indexedStatusText) ? indexedStatusText : rowStatusText;
+          const statusCode: Ship['status_code'] =
+            /退役|除役/.test(statusText) ? 'retired' :
+            /海試|航行試驗|試航/.test(statusText) ? 'sea_trial' :
+            /舾裝中|舾裝/.test(statusText) ? 'fitting_out' :
+            /改裝中|改裝/.test(statusText) ? 'refit' :
+            /建造中|建造/.test(statusText) ? 'under_construction' :
+            /計畫|規劃/.test(statusText) ? 'planned' :
+            /現役|服役中/.test(statusText) ? 'active' : 'unknown';
           if (!extractedShips.some(ship => ship.hull_number === hull)) extractedShips.push({ hull_number: hull, name_zh: name, commissioned_year: commissioned, commission_precision: /\d{4}(?:-|年)\d{1,2}(?:-|月)\d{1,2}日?/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown', fleet: fleetIndex >= 0 ? cells[fleetIndex] || '' : '', squadron: squadronIndex >= 0 ? cells[squadronIndex] || '' : '', status_code: statusCode });
         }
       }

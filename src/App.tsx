@@ -1058,7 +1058,7 @@ export default function App() {
               href={`mailto:pkddqq@gmail.com?subject=${encodeURIComponent('TAIWAN NAVY 使用者意見')}`}
               className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold ${currentTheme.btnSecondary}`}
             >
-              ✉ 提供問題或意見
+              提供問題或意見
             </a>
 
             {showMoreModal === 'update' && (

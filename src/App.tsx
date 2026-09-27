@@ -122,6 +122,7 @@ export default function App() {
   });
   const [adminBannerInput, setAdminBannerInput] = useState('');
   const [editingShipId, setEditingShipId] = useState<string | null>(null);
+  const [selectedShipIds, setSelectedShipIds] = useState<string[]>([]);
 
   const [editingClassForm, setEditingClassForm] = useState<Partial<ShipClass>>({
     code: '', name_zh: '', category: '驅逐艦', nato_code: '', image_url: '', overview: '',
@@ -698,6 +699,21 @@ export default function App() {
     await fetchData();
   };
 
+  const handleDeleteSelectedShips = async () => {
+    if (!isAuthenticated || selectedShipIds.length === 0 || !supabase) return;
+    const selectedShips = ships.filter(ship => selectedShipIds.includes(ship.id));
+    const preview = selectedShips.slice(0, 5).map(ship => `${ship.hull_number} ${ship.name_zh}`).join('、');
+    const remaining = selectedShips.length > 5 ? `，另 ${selectedShips.length - 5} 艘` : '';
+    const confirmed = window.confirm(`確定要刪除已勾選的 ${selectedShipIds.length} 艘單艦嗎？\n${preview}${remaining}\n此操作無法復原。`);
+    if (!confirmed) return;
+    const { error } = await supabase.from('ships').delete().in('id', selectedShipIds);
+    if (error) return alert(`批次刪除單艦失敗: ${error.message}`);
+    alert(`已刪除 ${selectedShipIds.length} 艘單艦。`);
+    setSelectedShipIds([]);
+    if (editingShipId && selectedShipIds.includes(editingShipId)) setEditingShipId(null);
+    await fetchData();
+  };
+
   const handleDeleteSelectedClass = async () => {
     if (!isAuthenticated || !selectedClassDetail || !supabase) return;
     const confirmed = window.confirm(`確定要刪除艦型「${selectedClassDetail.code} ${selectedClassDetail.name_zh}」嗎？\n此操作會一併刪除本級艦艇資料，且無法復原。`);
@@ -729,7 +745,7 @@ export default function App() {
       
       {/* 戰術抬頭列 */}
       <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-[52px] pb-4 flex flex-col items-center shadow-lg transition-all`}>
-        <div className="w-full max-w-md flex justify-between items-center">
+        <div className="w-full max-w-md md:max-w-6xl flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
@@ -817,7 +833,7 @@ export default function App() {
         </div>
 
         {bannerText && (
-          <div className={`w-full max-w-md mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-sky-800' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
+          <div className={`w-full max-w-md md:max-w-6xl mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-sky-800' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
             <span className={`w-2 h-2 rounded-full ${themeMode === 'red' ? 'bg-red-500' : 'bg-cyan-400'} animate-ping`}></span>
             <span className="flex-1">{bannerText}</span>
           </div>
@@ -825,7 +841,7 @@ export default function App() {
       </header>
 
       {/* 主內容區 */}
-      <main className="w-full max-w-md px-4 pt-4 pb-48 flex flex-col flex-1 gap-3">
+      <main className="w-full max-w-md md:max-w-6xl px-4 md:px-6 pt-4 md:pt-6 pb-48 flex flex-col flex-1 gap-3">
         {(activeBottomTab === 'classes' || activeBottomTab === 'favorites') && (
           <>
             {searchTerm && matchingShips.length > 0 && (
@@ -874,7 +890,8 @@ export default function App() {
                   查無符合條件的艦艇資料
                 </div>
               ) : (
-                displayedClasses.map(c => {
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {displayedClasses.map(c => {
                   const isFav = favorites.includes(c.id);
                   const classShips = ships.filter(s => s.class_id === c.id);
 
@@ -924,7 +941,8 @@ export default function App() {
                       </div>
                     </div>
                   );
-                })
+                })}
+                </div>
               )}
             </section>
           </>
@@ -1053,7 +1071,7 @@ export default function App() {
       {/* 底部戰術控制底座 */}
       <div className="fixed bottom-0 left-0 right-0 z-30 flex flex-col items-center pointer-events-none">
         {(activeBottomTab === 'classes' || activeBottomTab === 'favorites') && (
-          <div className="w-full max-w-md px-4 pb-2 pointer-events-auto">
+          <div className="w-full max-w-md md:max-w-4xl px-4 pb-2 pointer-events-auto">
             <div className="relative flex items-center shadow-2xl">
               <svg className={`w-5 h-5 absolute left-3.5 pointer-events-none ${currentTheme.textMuted}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -1095,7 +1113,7 @@ export default function App() {
         )}
 
         <nav className={`w-full ${currentTheme.headerBg} border-t backdrop-blur-xl flex justify-center shadow-2xl pointer-events-auto`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)' }}>
-          <div className="w-full max-w-md flex justify-around items-center px-3 py-1.5 text-xs font-bold">
+          <div className="w-full max-w-md md:max-w-4xl flex justify-around items-center px-3 py-1.5 text-xs font-bold">
             <button
               type="button"
               onClick={() => setActiveBottomTab('classes')}
@@ -1282,7 +1300,7 @@ export default function App() {
       {/* 詳細頁 Modal */}
       {selectedClassDetail && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4">
-          <div className={`w-full max-w-lg h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
+          <div className={`w-full max-w-lg md:max-w-5xl h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
             <div className={`px-5 py-4 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
               <div className="flex items-center gap-2">
                 <span className={`font-mono text-2xl font-black ${currentTheme.accentText}`}>
@@ -1528,7 +1546,7 @@ export default function App() {
       {/* 資料庫管理後台 Modal */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className={`w-full max-w-lg h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
+          <div className={`w-full max-w-lg md:max-w-5xl h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
             <div className={`px-5 py-4 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
               <h2 className="font-bold text-base">資料庫管理與外觀特徵維護</h2>
               <button type="button" onClick={() => setShowAdmin(false)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>
@@ -1536,7 +1554,7 @@ export default function App() {
 
             <div className={`flex border-b text-xs font-bold p-1 mx-4 mt-3 rounded-xl gap-1 ${currentTheme.subPanelBg} ${currentTheme.border}`}>
               <button type="button" onClick={() => setAdminActiveTab('class_edit')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'class_edit' ? currentTheme.accentBg : currentTheme.textMuted}`}>艦型與外觀特徵</button>
-              <button type="button" onClick={() => { setEditingShipId(null); setAdminActiveTab('ship_add'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'ship_add' ? currentTheme.accentBg : currentTheme.textMuted}`}>新增單艦與舷號</button>
+              <button type="button" onClick={() => { setEditingShipId(null); setAdminActiveTab('ship_add'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'ship_add' ? currentTheme.accentBg : currentTheme.textMuted}`}>單艦管理</button>
               <button type="button" onClick={() => setAdminActiveTab('banner')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'banner' ? currentTheme.accentBg : currentTheme.textMuted}`}>廣播通報</button>
             </div>
 
@@ -1770,6 +1788,62 @@ export default function App() {
                   }}
                   className="space-y-3"
                 >
+                  <div className={`p-3.5 rounded-2xl border space-y-3 ${currentTheme.subPanelBg}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className={`font-bold block ${currentTheme.accentText}`}>批次管理單艦</span>
+                        <span className={currentTheme.textMuted}>已勾選 {selectedShipIds.length}／{ships.length} 艘</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedShipIds(ships.map(ship => ship.id))}
+                          className={`min-h-[40px] px-3 rounded-lg border font-bold ${currentTheme.btnSecondary}`}
+                        >
+                          全選
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedShipIds([])}
+                          className={`min-h-[40px] px-3 rounded-lg border font-bold ${currentTheme.btnSecondary}`}
+                        >
+                          取消全選
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className={`max-h-60 overflow-y-auto rounded-xl border divide-y ${currentTheme.border}`}>
+                      {ships.length === 0 ? (
+                        <div className={`p-4 text-center ${currentTheme.textMuted}`}>目前沒有單艦資料</div>
+                      ) : ships.map(ship => {
+                        const parentClass = classes.find(item => item.id === ship.class_id);
+                        const checked = selectedShipIds.includes(ship.id);
+                        return (
+                          <label key={ship.id} className="min-h-[48px] px-3 py-2 flex items-center gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => setSelectedShipIds(prev => checked ? prev.filter(id => id !== ship.id) : [...prev, ship.id])}
+                              className="w-5 h-5 accent-cyan-500 shrink-0"
+                            />
+                            <span className={`font-mono font-black ${currentTheme.accentText}`}>{ship.hull_number}</span>
+                            <span className="font-bold flex-1">{ship.name_zh}</span>
+                            <span className={`text-[11px] ${currentTheme.textMuted}`}>{parentClass?.code || '未分類'}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={selectedShipIds.length === 0}
+                      onClick={handleDeleteSelectedShips}
+                      className="w-full min-h-[46px] rounded-xl border border-red-500/60 bg-red-950 text-red-200 font-bold disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99] transition"
+                    >
+                      刪除勾選的單艦（{selectedShipIds.length}）
+                    </button>
+                  </div>
+
                   <div className={`p-3.5 rounded-2xl border space-y-2.5 ${currentTheme.subPanelBg}`}>
                     <span className={`font-bold block ${currentTheme.accentText}`}>Wikipedia 單艦資料匯入</span>
                     <div className="flex gap-2">

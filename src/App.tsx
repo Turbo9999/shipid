@@ -192,10 +192,10 @@ export default function App() {
     return Array.from(set);
   }, [classes]);
 
-  // 🌐 維基百科深度解析：艦型基本資料 ＋ 艦隻列表(舷號/艦名/狀態)
+  // 🌐 維基百科官方 Action API 深度抓取
   const handleFetchWikipedia = async () => {
     if (!wikiQuery.trim()) {
-      alert('請先輸入維基條目名稱或網址 (例: 052D型导弹驱逐舰)');
+      alert('請輸入條目名稱或網址 (例: 052D型导弹驱逐舰 或 054A)');
       return;
     }
 
@@ -203,118 +203,152 @@ export default function App() {
     setParsedShips([]);
 
     try {
-      let title = wikiQuery.trim();
-      if (title.includes('wikipedia.org/wiki/')) {
-        title = decodeURIComponent(title.split('wikipedia.org/wiki/')[1].split(/[?#]/)[0]);
+      let pageTitle = wikiQuery.trim();
+      if (pageTitle.includes('wikipedia.org/wiki/')) {
+        pageTitle = decodeURIComponent(pageTitle.split('wikipedia.org/wiki/')[1].split(/[?#]/)[0]);
       }
 
-      // 1. 抓取條目 Summary (圖片、名稱、摘要)
-      const resSummary = await fetch(`https://zh.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
-      if (!resSummary.ok) throw new Error('找不到該條目，請確認名稱是否正確！');
-      const data = await resSummary.json();
-      const extractText = data.extract || '';
+      // 1. 抓取 Summary 取得封面主圖與摘要
+      let imgUrl = '';
+      let summaryText = '';
+      let realTitle = pageTitle;
 
-      const codeMatch = title.match(/([0-9A-Za-z\-]+)(?:型|級)/);
-      const guessedCode = codeMatch ? codeMatch[1] : title.slice(0, 6);
+      try {
+        const sumResp = await fetch(`https://zh.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`);
+        if (sumResp.ok) {
+          const sumData = await sumResp.json();
+          imgUrl = sumData.originalimage?.source || sumData.thumbnail?.source || '';
+          summaryText = sumData.extract || '';
+          realTitle = sumData.title || pageTitle;
+        }
+      } catch (err) {
+        console.warn('Summary 抓取略過，改由 Parse API 補足');
+      }
 
+      // 2. 透過標準 Action API 抓取 HTML（自帶 origin=* 絕不被 CORS 擋，且自動處理繁簡重定向）
+      const parseApiUrl = `https://zh.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(pageTitle)}&prop=text|images&format=json&origin=*&redirects=1`;
+      const parseResp = await fetch(parseApiUrl);
+      const parseJson = await parseResp.json();
+
+      if (parseJson.error) {
+        throw new Error(parseJson.error.info || '找不到該條目，請確認名稱是否正確！');
+      }
+
+      const rawHtml = parseJson.parse?.text?.['*'] || '';
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rawHtml, 'text/html');
+
+      // 補足未抓到的主圖
+      if (!imgUrl) {
+        const firstImg = doc.querySelector('table.infobox img') || doc.querySelector('.thumbimage');
+        if (firstImg) {
+          let src = firstImg.getAttribute('src') || '';
+          if (src.startsWith('//')) src = 'https:' + src;
+          // 替換為較高解析度
+          imgUrl = src.replace(/\/thumb(\/.*)\/[^\/]+$/, '$1');
+        }
+      }
+
+      // 智能推估艦型代號
+      const codeMatch = realTitle.match(/([0-9A-Za-z\-]+)(?:型|級)/);
+      const guessedCode = codeMatch ? codeMatch[1] : realTitle.slice(0, 6);
+
+      // 智能分類
       let guessedCategory = '驅逐艦';
-      if (extractText.includes('巡防艦') || extractText.includes('护卫舰')) guessedCategory = '巡防艦';
-      else if (extractText.includes('驅逐艦') || extractText.includes('驱逐舰')) guessedCategory = '驅逐艦';
-      else if (extractText.includes('登陸艦') || extractText.includes('登陆舰') || extractText.includes('兩棲')) guessedCategory = '兩棲登陸艦';
-      else if (extractText.includes('巡邏艦') || extractText.includes('巡逻舰')) guessedCategory = '巡邏艦';
-      else if (extractText.includes('航空母艦') || extractText.includes('航母')) guessedCategory = '航空母艦';
-      else if (extractText.includes('潛艇') || extractText.includes('潜艇')) guessedCategory = '潛艦';
+      const fullText = (summaryText + ' ' + doc.body.textContent).slice(0, 2000);
+      if (fullText.includes('巡防艦') || fullText.includes('护卫舰')) guessedCategory = '巡防艦';
+      else if (fullText.includes('驅逐艦') || fullText.includes('驱逐舰')) guessedCategory = '驅逐艦';
+      else if (fullText.includes('登陸艦') || fullText.includes('登陆舰') || fullText.includes('兩棲')) guessedCategory = '兩棲登陸艦';
+      else if (fullText.includes('巡邏艦') || fullText.includes('巡逻舰')) guessedCategory = '巡邏艦';
+      else if (fullText.includes('航空母艦') || fullText.includes('航母')) guessedCategory = '航空母艦';
+      else if (fullText.includes('潛艇') || fullText.includes('潜艇')) guessedCategory = '潛艦';
 
+      // 智能英文代號
       let guessedNato = '';
-      if (extractText.includes('北約代號') || extractText.includes('北约代号')) {
-        const natoMatch = extractText.match(/北[約约]代[號号][：:\s]*([A-Za-z0-9\-]+)/);
-        if (natoMatch) guessedNato = natoMatch[1];
-      }
+      const natoMatch = fullText.match(/北[約约]代[號号][：:\s]*([A-Za-z0-9\-]+)/);
+      if (natoMatch) guessedNato = natoMatch[1];
 
+      // 智能武裝
       let weaponsSummary = '';
       const weaponKeywords = ['垂直發射', '垂直发射', '艦砲', '舰炮', '防空導彈', '防空导弹', '反艦導彈', '反舰导弹', '魚雷', '鱼雷'];
-      const sentences = extractText.split(/[。；;]/);
-      const matchedSentences = sentences.filter((s: string) => weaponKeywords.some(k => s.includes(k)));
-      if (matchedSentences.length > 0) {
-        weaponsSummary = matchedSentences.join('；').slice(0, 100);
-      }
+      const sentences = fullText.split(/[。；;]/);
+      const matched = sentences.filter((s: string) => weaponKeywords.some(k => s.includes(k)));
+      if (matched.length > 0) weaponsSummary = matched.join('；').slice(0, 100);
 
+      // 填入艦型表單
       setNewClass({
         code: newClass.code || guessedCode,
-        name_zh: data.title || '',
+        name_zh: realTitle,
         category: newClass.category || guessedCategory,
         nato_code: newClass.nato_code || guessedNato,
-        image_url: data.originalimage?.source || data.thumbnail?.source || '',
+        image_url: imgUrl || newClass.image_url,
         visual_features: newClass.visual_features || '相控陣雷達, 封閉式艦橋',
-        weapons_summary: weaponsSummary || extractText.slice(0, 80)
+        weapons_summary: weaponsSummary || summaryText.slice(0, 80)
       });
 
-      // 2. 抓取條目 HTML 解析「艦名列表」表格
-      const resHtml = await fetch(`https://zh.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`);
-      if (resHtml.ok) {
-        const htmlText = await resHtml.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, 'text/html');
+      // 3. 深入解析所有表格：掃描包含「舷號 / 艦名」的艦隻清單
+      const foundShips: ParsedShipItem[] = [];
+      const tables = Array.from(doc.querySelectorAll('table'));
 
-        const foundShips: ParsedShipItem[] = [];
-        const tables = Array.from(doc.querySelectorAll('table.wikitable'));
+      tables.forEach(table => {
+        const rows = Array.from(table.querySelectorAll('tr'));
+        if (rows.length < 2) return;
 
-        tables.forEach(table => {
-          const rows = Array.from(table.querySelectorAll('tr'));
-          if (rows.length < 2) return;
+        let hullIdx = -1;
+        let nameIdx = -1;
+        let statusIdx = -1;
 
-          // 偵測表頭欄位索引 (舷號、艦名、狀態)
-          let hullIdx = -1;
-          let nameIdx = -1;
-          let statusIdx = -1;
-
-          const headerCells = Array.from(rows[0].querySelectorAll('th, td')).map(c => c.textContent?.trim() || '');
-          headerCells.forEach((text, i) => {
-            if (/舷[號号]|編[號号]|Hull/i.test(text)) hullIdx = i;
-            if (/艦名|舰名|Name/i.test(text)) nameIdx = i;
-            if (/狀[態态]|服役|現況|现况|Status/i.test(text)) statusIdx = i;
+        // 檢查前 2 行作為表頭
+        for (let r = 0; r < Math.min(2, rows.length); r++) {
+          const cells = Array.from(rows[r].querySelectorAll('th, td'));
+          cells.forEach((cell, idx) => {
+            const txt = cell.textContent?.trim() || '';
+            if (/舷[號号]|編[號号]|Pennant|Hull/i.test(txt) && hullIdx === -1) hullIdx = idx;
+            if (/艦名|舰名|Name/i.test(txt) && nameIdx === -1) nameIdx = idx;
+            if (/狀[態态]|服役|現況|现况|Status/i.test(txt) && statusIdx === -1) statusIdx = idx;
           });
+        }
 
-          // 若找到舷號與艦名欄位，開始批次擷取列資料
-          if (hullIdx !== -1 && nameIdx !== -1) {
-            for (let r = 1; r < rows.length; r++) {
-              const cells = Array.from(rows[r].querySelectorAll('td, th'));
-              if (cells.length > Math.max(hullIdx, nameIdx)) {
-                let hull = cells[hullIdx]?.textContent?.trim() || '';
-                let name = cells[nameIdx]?.textContent?.trim() || '';
-                let status = statusIdx !== -1 ? cells[statusIdx]?.textContent?.trim() || '現役' : '現役';
+        // 若找到關鍵欄位，提取資料行
+        if (hullIdx !== -1 && nameIdx !== -1) {
+          for (let i = 1; i < rows.length; i++) {
+            const cells = Array.from(rows[i].querySelectorAll('td, th'));
+            if (cells.length > Math.max(hullIdx, nameIdx)) {
+              let hull = cells[hullIdx]?.textContent?.trim() || '';
+              let name = cells[nameIdx]?.textContent?.trim() || '';
+              let status = statusIdx !== -1 ? (cells[statusIdx]?.textContent?.trim() || '現役') : '現役';
 
-                // 清理 wiki 引用標籤如 [1]、[註 1] 等雜訊
-                hull = hull.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '');
-                name = name.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '');
-                status = status.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '');
+              // 去除註解如 [1], [註2] 等
+              hull = hull.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '');
+              name = name.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '');
+              status = status.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '');
 
-                // 簡化狀態描述
-                if (status.includes('服役') || status.includes('现役') || status.includes('現役')) status = '現役';
-                else if (status.includes('試') || status.includes('试')) status = '海試';
-                else if (status.includes('舾') || status.includes('下水')) status = '建造/海試中';
-                else if (status.includes('退役')) status = '退役';
-                else status = status.slice(0, 10);
+              // 簡化狀態
+              if (/服役|現役|现役/.test(status)) status = '現役';
+              else if (/海試|海试|試航/.test(status)) status = '海試';
+              else if (/舾裝|舾装|下水|在建/.test(status)) status = '建造/舾裝中';
+              else if (/退役/.test(status)) status = '退役';
+              else status = status.slice(0, 8);
 
-                // 只有舷號格式符合標準 (長度 2~6 位英數字) 且艦名不為空時才納入
-                if (hull && name && /^[0-9A-Za-z\-]+$/.test(hull) && hull.length <= 8) {
-                  // 避免重複加入
-                  if (!foundShips.some(s => s.hull_number === hull)) {
-                    foundShips.push({ hull_number: hull, name_zh: name, status: status || '現役' });
-                  }
+              // 驗證舷號：長度 2~8 位英數字，艦名不為空
+              if (hull && name && /^[0-9A-Za-z\-]+$/.test(hull) && hull.length <= 8 && name.length <= 15) {
+                if (!foundShips.some(s => s.hull_number === hull)) {
+                  foundShips.push({ hull_number: hull, name_zh: name, status: status || '現役' });
                 }
               }
             }
           }
-        });
-
-        if (foundShips.length > 0) {
-          setParsedShips(foundShips);
-          setIncludeParsedShips(true);
         }
+      });
+
+      if (foundShips.length > 0) {
+        setParsedShips(foundShips);
+        setIncludeParsedShips(true);
+        alert(`✅ 成功抓取維基條目【${realTitle}】！\n並成功自表格解析出 ${foundShips.length} 艘單艦舷號與艦名！`);
+      } else {
+        alert(`✅ 成功抓取【${realTitle}】艦型資料！\n（該維基頁面未找到標準艦名表格，可於下方手動補充單艦）`);
       }
 
-      alert(`✅ 成功抓取維基百科【${data.title}】！${parsedShips.length > 0 ? `並成功識別出 ${parsedShips.length} 艘單艦舷號！` : ''}`);
     } catch (err: any) {
       alert(`抓取失敗：${err.message || '連線逾時'}`);
     } finally {
@@ -468,7 +502,7 @@ export default function App() {
     fetchData();
   };
 
-  // 艦型 ＋ 單艦批次新增至雲端
+  // 艦型 ＋ 單艦舷號批次寫入 Supabase
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
@@ -486,7 +520,7 @@ export default function App() {
       weapons_summary: newClass.weapons_summary.trim()
     }]);
 
-    // 2. 若有從維基勾選匯入單艦列表，批次寫入 ships 資料表
+    // 2. 若勾選單艦，批次寫入 ships
     if (includeParsedShips && parsedShips.length > 0) {
       const shipPayload = parsedShips.map(s => ({
         id: `s-${s.hull_number.trim()}`,
@@ -495,8 +529,6 @@ export default function App() {
         name_zh: s.name_zh.trim(),
         status: s.status.trim()
       }));
-
-      // 使用 upsert 避免舷號已存在時報錯
       await supabase.from('ships').upsert(shipPayload);
     }
 
@@ -505,7 +537,7 @@ export default function App() {
     setParsedShips([]);
     setShowAdmin(false);
     fetchData();
-    alert(`🎉 艦型【${newClass.code}】與 ${includeParsedShips ? parsedShips.length : 0} 艘單艦舷號已全部建立完成！`);
+    alert(`🎉 艦型【${newClass.code}】與 ${includeParsedShips ? parsedShips.length : 0} 艘單艦舷號已成功儲存至雲端！`);
   };
 
   const handleCreateShip = async (e: React.FormEvent) => {
@@ -1427,7 +1459,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 後台管理抽屜 (含維基百科艦型＋單艦列表批次解析) */}
+      {/* 後台管理抽屜 */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
           <div className="w-full max-w-md bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl">
@@ -1505,7 +1537,7 @@ export default function App() {
 
               {activeTab === 'classes' && (
                 <div className="space-y-4">
-                  {/* 🌐 維基百科一鍵自動抓取面板 */}
+                  {/* 🌐 維基百科一鍵深度抓取面板 */}
                   <div className="p-3 bg-gradient-to-r from-cyan-950/40 to-slate-950 border border-cyan-500/30 rounded-2xl space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-cyan-300 text-xs flex items-center gap-1.5">
@@ -1531,7 +1563,7 @@ export default function App() {
                         onClick={handleFetchWikipedia}
                         className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition shrink-0 active:scale-95 shadow-md shadow-cyan-950"
                       >
-                        {isFetchingWiki ? '深度分析中...' : '自動填表'}
+                        {isFetchingWiki ? '解析中...' : '自動填表'}
                       </button>
                     </div>
 

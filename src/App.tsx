@@ -52,7 +52,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [expandedSpecsId, setExpandedSpecsId] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.1');
+  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.2');
 
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
@@ -155,8 +155,8 @@ export default function App() {
     const cachedClasses = localStorage.getItem('tn_cache_classes');
     const cachedShips = localStorage.getItem('tn_cache_ships');
     const cachedBanner = localStorage.getItem('tn_banner_text');
-    if (cachedClasses && classes.length === 0) setClasses(JSON.parse(cachedClasses));
-    if (cachedShips && ships.length === 0) setShips(JSON.parse(cachedShips));
+    if (cachedClasses) setClasses(JSON.parse(cachedClasses));
+    if (cachedShips) setShips(JSON.parse(cachedShips));
     if (cachedBanner && !bannerText) setBannerText(cachedBanner);
 
     if (!supabase) {
@@ -165,9 +165,12 @@ export default function App() {
     }
 
     try {
-      const { data: cData } = await supabase.from('ship_classes').select('*').order('code');
-      const { data: sData } = await supabase.from('ships').select('*').order('hull_number');
+      const { data: cData, error: cErr } = await supabase.from('ship_classes').select('*').order('code');
+      const { data: sData, error: sErr } = await supabase.from('ships').select('*').order('hull_number');
       const { data: bData } = await supabase.from('app_settings').select('banner_text').eq('id', 'global').maybeSingle();
+
+      if (cErr) console.error('艦型讀取錯誤:', cErr);
+      if (sErr) console.error('單艦讀取錯誤:', sErr);
 
       if (cData) {
         setClasses(cData as ShipClass[]);
@@ -522,7 +525,7 @@ export default function App() {
 
   const saveClassEdit = async () => {
     if (!editingClass || !supabase) return;
-    await supabase.from('ship_classes').update({
+    const { error } = await supabase.from('ship_classes').update({
       name_zh: editingClass.name_zh,
       category: editingClass.category,
       nato_code: editingClass.nato_code || '',
@@ -540,19 +543,29 @@ export default function App() {
       electronic_warfare: editingClass.electronic_warfare || '',
       aircraft: editingClass.aircraft || ''
     }).eq('id', editingClass.id);
+
+    if (error) {
+      alert(`儲存失敗: ${error.message}`);
+      return;
+    }
     setEditingClass(null);
     fetchData();
   };
 
   const saveShipEdit = async () => {
     if (!editingShip || !supabase) return;
-    await supabase.from('ships').update({
+    const { error } = await supabase.from('ships').update({
       name_zh: editingShip.name_zh,
       status: editingShip.status,
       fleet: editingShip.fleet || '',
       squadron: editingShip.squadron || '',
       commissioned_year: editingShip.commissioned_year || ''
     }).eq('id', editingShip.id);
+
+    if (error) {
+      alert(`更新失敗: ${error.message}`);
+      return;
+    }
     setEditingShip(null);
     fetchData();
   };
@@ -562,7 +575,7 @@ export default function App() {
     if (!supabase || !newClass.code) return;
     const cid = `c-${newClass.code.toLowerCase().trim()}`;
 
-    await supabase.from('ship_classes').insert([{
+    const { error: cErr } = await supabase.from('ship_classes').upsert([{
       id: cid,
       code: newClass.code.trim(),
       name_zh: newClass.name_zh?.trim() || '',
@@ -583,6 +596,11 @@ export default function App() {
       aircraft: newClass.aircraft?.trim() || ''
     }]);
 
+    if (cErr) {
+      alert(`艦型寫入失敗: ${cErr.message}\n請確認 Supabase SQL 欄位是否已新增完整！`);
+      return;
+    }
+
     if (includeParsedShips && parsedShips.length > 0) {
       const shipPayload = parsedShips.map(s => ({
         id: `s-${s.hull_number.trim()}`,
@@ -594,22 +612,23 @@ export default function App() {
         squadron: s.squadron || '',
         commissioned_year: s.commissioned_year || ''
       }));
-      await supabase.from('ships').upsert(shipPayload);
+      const { error: sErr } = await supabase.from('ships').upsert(shipPayload);
+      if (sErr) console.error('單艦寫入警告:', sErr);
     }
 
     setNewClass({ code: '', name_zh: '', category: '', nato_code: '', image_url: '', overview: '' });
     setWikiQuery('');
     setParsedShips([]);
     setShowAdmin(false);
-    fetchData();
-    alert(`艦型【${newClass.code}】與 ${includeParsedShips ? parsedShips.length : 0} 艘單艦完整參數已寫入雲端！`);
+    await fetchData();
+    alert(`🎉 艦型【${newClass.code}】與 ${includeParsedShips ? parsedShips.length : 0} 艘單艦完整參數已寫入雲端！`);
   };
 
   const handleCreateShip = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
     const sid = `s-${newShip.hull_number.trim()}`;
-    await supabase.from('ships').insert([{
+    const { error } = await supabase.from('ships').upsert([{
       id: sid,
       class_id: newShip.class_id,
       hull_number: newShip.hull_number.trim(),
@@ -619,6 +638,12 @@ export default function App() {
       squadron: newShip.squadron.trim(),
       commissioned_year: newShip.commissioned_year.trim()
     }]);
+
+    if (error) {
+      alert(`新增失敗: ${error.message}`);
+      return;
+    }
+
     setNewShip({ class_id: '', hull_number: '', name_zh: '', status: '現役', fleet: '', squadron: '', commissioned_year: '' });
     setShowAdmin(false);
     fetchData();
@@ -762,7 +787,7 @@ export default function App() {
               </div>
             </div>
             <div className={`flex items-center gap-1 text-xs font-mono ${theme.accentText} tracking-wider`}>
-              <span>資料載入中...</span>
+              <span>資料同步中...</span>
             </div>
           </div>
         ) : (

@@ -47,24 +47,24 @@ export default function App() {
   // 底部導航分頁
   const [activeBottomTab, setActiveBottomTab] = useState<BottomTab>('all');
 
-  // 1. 字體大小設定 (依手機設定 / 小 / 中 / 大)
+  // 字體大小設定 (依手機設定 / 小 / 中 / 大)
   const [fontSize, setFontSize] = useState<FontSizeOption>(() => {
     return (localStorage.getItem('tn_font_size') as FontSizeOption) || 'system';
   });
 
-  // 2. 我的最愛 (儲存 class_id 陣列)
+  // 我的最愛 (儲存 class_id 陣列)
   const [favorites, setFavorites] = useState<string[]>(() => {
     const saved = localStorage.getItem('tn_favorites');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // 3. 查詢點閱排行 (Key: class_id, Value: 點擊次數)
+  // 查詢點閱排行 (Key: class_id, Value: 點擊次數)
   const [queryCounts, setQueryCounts] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('tn_query_counts');
     return saved ? JSON.parse(saved) : {};
   });
 
-  // 4. 每月使用次數統計 (Key: "YYYY-MM", Value: 次數)
+  // 每月使用次數統計 (Key: "YYYY-MM", Value: 次數)
   const [monthlyUsage, setMonthlyUsage] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('tn_monthly_usage');
     return saved ? JSON.parse(saved) : {};
@@ -93,7 +93,7 @@ export default function App() {
     document.title = "TAIWAN NAVY";
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().then(granted => {
-        if (granted) console.log('✅ Persistent storage: 已獲得系統長效儲存保護');
+        if (granted) console.log('✅ Persistent storage granted: 離線資料已受長效保護');
       });
     }
 
@@ -167,13 +167,12 @@ export default function App() {
     localStorage.setItem('tn_font_size', size);
   };
 
-  // 根據字體設定產生全站根樣式 Class
   const getFontSizeClass = () => {
     switch (fontSize) {
       case 'sm': return 'text-[13px] leading-normal';
       case 'md': return 'text-[15px] leading-relaxed';
       case 'lg': return 'text-[17px] leading-loose';
-      default: return 'text-sm leading-normal'; // 依手機系統預設
+      default: return 'text-sm leading-normal';
     }
   };
 
@@ -210,12 +209,10 @@ export default function App() {
     (c.nato_code && c.nato_code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // 我的最愛篩選
   if (activeBottomTab === 'favorites') {
     displayedClasses = displayedClasses.filter(c => favorites.includes(c.id));
   }
 
-  // 查詢排行排序（降冪）
   if (activeBottomTab === 'rankings') {
     displayedClasses = [...displayedClasses].sort((a, b) => {
       const countA = queryCounts[a.id] || 0;
@@ -319,7 +316,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* 字體調整切換鈕 */}
             <div className="bg-slate-900 border border-slate-800 rounded-full p-0.5 flex text-[10px] font-bold">
               {(['system', 'sm', 'md', 'lg'] as FontSizeOption[]).map(size => (
                 <button
@@ -368,7 +364,7 @@ export default function App() {
 
         {/* 主內容區切換 */}
         {activeBottomTab === 'stats' ? (
-          /* --- 使用次數統計頁面 --- */
+          /* 每月統計頁面 */
           <div className="space-y-4 pt-1">
             <div className="text-xs font-mono tracking-wider text-slate-400 font-bold uppercase flex items-center gap-1.5">
               <span>📊</span> 每月使用與查詢統計報表
@@ -402,7 +398,7 @@ export default function App() {
             </div>
           </div>
         ) : (
-          /* --- 艦型列表 / 我的最愛 / 排行榜 --- */
+          /* 艦型列表 / 我的最愛 / 排行榜 */
           <section className="space-y-3">
             {searchTerm && filteredShips.length > 0 && (
               <div className="bg-gradient-to-b from-cyan-950/30 to-slate-900/80 border border-cyan-500/30 rounded-2xl p-3.5 shadow-lg">
@@ -483,7 +479,6 @@ export default function App() {
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        {/* 星號收藏鈕 */}
                         <button
                           onClick={(e) => toggleFavorite(c.id, e)}
                           className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition active:scale-75 ${isFav ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-500 hover:text-amber-400'}`}
@@ -595,33 +590,35 @@ export default function App() {
         </footer>
       </main>
 
-      {/* --- 底部常駐橫向功能導航列 (戰術線條 HUD 風格) --- */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0b0f17]/95 backdrop-blur-xl border-t border-slate-800/80 flex justify-center shadow-2xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0.5rem)" }}>
+      {/* --- 底部常駐橫向功能導航列 (標準極簡戰術向量圖標) --- */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0b0f17]/95 backdrop-blur-xl border-t border-slate-800 flex justify-center shadow-2xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0.5rem)" }}>
         <div className="w-full max-w-md flex justify-around items-center px-3 py-1.5 text-[11px] font-medium">
           
           {/* 全部艦型 */}
           <button
+            type="button"
             onClick={() => setActiveBottomTab('all')}
-            className={}
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition relative ${activeBottomTab === 'all' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'}`}
           >
             {activeBottomTab === 'all' && (
               <span className="absolute -top-1.5 w-6 h-0.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
             )}
-            <svg className="w-5 h-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={activeBottomTab === 'all' ? 2.2 : 1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2 17l1.5-6h17L22 17M4 17l-1 4h18l-1-4M9 11V6l4-2v7M15 11V8l3-1.5v4.5" />
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={activeBottomTab === 'all' ? 2.2 : 1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
             </svg>
             <span className="tracking-wider">全部艦型</span>
           </button>
 
           {/* 我的最愛 */}
           <button
+            type="button"
             onClick={() => setActiveBottomTab('favorites')}
-            className={}
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition relative ${activeBottomTab === 'favorites' ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'}`}
           >
             {activeBottomTab === 'favorites' && (
               <span className="absolute -top-1.5 w-6 h-0.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span>
             )}
-            <svg className="w-5 h-5 transition-transform duration-200" fill={activeBottomTab === 'favorites' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <svg className="w-5 h-5" fill={activeBottomTab === 'favorites' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
             </svg>
             <span className="tracking-wider">我的最愛</span>
@@ -629,27 +626,29 @@ export default function App() {
 
           {/* 查詢排行 */}
           <button
+            type="button"
             onClick={() => setActiveBottomTab('rankings')}
-            className={}
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition relative ${activeBottomTab === 'rankings' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'}`}
           >
             {activeBottomTab === 'rankings' && (
               <span className="absolute -top-1.5 w-6 h-0.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
             )}
-            <svg className="w-5 h-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={activeBottomTab === 'rankings' ? 2.2 : 1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={activeBottomTab === 'rankings' ? 2.2 : 1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.004 0V9.75m-6 0V6.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V9.75" />
             </svg>
             <span className="tracking-wider">查詢排行</span>
           </button>
 
           {/* 每月統計 */}
           <button
+            type="button"
             onClick={() => setActiveBottomTab('stats')}
-            className={}
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition relative ${activeBottomTab === 'stats' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'}`}
           >
             {activeBottomTab === 'stats' && (
               <span className="absolute -top-1.5 w-6 h-0.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
             )}
-            <svg className="w-5 h-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={activeBottomTab === 'stats' ? 2.2 : 1.8}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={activeBottomTab === 'stats' ? 2.2 : 1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
             </svg>
             <span className="tracking-wider">每月統計</span>
@@ -854,7 +853,7 @@ export default function App() {
                   type="text"
                   value={editingShip.name_zh}
                   onChange={e => setEditingShip({ ...editingShip, name_zh: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
               <div>
@@ -864,7 +863,7 @@ export default function App() {
                   placeholder="例如：現役、海試、退役"
                   value={editingShip.status}
                   onChange={e => setEditingShip({ ...editingShip, status: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
             </div>

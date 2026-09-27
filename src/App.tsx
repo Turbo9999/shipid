@@ -52,7 +52,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [expandedSpecsId, setExpandedSpecsId] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.4');
+  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.5');
 
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
@@ -263,7 +263,7 @@ export default function App() {
           const th = row.querySelector('th')?.textContent?.trim() || '';
           if (keywords.some(k => th.includes(k))) {
             const td = row.querySelector('td');
-            if (td) return td.textContent?.replace(/\[.*?\]/g, '').trim().slice(0, 200) || '';
+            if (td) return td.textContent?.replace(/\[.*?\]/g, '').trim().slice(0, 300) || '';
           }
         }
         return '';
@@ -308,9 +308,9 @@ export default function App() {
         propulsion: propulsion || '柴燃聯合動力方式 (CODOG)',
         max_speed: maxSpeedVal || '30 節',
         crew: crewVal || '約 280 人',
-        radar_systems: radarVal || '346A型 主動相位陣列雷達、超視距對海雷達',
-        weapons_summary: weaponsVal || '64單元通用垂直發射系統、130mm主砲、紅旗-10、1130近防砲',
-        electronic_warfare: ewVal || '726型 電子對抗干擾系統',
+        radar_systems: radarVal || '346A型 主動相位陣列雷達、超視距對海雷達、517B型對空警戒雷達',
+        weapons_summary: weaponsVal || '64單元通用垂直發射系統、130mm主砲、紅旗-10防空飛彈、1130近防砲',
+        electronic_warfare: ewVal || '726型 電子對抗系統、主被動干擾發射器',
         aircraft: airVal || '直-9C / 直-20F 反潛直升機 1 架'
       });
 
@@ -627,7 +627,7 @@ export default function App() {
     setShowAdmin(false);
 
     await fetchData();
-    alert(`🎉 已成功將【${newClass.code}】的概述、11項技術數據與單艦全面同步至前台！`);
+    alert(`已成功將【${newClass.code}】的概述、11項技術數據與單艦全面同步至前台！`);
   };
 
   const handleCreateShip = async (e: React.FormEvent) => {
@@ -653,6 +653,25 @@ export default function App() {
     setNewShip({ class_id: '', hull_number: '', name_zh: '', status: '現役', fleet: '', squadron: '', commissioned_year: '' });
     setShowAdmin(false);
     fetchData();
+  };
+
+  // 輔助函式：將長段落文字根據頓號、分號、換行等符號，自動分段為條列清單
+  const renderFormattedList = (text?: string) => {
+    if (!text) return <span className="text-slate-100 font-medium">-</span>;
+    const items = text.split(/[\n\r；;、]/).map(s => s.trim()).filter(Boolean);
+    if (items.length <= 1) {
+      return <span className="text-slate-100 font-medium leading-relaxed">{text}</span>;
+    }
+    return (
+      <div className="space-y-1 pt-0.5">
+        {items.map((item, idx) => (
+          <div key={idx} className="flex items-start gap-1.5 text-slate-100 leading-snug">
+            <span className="text-slate-500 font-mono text-[10px] leading-tight select-none">•</span>
+            <span className="font-medium">{item}</span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const sortedMonths = Object.keys(monthlyUsage).sort().reverse();
@@ -876,7 +895,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* 👉 右側工具列：比對旁邊多一個「編輯」按鈕！ */}
+                      {/* 卡片頂部工具列 */}
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
@@ -931,56 +950,89 @@ export default function App() {
                           </p>
                         </div>
 
-                        {/* 第二欄：技術數據 */}
+                        {/* 第二欄：技術數據 (全數白色字體 ＋ 自動條列分段) */}
                         <div className="space-y-1.5">
                           <button
                             type="button"
                             onClick={() => setExpandedSpecsId(isSpecsExpanded ? null : c.id)}
-                            className={`w-full py-2 px-3 rounded-xl border flex items-center justify-between text-xs font-semibold transition ${isSpecsExpanded ? 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300' : 'bg-slate-900/80 border-slate-800 text-slate-300'}`}
+                            className={`w-full py-2 px-3 rounded-xl border flex items-center justify-between text-xs font-semibold transition ${isSpecsExpanded ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-900/80 border-slate-800 text-slate-300'}`}
                           >
                             <span className="font-mono">{isSpecsExpanded ? '▼' : '▶'} 技術數據 (11 項技術指標)</span>
                             <span className="text-[10px] text-slate-500 font-normal">{isSpecsExpanded ? '收合' : '展開完整數據'}</span>
                           </button>
 
                           {isSpecsExpanded && (
-                            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
-                              <div className="grid grid-cols-2 gap-2 border-b border-slate-900 pb-2">
-                                <div><span className="text-slate-500 block text-[10px]">排水量:</span><span className="text-slate-200 font-medium">{c.displacement || '-'}</span></div>
-                                <div><span className="text-slate-500 block text-[10px]">最高速度:</span><span className={`font-mono font-bold ${theme.accentText}`}>{c.max_speed || '-'}</span></div>
+                            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
+                              {/* 排水量與最高速度 */}
+                              <div className="grid grid-cols-2 gap-2 border-b border-slate-900 pb-2.5">
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">排水量:</span>
+                                  <span className="text-slate-100 font-medium">{c.displacement || '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">最高速度:</span>
+                                  <span className="text-slate-100 font-medium font-mono">{c.max_speed || '-'}</span>
+                                </div>
                               </div>
-                              <div className="grid grid-cols-2 gap-2 border-b border-slate-900 pb-2">
-                                <div><span className="text-slate-500 block text-[10px]">長度:</span><span className="text-slate-200">{c.length || '-'}</span></div>
-                                <div><span className="text-slate-500 block text-[10px]">型寬:</span><span className="text-slate-200">{c.beam || '-'}</span></div>
+
+                              {/* 長度與型寬 */}
+                              <div className="grid grid-cols-2 gap-2 border-b border-slate-900 pb-2.5">
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">長度:</span>
+                                  <span className="text-slate-100 font-medium">{c.length || '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">型寬:</span>
+                                  <span className="text-slate-100 font-medium">{c.beam || '-'}</span>
+                                </div>
                               </div>
-                              <div className="grid grid-cols-2 gap-2 border-b border-slate-900 pb-2">
-                                <div><span className="text-slate-500 block text-[10px]">動力方式:</span><span className="text-slate-200">{c.propulsion || '-'}</span></div>
-                                <div><span className="text-slate-500 block text-[10px]">動力輸出:</span><span className="text-slate-200">{c.power_output || '-'}</span></div>
+
+                              {/* 動力方式與動力輸出 */}
+                              <div className="grid grid-cols-2 gap-2 border-b border-slate-900 pb-2.5">
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">動力方式:</span>
+                                  <span className="text-slate-100 font-medium">{c.propulsion || '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">動力輸出:</span>
+                                  <span className="text-slate-100 font-medium">{c.power_output || '-'}</span>
+                                </div>
                               </div>
-                              <div className="border-b border-slate-900 pb-2">
-                                <span className="text-slate-500 block text-[10px]">乘員:</span>
-                                <span className="text-slate-200">{c.crew || '-'}</span>
+
+                              {/* 乘員 */}
+                              <div className="border-b border-slate-900 pb-2.5">
+                                <span className="text-slate-400 block text-[10px]">乘員:</span>
+                                <span className="text-slate-100 font-medium">{c.crew || '-'}</span>
                               </div>
-                              <div className="border-b border-slate-900 pb-2">
-                                <span className="text-slate-500 block text-[10px]">搜索系統 (雷達/聲納):</span>
-                                <span className="text-cyan-300 font-mono text-[11px]">{c.radar_systems || '-'}</span>
+
+                              {/* 搜索系統 (白色文字 + 自動分段) */}
+                              <div className="border-b border-slate-900 pb-2.5">
+                                <span className="text-slate-400 block text-[10px] mb-0.5">搜索系統 (雷達/聲納):</span>
+                                {renderFormattedList(c.radar_systems)}
                               </div>
-                              <div className="border-b border-slate-900 pb-2">
-                                <span className="text-slate-500 block text-[10px]">武器系統:</span>
-                                <span className="text-slate-200 leading-relaxed text-[11px]">{c.weapons_summary || '-'}</span>
+
+                              {/* 武器系統 (白色文字 + 自動分段) */}
+                              <div className="border-b border-slate-900 pb-2.5">
+                                <span className="text-slate-400 block text-[10px] mb-0.5">武器系統:</span>
+                                {renderFormattedList(c.weapons_summary)}
                               </div>
-                              <div className="border-b border-slate-900 pb-2">
-                                <span className="text-slate-500 block text-[10px]">電戰系統:</span>
-                                <span className="text-slate-200 font-mono text-[11px]">{c.electronic_warfare || '-'}</span>
+
+                              {/* 電戰系統 (白色文字 + 自動分段) */}
+                              <div className="border-b border-slate-900 pb-2.5">
+                                <span className="text-slate-400 block text-[10px] mb-0.5">電戰系統:</span>
+                                {renderFormattedList(c.electronic_warfare)}
                               </div>
+
+                              {/* 艦載機 (白色文字 + 自動分段) */}
                               <div>
-                                <span className="text-slate-500 block text-[10px]">艦載機:</span>
-                                <span className="text-slate-200 text-[11px]">{c.aircraft || '-'}</span>
+                                <span className="text-slate-400 block text-[10px] mb-0.5">艦載機:</span>
+                                {renderFormattedList(c.aircraft)}
                               </div>
                             </div>
                           )}
                         </div>
 
-                        {/* 單艦列表 */}
+                        {/* 第三欄：單艦列表 */}
                         <div className="space-y-2 pt-1">
                           <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
                             <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
@@ -1087,14 +1139,14 @@ export default function App() {
                   <div className="space-y-1">
                     <div><span className="text-slate-500">排水量:</span> <span className="text-white">{compareShipA.displacement || '-'}</span></div>
                     <div><span className="text-slate-500">長度/型寬:</span> <span className="text-white">{compareShipA.length} / {compareShipA.beam}</span></div>
-                    <div><span className="text-slate-500">最高速度:</span> <span className="text-cyan-400 font-bold">{compareShipA.max_speed || '-'}</span></div>
-                    <div><span className="text-slate-500">搜索系統:</span> <span className="text-slate-300 block">{compareShipA.radar_systems || '-'}</span></div>
+                    <div><span className="text-slate-500">最高速度:</span> <span className="text-white font-mono">{compareShipA.max_speed || '-'}</span></div>
+                    <div><span className="text-slate-500 block pt-1">搜索系統:</span> <div className="text-white">{renderFormattedList(compareShipA.radar_systems)}</div></div>
                   </div>
                   <div className="space-y-1 pl-3">
                     <div><span className="text-slate-500">排水量:</span> <span className="text-white">{compareShipB.displacement || '-'}</span></div>
                     <div><span className="text-slate-500">長度/型寬:</span> <span className="text-white">{compareShipB.length} / {compareShipB.beam}</span></div>
-                    <div><span className="text-slate-500">最高速度:</span> <span className="text-cyan-400 font-bold">{compareShipB.max_speed || '-'}</span></div>
-                    <div><span className="text-slate-500">搜索系統:</span> <span className="text-slate-300 block">{compareShipB.radar_systems || '-'}</span></div>
+                    <div><span className="text-slate-500">最高速度:</span> <span className="text-white font-mono">{compareShipB.max_speed || '-'}</span></div>
+                    <div><span className="text-slate-500 block pt-1">搜索系統:</span> <div className="text-white">{renderFormattedList(compareShipB.radar_systems)}</div></div>
                   </div>
                 </div>
               </div>
@@ -1159,9 +1211,9 @@ export default function App() {
             <div><label className="text-slate-400 block mb-1">動力方式</label><input type="text" value={editingClass.propulsion || ''} onChange={e => setEditingClass({ ...editingClass, propulsion: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">動力輸出</label><input type="text" value={editingClass.power_output || ''} onChange={e => setEditingClass({ ...editingClass, power_output: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">乘員</label><input type="text" value={editingClass.crew || ''} onChange={e => setEditingClass({ ...editingClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">搜索系統 (雷達/聲納)</label><input type="text" value={editingClass.radar_systems || ''} onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">武器系統</label><input type="text" value={editingClass.weapons_summary || ''} onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">電戰系統</label><input type="text" value={editingClass.electronic_warfare || ''} onChange={e => setEditingClass({ ...editingClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">搜索系統 (雷達/聲納)</label><textarea rows={3} placeholder="以頓號或換行隔開各雷達型號" value={editingClass.radar_systems || ''} onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">武器系統</label><textarea rows={3} placeholder="以頓號或換行隔開各武器型號" value={editingClass.weapons_summary || ''} onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">電戰系統</label><textarea rows={2} placeholder="以頓號或換行隔開" value={editingClass.electronic_warfare || ''} onChange={e => setEditingClass({ ...editingClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">艦載機</label><input type="text" value={editingClass.aircraft || ''} onChange={e => setEditingClass({ ...editingClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2 bg-slate-800 rounded-xl text-slate-300">取消</button>
@@ -1260,9 +1312,9 @@ export default function App() {
                         <input placeholder="動力輸出" value={newClass.power_output || ''} onChange={e => setNewClass({ ...newClass, power_output: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                       </div>
                       <input placeholder="乘員" value={newClass.crew || ''} onChange={e => setNewClass({ ...newClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
-                      <input placeholder="搜索系統 (雷達/聲納)" value={newClass.radar_systems || ''} onChange={e => setNewClass({ ...newClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
-                      <input placeholder="武器系統" value={newClass.weapons_summary || ''} onChange={e => setNewClass({ ...newClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
-                      <input placeholder="電戰系統" value={newClass.electronic_warfare || ''} onChange={e => setNewClass({ ...newClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
+                      <textarea rows={2} placeholder="搜索系統 (雷達/聲納，以頓號或換行隔開)" value={newClass.radar_systems || ''} onChange={e => setNewClass({ ...newClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
+                      <textarea rows={2} placeholder="武器系統 (以頓號或換行隔開)" value={newClass.weapons_summary || ''} onChange={e => setNewClass({ ...newClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
+                      <textarea rows={2} placeholder="電戰系統" value={newClass.electronic_warfare || ''} onChange={e => setNewClass({ ...newClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                       <input placeholder="艦載機" value={newClass.aircraft || ''} onChange={e => setNewClass({ ...newClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                     </div>
 

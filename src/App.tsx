@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
+// 目前客戶端版本號
+const CURRENT_APP_VERSION = '2026.09.27 v4.5';
+
 // --- 資料型別定義 ---
 interface ShipClass {
   id: string;
@@ -51,7 +54,8 @@ export default function App() {
   const [ships, setShips] = useState<Ship[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [lastUpdated, setLastUpdated] = useState<string>('2026/09/27');
+  const [hasUpdateAvailable, setHasUpdateAvailable] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
@@ -69,7 +73,7 @@ export default function App() {
   });
 
   const [activeBottomTab, setActiveBottomTab] = useState<BottomTab>('classes');
-  const [showMoreModal, setShowMoreModal] = useState<null | 'rankings' | 'stats' | 'guide' | 'sources'>(null);
+  const [showMoreModal, setShowMoreModal] = useState<null | 'rankings' | 'stats' | 'guide' | 'sources' | 'update'>(null);
 
   const [comparePool, setComparePool] = useState<string[]>(() => {
     const saved = localStorage.getItem('tn_compare_pool');
@@ -134,11 +138,52 @@ export default function App() {
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.onupdatefound = () => {
+          const installingWorker = reg.installing;
+          if (installingWorker) {
+            installingWorker.onstatechange = () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                setHasUpdateAvailable(true);
+              }
+            };
+          }
+        };
+      });
+    }
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  const handleForceUpdateApp = async () => {
+    setIsUpdating(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        for (const key of keys) {
+          await caches.delete(key);
+        }
+      }
+      alert('已清除本機靜態快取，即將重新載入最新版面！');
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+      window.location.reload();
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   useEffect(() => {
     const now = new Date();
@@ -187,7 +232,6 @@ export default function App() {
         setBannerText(bData.banner_text || '');
         localStorage.setItem('tn_banner_text', bData.banner_text || '');
       }
-      setLastUpdated('2026/09/27');
     } catch (err) {
       console.warn('離線或快照使用中', err);
     } finally {
@@ -288,7 +332,6 @@ export default function App() {
   };
 
   const lowerSearch = searchTerm.toLowerCase().trim();
-
   const matchingShipClassIds = new Set<string>();
   const matchingShips = ships.filter(s => {
     const match = s.hull_number.toLowerCase().includes(lowerSearch) || s.name_zh.includes(lowerSearch);
@@ -483,7 +526,7 @@ export default function App() {
   return (
     <div className={`w-full min-h-screen ${currentTheme.bg} text-slate-100 flex flex-col items-center select-none ${fontStyle.root}`}>
       
-      {/* 戰術抬頭列 (Header)：大幅下調高度，保留顯眼空間感 */}
+      {/* 戰術抬頭列 */}
       <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-12 pb-4 flex flex-col items-center shadow-lg transition-all`}>
         <div className="w-full max-w-md flex justify-between items-center">
           <div>
@@ -497,11 +540,22 @@ export default function App() {
               ) : (
                 <span className="text-amber-400 font-black">● OFFLINE · 使用本機資料</span>
               )}
-              <span className="text-slate-500">| DB: {lastUpdated}</span>
+              <span className="text-slate-500">| {CURRENT_APP_VERSION}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5">
+            {hasUpdateAvailable && (
+              <button
+                type="button"
+                onClick={handleForceUpdateApp}
+                className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs animate-bounce flex items-center gap-1 shadow-lg"
+                title="點擊立即更新至最新版面"
+              >
+                <span>🚀 新版就緒</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {
@@ -554,158 +608,267 @@ export default function App() {
         )}
       </header>
 
-      {/* 主清單區 (保留極大捲動空間，底部預留給搜尋欄與導航列) */}
+      {/* 主內容區：依據底部導航 Tab 切換呈現，徹底保留一致的作戰設計語言 */}
       <main className="w-full max-w-md px-4 pt-4 pb-48 flex flex-col flex-1 gap-3">
         
-        {/* 搜尋結果即時舷號命中快顯 */}
-        {searchTerm && matchingShips.length > 0 && (
-          <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 space-y-2">
-            <div className="text-xs font-mono font-bold text-cyan-400 uppercase">
-              配對舷號與單艦 ({matchingShips.length})
-            </div>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
-              {matchingShips.map(s => {
-                const parentClass = classes.find(c => c.id === s.class_id);
-                const statusMeta = getStatusLabel(s.status_code, s.status);
-                return (
-                  <div
-                    key={s.id}
-                    onClick={() => parentClass && handleOpenDetail(parentClass)}
-                    className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex justify-between items-center cursor-pointer hover:border-cyan-400 transition"
-                  >
-                    <div className="flex items-baseline gap-2.5">
-                      <span className="font-mono text-xl font-black text-cyan-300">{s.hull_number}</span>
-                      <span className="font-bold text-white text-base">{s.name_zh}</span>
-                      {parentClass && <span className="text-xs text-slate-400 font-mono">({parentClass.code})</span>}
+        {/* TAB 1 & TAB 2：艦型列表與收藏列表 */}
+        {(activeBottomTab === 'classes' || activeBottomTab === 'favorites') && (
+          <>
+            {searchTerm && matchingShips.length > 0 && (
+              <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 space-y-2">
+                <div className="text-xs font-mono font-bold text-cyan-400 uppercase">
+                  配對舷號與單艦 ({matchingShips.length})
+                </div>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {matchingShips.map(s => {
+                    const parentClass = classes.find(c => c.id === s.class_id);
+                    const statusMeta = getStatusLabel(s.status_code, s.status);
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => parentClass && handleOpenDetail(parentClass)}
+                        className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex justify-between items-center cursor-pointer hover:border-cyan-400 transition"
+                      >
+                        <div className="flex items-baseline gap-2.5">
+                          <span className="font-mono text-xl font-black text-cyan-300">{s.hull_number}</span>
+                          <span className="font-bold text-white text-base">{s.name_zh}</span>
+                          {parentClass && <span className="text-xs text-slate-400 font-mono">({parentClass.code})</span>}
+                        </div>
+                        <span className={`text-xs px-2.5 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
+                          {statusMeta.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <section className="space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
+                  {activeBottomTab === 'favorites' ? `我的最愛 (${displayedClasses.length})` : `作戰艦型清單 (${displayedClasses.length})`}
+                </span>
+              </div>
+
+              {isLoading ? (
+                <div className="text-center py-20 text-slate-500 font-mono text-xs animate-pulse">
+                  載入離線艦艇資料庫中...
+                </div>
+              ) : displayedClasses.length === 0 ? (
+                <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800 text-slate-400 text-xs">
+                  查無符合條件的艦艇資料
+                </div>
+              ) : (
+                displayedClasses.map(c => {
+                  const isFav = favorites.includes(c.id);
+                  const classShips = ships.filter(s => s.class_id === c.id);
+
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => handleOpenDetail(c)}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm flex items-center justify-between gap-3 ${currentTheme.cardBg}`}
+                    >
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-baseline gap-2.5">
+                          <span className={`font-mono font-black ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
+                            {c.code}
+                          </span>
+                          <span className={`font-bold text-white ${fontStyle.cardSub}`}>
+                            {c.name_zh}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                          <span className={`px-2.5 py-0.5 rounded-md ${currentTheme.badge} font-medium`}>
+                            {c.nato_code ? `${c.nato_code} · ${c.category}` : c.category}
+                          </span>
+                          <span>共登錄 {classShips.length} 艘</span>
+                          {c.identification_status === 'verified' && (
+                            <span className="text-emerald-400 font-bold">✓ 已查證</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={e => toggleFavorite(c.id, e)}
+                          className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-xl active:scale-90 transition"
+                        >
+                          {isFav ? <span className="text-amber-400">★</span> : <span className="text-slate-500">☆</span>}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(c)}
+                          className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white font-mono text-base active:scale-95 transition"
+                        >
+                          &gt;
+                        </button>
+                      </div>
                     </div>
-                    <span className={`text-xs px-2.5 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
-                      {statusMeta.label}
-                    </span>
+                  );
+                })
+              )}
+            </section>
+          </>
+        )}
+
+        {/* TAB 3：比對分頁（完全嵌入主畫面，與首頁設計語言 100% 統一，底部導航完全保留！） */}
+        {activeBottomTab === 'compare' && (() => {
+          const shipA = classes.find(c => c.id === comparePool[0]);
+          const shipB = classes.find(c => c.id === comparePool[1]);
+
+          return (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-2 px-1">
+                <div>
+                  <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase block">雙艦戰術數據比對</span>
+                  <span className="text-[11px] text-slate-500">並排對照外觀特徵與作戰指標</span>
+                </div>
+                {comparePool.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComparePool([]);
+                      localStorage.removeItem('tn_compare_pool');
+                    }}
+                    className="text-xs font-bold text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-900/60 transition"
+                  >
+                    重置比對池
+                  </button>
+                )}
+              </div>
+
+              {comparePool.length < 2 ? (
+                <div className="p-8 text-center rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 space-y-3">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-slate-800 flex items-center justify-center text-slate-400 text-lg font-mono">
+                    {comparePool.length}/2
                   </div>
-                );
-              })}
+                  <div className="space-y-1">
+                    <p className="font-bold text-white text-sm">比對池尚未選滿 2 艘艦艇</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">請回「艦型清單」點選艦艇卡片進入詳細頁，按下「＋加入比對」即可啟動雙艦同屏比對！</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveBottomTab('classes')}
+                    className="min-h-[44px] px-5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md transition"
+                  >
+                    前往艦型清單挑選
+                  </button>
+                </div>
+              ) : shipA && shipB ? (
+                <div className="space-y-3 text-xs">
+                  {/* 主要外觀辨識特徵對照 (第一優先) */}
+                  {(shipA.identification_features?.length || shipB.identification_features?.length) ? (
+                    <div className="p-4 rounded-2xl bg-cyan-950/30 border border-cyan-500/40 space-y-2.5">
+                      <span className="font-bold text-sm text-cyan-300 block border-b border-cyan-800/40 pb-1.5">👁 主要外觀辨識特徵對照</span>
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="space-y-1">
+                          <span className="font-mono font-bold text-cyan-400 block">{shipA.code}:</span>
+                          {shipA.identification_features?.map((f, i) => (
+                            <div key={i} className="text-white text-xs leading-snug">• {f}</div>
+                          )) || <span className="text-slate-500 italic">無人工辨識資料</span>}
+                        </div>
+                        <div className="space-y-1 border-l border-cyan-800/40 pl-3">
+                          <span className="font-mono font-bold text-cyan-400 block">{shipB.code}:</span>
+                          {shipB.identification_features?.map((f, i) => (
+                            <div key={i} className="text-white text-xs leading-snug">• {f}</div>
+                          )) || <span className="text-slate-500 italic">無人工辨識資料</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* 逐項指標對照卡（完全延續 App 的 cardBg 與高對比文字） */}
+                  <div className={`p-4 rounded-2xl border ${currentTheme.cardBg} space-y-3.5`}>
+                    <div className="grid grid-cols-2 gap-3 text-center border-b border-slate-800 pb-3">
+                      <div>
+                        <span className={`font-mono text-2xl font-black ${currentTheme.accentText} block`}>{shipA.code}</span>
+                        <span className="font-bold text-white text-sm">{shipA.name_zh}</span>
+                      </div>
+                      <div className="border-l border-slate-800 pl-3">
+                        <span className={`font-mono text-2xl font-black ${currentTheme.accentText} block`}>{shipB.code}</span>
+                        <span className="font-bold text-white text-sm">{shipB.name_zh}</span>
+                      </div>
+                    </div>
+
+                    {[
+                      { label: '排水量', valA: shipA.displacement, valB: shipB.displacement },
+                      { label: '全長構型', valA: shipA.length, valB: shipB.length },
+                      { label: '型寬', valA: shipA.beam, valB: shipB.beam },
+                      { label: '最高航速', valA: shipA.max_speed, valB: shipB.max_speed },
+                      { label: '動力方式', valA: shipA.propulsion, valB: shipB.propulsion },
+                      { label: '搜索雷達/聲納', valA: shipA.radar_systems, valB: shipB.radar_systems },
+                      { label: '武器系統', valA: shipA.weapons_summary, valB: shipB.weapons_summary },
+                      { label: '艦載直升機', valA: shipA.aircraft, valB: shipB.aircraft },
+                    ].map((row, idx) => (
+                      <div key={idx} className="border-b border-slate-800/60 pb-2.5">
+                        <span className="text-slate-400 font-bold block mb-1 text-[11px]">{row.label}</span>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="text-white">{renderFormattedList(row.valA)}</div>
+                          <div className="text-white border-l border-slate-800 pl-3">{renderFormattedList(row.valB)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
+          );
+        })()}
+
+      </main>
+
+      {/* 底部戰術控制底座（大拇指黃金操作區：搜尋欄 ＋ 底部導航一體化） */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 flex flex-col items-center pointer-events-none">
+        
+        {/* 懸浮底部大字搜尋列（僅在艦型或收藏清單時顯示，比對時自動收起讓閱讀空間極大化） */}
+        {(activeBottomTab === 'classes' || activeBottomTab === 'favorites') && (
+          <div className="w-full max-w-md px-4 pb-2 pointer-events-auto">
+            <div className="relative flex items-center shadow-2xl">
+              <svg className="w-5 h-5 absolute left-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="搜尋舷號、艦名或艦型 (例: 172、052D)..."
+                value={searchTerm}
+                onChange={e => handleExecuteSearch(e.target.value)}
+                className={`w-full min-h-[50px] rounded-2xl pl-11 pr-10 text-base font-semibold shadow-2xl transition focus:outline-none ${currentTheme.input}`}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {!searchTerm && recentSearches.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1.5">
+                <span className="text-[11px] text-slate-400 font-mono shrink-0">快搜:</span>
+                {recentSearches.map(term => (
+                  <button
+                    key={term}
+                    type="button"
+                    onClick={() => handleSelectRecentSearch(term)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900/90 backdrop-blur border border-slate-700 text-xs font-mono text-cyan-300 shrink-0 shadow-sm"
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* 艦型清單 Card */}
-        <section className="space-y-3">
-          <div className="flex justify-between items-center px-1">
-            <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
-              {activeBottomTab === 'favorites' ? `我的最愛 (${displayedClasses.length})` : `作戰艦型清單 (${displayedClasses.length})`}
-            </span>
-          </div>
-
-          {isLoading ? (
-            <div className="text-center py-20 text-slate-500 font-mono text-xs animate-pulse">
-              載入離線艦艇資料庫中...
-            </div>
-          ) : displayedClasses.length === 0 ? (
-            <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800 text-slate-400 text-xs">
-              查無符合條件的艦艇資料
-            </div>
-          ) : (
-            displayedClasses.map(c => {
-              const isFav = favorites.includes(c.id);
-              const classShips = ships.filter(s => s.class_id === c.id);
-
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => handleOpenDetail(c)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm flex items-center justify-between gap-3 ${currentTheme.cardBg}`}
-                >
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex items-baseline gap-2.5">
-                      <span className={`font-mono font-black ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
-                        {c.code}
-                      </span>
-                      <span className={`font-bold text-white ${fontStyle.cardSub}`}>
-                        {c.name_zh}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <span className={`px-2.5 py-0.5 rounded-md ${currentTheme.badge} font-medium`}>
-                        {c.nato_code ? `${c.nato_code} · ${c.category}` : c.category}
-                      </span>
-                      <span>共登錄 {classShips.length} 艘</span>
-                      {c.identification_status === 'verified' && (
-                        <span className="text-emerald-400 font-bold">✓ 已查證</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={e => toggleFavorite(c.id, e)}
-                      className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-xl active:scale-90 transition"
-                    >
-                      {isFav ? <span className="text-amber-400">★</span> : <span className="text-slate-500">☆</span>}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDetail(c)}
-                      className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white font-mono text-base active:scale-95 transition"
-                    >
-                      &gt;
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </section>
-      </main>
-
-      {/* 🚀 底部戰術控制底座（大拇指黃金操作區：搜尋欄 ＋ 底部導航一體化） */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 flex flex-col items-center pointer-events-none">
-        
-        {/* 懸浮底部大字搜尋列（單手大拇指極限友好） */}
-        <div className="w-full max-w-md px-4 pb-2 pointer-events-auto">
-          <div className="relative flex items-center shadow-2xl">
-            <svg className="w-5 h-5 absolute left-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="搜尋舷號、艦名或艦型 (例: 172、052D)..."
-              value={searchTerm}
-              onChange={e => handleExecuteSearch(e.target.value)}
-              className={`w-full min-h-[50px] rounded-2xl pl-11 pr-10 text-base font-semibold shadow-2xl transition focus:outline-none ${currentTheme.input}`}
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* 最近搜尋小標籤 */}
-          {!searchTerm && recentSearches.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1.5">
-              <span className="text-[11px] text-slate-400 font-mono shrink-0">快搜:</span>
-              {recentSearches.map(term => (
-                <button
-                  key={term}
-                  type="button"
-                  onClick={() => handleSelectRecentSearch(term)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900/90 backdrop-blur border border-slate-700 text-xs font-mono text-cyan-300 shrink-0 shadow-sm"
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 底部 Navigation 列 */}
+        {/* 底部 Navigation 列：4 個選項完整保留，設計風格 100% 統一 */}
         <nav className={`w-full ${currentTheme.headerBg} border-t backdrop-blur-xl flex justify-center shadow-2xl pointer-events-auto`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)' }}>
           <div className="w-full max-w-md flex justify-around items-center px-3 py-1.5 text-xs font-bold">
             
@@ -744,9 +907,12 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() => setShowMoreModal('rankings')}
-              className="min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition"
+              onClick={() => setShowMoreModal('update')}
+              className="min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition relative"
             >
+              {hasUpdateAvailable && (
+                <span className="absolute top-1 right-5 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+              )}
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
               </svg>
@@ -757,11 +923,120 @@ export default function App() {
         </nav>
       </div>
 
+      {/* 「更多」抽屜視窗 */}
+      {showMoreModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full max-w-md bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-white">次級資訊與系統設定</h3>
+              <button type="button" onClick={() => setShowMoreModal(null)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <div className="flex gap-1 bg-slate-950 p-1 rounded-xl text-xs font-bold overflow-x-auto no-scrollbar">
+              <button type="button" onClick={() => setShowMoreModal('update')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'update' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'}`}>版面更新</button>
+              <button type="button" onClick={() => setShowMoreModal('rankings')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'rankings' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'}`}>查詢排行</button>
+              <button type="button" onClick={() => setShowMoreModal('stats')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'stats' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'}`}>每月統計</button>
+              <button type="button" onClick={() => setShowMoreModal('guide')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'guide' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'}`}>離線說明</button>
+              <button type="button" onClick={() => setShowMoreModal('sources')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'sources' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'}`}>資料來源</button>
+            </div>
+
+            {showMoreModal === 'update' && (
+              <div className="space-y-3.5 bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <span className="text-slate-400">目前本機版本：</span>
+                  <span className="font-mono text-cyan-300 font-bold">{CURRENT_APP_VERSION}</span>
+                </div>
+                <div className="text-slate-300 space-y-2 leading-relaxed">
+                  <p className="font-bold text-white">為什麼有時候畫面沒有更新？</p>
+                  <p>為了確保在海上斷網時能照常運作，手機會自動將畫面鎖存在本機快取中。若雲端發布了新版面但畫面卡住，可點擊下方按鈕強制清除本機快取並刷新。</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isUpdating}
+                  onClick={handleForceUpdateApp}
+                  className="w-full min-h-[48px] rounded-xl bg-cyan-600 hover:bg-cyan-500 font-bold text-white text-sm shadow-lg active:scale-95 transition flex items-center justify-center gap-2"
+                >
+                  {isUpdating ? '正在清除快取並載入...' : '🔄 強制清除快取並更新至最新版面'}
+                </button>
+              </div>
+            )}
+
+            {showMoreModal === 'rankings' && (
+              <div className="space-y-2 text-xs">
+                {classes
+                  .slice()
+                  .sort((a, b) => (queryCounts[b.id] || 0) - (queryCounts[a.id] || 0))
+                  .slice(0, 10)
+                  .map((c, idx) => (
+                    <div key={c.id} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-slate-500 font-bold">#{idx + 1}</span>
+                        <span className="font-mono font-bold text-cyan-300">{c.code}</span>
+                        <span className="text-white">{c.name_zh}</span>
+                      </div>
+                      <span className="font-mono text-slate-400 font-bold">{queryCounts[c.id] || 0} 次</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {showMoreModal === 'stats' && (
+              <div className="space-y-2 text-xs">
+                {Object.keys(monthlyUsage).sort().reverse().map(m => (
+                  <div key={m} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                    <span className="font-mono text-slate-300">{m}</span>
+                    <span className="font-mono text-cyan-400 font-bold">{monthlyUsage[m]} 次查詢</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {showMoreModal === 'guide' && (
+              <div className="space-y-2 text-xs text-slate-300 leading-relaxed bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                <p>1. iPhone 點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝為獨立 App。</p>
+                <p>2. 出港前在基地有網路時，滑動瀏覽各級艦艇一次，即可啟動 180 天長效持久離線庫。</p>
+                <p>3. 任務斷網期間，切勿手動清除 Safari / Chrome 快取與瀏覽紀錄。</p>
+              </div>
+            )}
+
+            {showMoreModal === 'sources' && (
+              <div className="space-y-2 text-xs text-slate-400 leading-relaxed bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                <p>• 技術資料主要依據維基百科公開資料庫與國際公開軍事智庫手冊。</p>
+                <p>• 外觀辨識特徵一律由管理員人工輸入查證，未驗證者均清楚標註。</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 授權驗證 Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 text-center">
+            <h3 className="font-bold text-base text-white">後台管理通行驗證</h3>
+            <form onSubmit={handleVerifyPassword} className="space-y-3">
+              <input
+                type="password"
+                required
+                maxLength={10}
+                placeholder="請輸入 6 位授權碼"
+                value={adminPasswordInput}
+                onChange={e => setAdminPasswordInput(e.target.value)}
+                className="w-full min-h-[48px] bg-slate-950 border border-slate-700 rounded-xl text-center text-xl font-mono text-white tracking-widest focus:outline-none"
+              />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 min-h-[44px] rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">取消</button>
+                <button type="submit" className="flex-1 min-h-[44px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold">確認驗證</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* 艦型詳細頁 Modal */}
       {selectedClassDetail && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4">
           <div className={`w-full max-w-lg h-[92vh] sm:h-[88vh] ${currentTheme.bg} border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden`}>
-            
             <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <span className={`font-mono text-2xl font-black ${currentTheme.accentText}`}>
@@ -781,8 +1056,6 @@ export default function App() {
             </div>
 
             <div className="p-5 overflow-y-auto space-y-5 text-sm">
-              
-              {/* 第一區：最重要辨識資訊 */}
               <div className="space-y-3">
                 {selectedClassDetail.image_url ? (
                   <div className="w-full h-48 rounded-2xl overflow-hidden border border-slate-800 bg-black">
@@ -831,7 +1104,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* 第二區：外觀辨識 */}
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5">
                 <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
                   <span className="font-bold text-base text-cyan-300 flex items-center gap-2">
@@ -863,7 +1135,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* 第三區：容易混淆艦型 */}
               {selectedClassDetail.similar_classes && selectedClassDetail.similar_classes.length > 0 && (
                 <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
                   <span className="font-bold text-sm text-amber-300">⚠️ 容易混淆艦型 (點擊啟動比對)</span>
@@ -894,7 +1165,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 第四區：技術資料卡 */}
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3">
                 <span className="font-bold text-base text-white block border-b border-slate-800 pb-2">
                   技術規格與裝備參數
@@ -922,7 +1192,6 @@ export default function App() {
                 <div><span className="text-slate-400 block text-[11px] mb-0.5">艦載機:</span>{renderFormattedList(selectedClassDetail.aircraft)}</div>
               </div>
 
-              {/* 第五區：同型單艦履歷 */}
               <div className="space-y-2.5">
                 <button
                   type="button"
@@ -959,201 +1228,12 @@ export default function App() {
                 )}
               </div>
 
-              {/* 第六區：資料來源與查證紀錄 */}
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs text-slate-400 space-y-1">
                 <div>資料來源：{selectedClassDetail.identification_source || 'Wikipedia 公開軍事情報資料庫'}</div>
-                <div>最後維護：{selectedClassDetail.identification_updated_at ? new Date(selectedClassDetail.identification_updated_at).toLocaleDateString('zh-TW') : lastUpdated}</div>
+                <div>最後維護：{selectedClassDetail.identification_updated_at ? new Date(selectedClassDetail.identification_updated_at).toLocaleDateString('zh-TW') : CURRENT_APP_VERSION}</div>
                 <div>查證狀態：{selectedClassDetail.identification_status === 'verified' ? '已通過人工確認' : '尚待人工複核'}</div>
               </div>
-
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* 雙艦並排比對畫面 */}
-      {activeBottomTab === 'compare' && (
-        <div className="fixed inset-0 z-40 bg-[#070b12] text-slate-100 flex flex-col pt-12 pb-24 px-3 overflow-y-auto">
-          <div className="max-w-md w-full mx-auto space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <div>
-                <h2 className="text-lg font-black text-white">艦型並排戰術比對</h2>
-                <p className="text-xs text-slate-400">雙艦技術參數與外觀特徵對照</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveBottomTab('classes')}
-                className="min-h-[44px] px-3 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-300"
-              >
-                返回清單
-              </button>
-            </div>
-
-            {comparePool.length < 2 ? (
-              <div className="text-center py-20 text-slate-500 text-xs space-y-2">
-                <p>目前比對池尚未選滿 2 艘艦艇（已選 {comparePool.length}/2）</p>
-                <p className="text-slate-400">請回艦型列表點擊「＋加入比對」</p>
-              </div>
-            ) : (() => {
-              const shipA = classes.find(c => c.id === comparePool[0]);
-              const shipB = classes.find(c => c.id === comparePool[1]);
-              if (!shipA || !shipB) return null;
-
-              return (
-                <div className="space-y-4 text-xs">
-                  {(shipA.identification_features?.length || shipB.identification_features?.length) ? (
-                    <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/50 space-y-2">
-                      <span className="font-bold text-sm text-cyan-300 block">主要外觀辨識特徵對照</span>
-                      <div className="grid grid-cols-2 gap-3 pt-1">
-                        <div className="space-y-1">
-                          <span className="font-mono font-bold text-cyan-400 block">{shipA.code}:</span>
-                          {shipA.identification_features?.map((f, i) => (
-                            <div key={i} className="text-white text-xs leading-snug">• {f}</div>
-                          )) || <span className="text-slate-500 italic">無人工辨識資料</span>}
-                        </div>
-                        <div className="space-y-1 border-l border-cyan-800/40 pl-3">
-                          <span className="font-mono font-bold text-cyan-400 block">{shipB.code}:</span>
-                          {shipB.identification_features?.map((f, i) => (
-                            <div key={i} className="text-white text-xs leading-snug">• {f}</div>
-                          )) || <span className="text-slate-500 italic">無人工辨識資料</span>}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
-                    <div className="grid grid-cols-2 gap-3 text-center border-b border-slate-800 pb-2">
-                      <div>
-                        <span className="font-mono text-xl font-black text-cyan-400 block">{shipA.code}</span>
-                        <span className="font-bold text-white text-sm">{shipA.name_zh}</span>
-                      </div>
-                      <div className="border-l border-slate-800 pl-3">
-                        <span className="font-mono text-xl font-black text-cyan-400 block">{shipB.code}</span>
-                        <span className="font-bold text-white text-sm">{shipB.name_zh}</span>
-                      </div>
-                    </div>
-
-                    {[
-                      { label: '排水量', valA: shipA.displacement, valB: shipB.displacement },
-                      { label: '全長構型', valA: shipA.length, valB: shipB.length },
-                      { label: '型寬', valA: shipA.beam, valB: shipB.beam },
-                      { label: '最高航速', valA: shipA.max_speed, valB: shipB.max_speed },
-                      { label: '動力方式', valA: shipA.propulsion, valB: shipB.propulsion },
-                      { label: '搜索雷達/聲納', valA: shipA.radar_systems, valB: shipB.radar_systems },
-                      { label: '武器系統', valA: shipA.weapons_summary, valB: shipB.weapons_summary },
-                      { label: '艦載直升機', valA: shipA.aircraft, valB: shipB.aircraft },
-                    ].map((row, idx) => (
-                      <div key={idx} className="border-b border-slate-800/60 pb-2">
-                        <span className="text-slate-400 font-bold block mb-1">{row.label}</span>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="text-white">{renderFormattedList(row.valA)}</div>
-                          <div className="text-white border-l border-slate-800 pl-3">{renderFormattedList(row.valB)}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setComparePool([]);
-                      localStorage.removeItem('tn_compare_pool');
-                    }}
-                    className="w-full min-h-[44px] rounded-xl bg-slate-800 text-slate-300 font-bold"
-                  >
-                    清空比對池
-                  </button>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* 「更多」抽屜視窗 */}
-      {showMoreModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full max-w-md bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-white">次級資訊與系統紀錄</h3>
-              <button type="button" onClick={() => setShowMoreModal(null)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white">✕</button>
-            </div>
-
-            <div className="flex gap-1.5 bg-slate-950 p-1 rounded-xl text-xs font-bold">
-              <button type="button" onClick={() => setShowMoreModal('rankings')} className={`flex-1 py-2 rounded-lg ${showMoreModal === 'rankings' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'}`}>查詢排行</button>
-              <button type="button" onClick={() => setShowMoreModal('stats')} className={`flex-1 py-2 rounded-lg ${showMoreModal === 'stats' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'}`}>每月統計</button>
-              <button type="button" onClick={() => setShowMoreModal('guide')} className={`flex-1 py-2 rounded-lg ${showMoreModal === 'guide' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'}`}>離線說明</button>
-              <button type="button" onClick={() => setShowMoreModal('sources')} className={`flex-1 py-2 rounded-lg ${showMoreModal === 'sources' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'}`}>資料來源</button>
-            </div>
-
-            {showMoreModal === 'rankings' && (
-              <div className="space-y-2 text-xs">
-                {classes
-                  .slice()
-                  .sort((a, b) => (queryCounts[b.id] || 0) - (queryCounts[a.id] || 0))
-                  .slice(0, 10)
-                  .map((c, idx) => (
-                    <div key={c.id} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-slate-500 font-bold">#{idx + 1}</span>
-                        <span className="font-mono font-bold text-cyan-300">{c.code}</span>
-                        <span className="text-white">{c.name_zh}</span>
-                      </div>
-                      <span className="font-mono text-slate-400 font-bold">{queryCounts[c.id] || 0} 次</span>
-                    </div>
-                  ))}
-              </div>
-            )}
-
-            {showMoreModal === 'stats' && (
-              <div className="space-y-2 text-xs">
-                {Object.keys(monthlyUsage).sort().reverse().map(m => (
-                  <div key={m} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                    <span className="font-mono text-slate-300">{m}</span>
-                    <span className="font-mono text-cyan-400 font-bold">{monthlyUsage[m]} 次查詢</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {showMoreModal === 'guide' && (
-              <div className="space-y-2 text-xs text-slate-300 leading-relaxed bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
-                <p>1. iPhone 點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝為獨立 App。</p>
-                <p>2. 出港前在基地有網路時，滑動瀏覽各級艦艇一次，即可啟動 180 天長效持久離線庫。</p>
-                <p>3. 任務斷網期間，切勿清除 Safari / Chrome 快取與瀏覽紀錄。</p>
-              </div>
-            )}
-
-            {showMoreModal === 'sources' && (
-              <div className="space-y-2 text-xs text-slate-400 leading-relaxed bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
-                <p>• 技術資料主要依據維基百科公開資料庫與國際公開軍事智庫手冊。</p>
-                <p>• 外觀辨識特徵一律由管理員人工輸入查證，未驗證者均清楚標註。</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 授權驗證 Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 text-center">
-            <h3 className="font-bold text-base text-white">後台管理通行驗證</h3>
-            <form onSubmit={handleVerifyPassword} className="space-y-3">
-              <input
-                type="password"
-                required
-                maxLength={10}
-                placeholder="請輸入 6 位授權碼"
-                value={adminPasswordInput}
-                onChange={e => setAdminPasswordInput(e.target.value)}
-                className="w-full min-h-[48px] bg-slate-950 border border-slate-700 rounded-xl text-center text-xl font-mono text-white tracking-widest focus:outline-none"
-              />
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 min-h-[44px] rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">取消</button>
-                <button type="submit" className="flex-1 min-h-[44px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold">確認驗證</button>
-              </div>
-            </form>
           </div>
         </div>
       )}
@@ -1162,7 +1242,6 @@ export default function App() {
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-lg h-[92vh] sm:h-[88vh] bg-slate-900 border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden">
-            
             <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center shrink-0">
               <h2 className="font-bold text-base text-white">資料庫管理與外觀特徵維護</h2>
               <button type="button" onClick={() => setShowAdmin(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white">✕</button>
@@ -1175,12 +1254,8 @@ export default function App() {
             </div>
 
             <div className="p-5 overflow-y-auto space-y-4 text-xs">
-              
-              {/* 艦型與外觀特徵維護 */}
               {adminActiveTab === 'class_edit' && (
                 <div className="space-y-4">
-                  
-                  {/* 維基抓取對照預覽區 */}
                   <div className="p-3.5 rounded-2xl bg-slate-950 border border-cyan-500/40 space-y-2.5">
                     <span className="font-bold text-cyan-300 block">Wikipedia 資料比對與安全擷取</span>
                     <div className="flex gap-2">
@@ -1224,10 +1299,8 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* 人工外觀辨識特徵動態列表 */}
                   <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
                     <span className="font-bold text-sm text-white block">👁 外觀辨識特徵人工管理</span>
-                    
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -1297,7 +1370,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 基礎參數表單 */}
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -1365,7 +1437,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* 單艦資料標準化新增 */}
               {adminActiveTab === 'ship_add' && (
                 <form
                   onSubmit={async e => {
@@ -1495,7 +1566,6 @@ export default function App() {
                 </form>
               )}
 
-              {/* 頂部戰術橫幅維護 */}
               {adminActiveTab === 'banner' && (
                 <div className="space-y-3">
                   <textarea
@@ -1529,7 +1599,6 @@ export default function App() {
                   </div>
                 </div>
               )}
-
             </div>
           </div>
         </div>

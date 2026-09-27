@@ -11,15 +11,31 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-api-cache',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 180
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
           {
             urlPattern: /\.(?:png|jpg|jpeg|svg|webp|gif)$/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'ship-images-cache',
               expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 90 // 自動離線快取保存 90 天
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 180
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -36,6 +52,7 @@ export default defineConfig({
         theme_color: '#0b0f17',
         background_color: '#0b0f17',
         display: 'standalone',
+        orientation: 'portrait',
         icons: [
           {
             src: 'pwa-192x192.png',

@@ -27,12 +27,18 @@ export default function App() {
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27');
 
-  // 後台通行碼授權狀態
+  // 後台通行碼授權狀態 (密碼: 750120，持久記憶)
   const [showAdmin, setShowAdmin] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('tn_admin_auth') === 'true';
+  });
+
+  // 安裝與離線注意事項狀態
+  const [showGuideModal, setShowGuideModal] = useState(false);
+  const [isStandalone] = useState<boolean>(() => {
+    return window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
   });
 
   const [activeTab, setActiveTab] = useState<'classes' | 'ships'>('classes');
@@ -43,20 +49,49 @@ export default function App() {
   const [newClass, setNewClass] = useState({ code: '', name_zh: '', category: '', nato_code: '', image_url: '', visual_features: '', weapons_summary: '' });
   const [newShip, setNewShip] = useState({ class_id: '', hull_number: '', name_zh: '', status: '現役' });
 
+  // 1. 鎖定標題並向手機請求長效儲存配額
   useEffect(() => {
     document.title = "TAIWAN NAVY";
-  }, []);
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().then(granted => {
+        if (granted) console.log('✅ Persistent storage: 已獲得系統長效儲存保護');
+      });
+    }
 
+    // 編輯時防誤關閉提醒
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (showAdmin || editingClass || editingShip) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [showAdmin, editingClass, editingShip]);
+
+  // 2. 雙重離線備援資料抓取
   const fetchData = async () => {
+    // 優先讀取本機快照，離線時 0 秒可用
+    const cachedClasses = localStorage.getItem('tn_cache_classes');
+    const cachedShips = localStorage.getItem('tn_cache_ships');
+    if (cachedClasses && classes.length === 0) setClasses(JSON.parse(cachedClasses));
+    if (cachedShips && ships.length === 0) setShips(JSON.parse(cachedShips));
+
     if (!supabase) return;
     try {
       const { data: cData } = await supabase.from('ship_classes').select('*').order('code');
       const { data: sData } = await supabase.from('ships').select('*').order('hull_number');
-      if (cData) setClasses(cData as ShipClass[]);
-      if (sData) setShips(sData as Ship[]);
+      if (cData) {
+        setClasses(cData as ShipClass[]);
+        localStorage.setItem('tn_cache_classes', JSON.stringify(cData));
+      }
+      if (sData) {
+        setShips(sData as Ship[]);
+        localStorage.setItem('tn_cache_ships', JSON.stringify(sData));
+      }
       setLastUpdated(new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }));
     } catch (e) {
-      console.error(e);
+      console.warn('離線環境：自動啟用本機長效快照資料庫', e);
     }
   };
 
@@ -160,6 +195,37 @@ export default function App() {
     <div className="w-full min-h-screen bg-[#0b0f17] text-slate-100 flex flex-col items-center overflow-x-hidden antialiased selection:bg-cyan-500/30">
       <main className="w-full max-w-md px-5 pt-14 pb-28 flex flex-col flex-1" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.5rem)" }}>
         
+        {/* 頂部安裝與離線提醒橫幅 (尚未加入主畫面時顯示) */}
+        {!isStandalone && (
+          <div className="mb-3 bg-cyan-950/70 border border-cyan-500/40 rounded-2xl p-3 flex items-center justify-between shadow-lg backdrop-blur">
+            <div className="flex items-center gap-2.5 text-xs">
+              <span className="text-base">📲</span>
+              <div>
+                <div className="font-bold text-cyan-300">安裝為桌面 App</div>
+                <div className="text-[10px] text-slate-400">加入主畫面可啟用 180 天長效離線資料庫</div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowGuideModal(true)}
+              className="px-2.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[11px] rounded-xl active:scale-95 transition shadow-sm"
+            >
+              操作指南
+            </button>
+          </div>
+        )}
+
+        {/* 若已加入主畫面，在頂部顯示輕量「離線指南」按鈕 */}
+        {isStandalone && (
+          <div className="flex justify-end mb-1">
+            <button
+              onClick={() => setShowGuideModal(true)}
+              className="text-[11px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 bg-slate-900/60 px-2.5 py-1 rounded-full border border-slate-800"
+            >
+              <span>ℹ️</span> 離線注意事項
+            </button>
+          </div>
+        )}
+
         {/* 頂部 Header */}
         <header className="flex justify-between items-center pb-4 pt-1">
           <div className="space-y-0.5">
@@ -360,11 +426,64 @@ export default function App() {
 
         <footer className="mt-12 text-center text-xs text-slate-500 space-y-1">
           <p className="font-mono text-[10px] tracking-widest uppercase">戰術艦艇辨識系統</p>
-          <p className="text-[11px]">全端同步 · 離線優先架構</p>
+          <p className="text-[11px]">全端同步 · 180天長效離線架構</p>
         </footer>
       </main>
 
-      {/* 授權密碼彈窗 */}
+      {/* 注意事項說明彈窗 */}
+      {showGuideModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📱</span>
+                <h3 className="font-bold text-sm text-white">安裝指南與離線注意事項</h3>
+              </div>
+              <button onClick={() => setShowGuideModal(false)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
+              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1">
+                <div className="font-bold text-cyan-400 flex items-center gap-1.5">
+                  <span>1.</span> 加入主畫面（獨立 App）
+                </div>
+                <p className="text-slate-400 text-[11px]">
+                  • <b>iPhone (Safari)</b>：點擊底部分享按鈕 ➔ 選擇<b>「加入主畫面」</b>。<br/>
+                  • <b>Android (Chrome)</b>：點右上角選單 ➔ 點<b>「安裝應用程式」</b>。
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1">
+                <div className="font-bold text-cyan-400 flex items-center gap-1.5">
+                  <span>2.</span> 出海前離線預載
+                </div>
+                <p className="text-slate-400 text-[11px]">
+                  在基地有網路時，打開 App <b>滑動並展開各艦型一次</b>，系統會自動將資料庫與照片寫入手機硬碟（離線保護達 180 天）。
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1">
+                <div className="font-bold text-amber-400 flex items-center gap-1.5">
+                  <span>⚠️</span> 避免資料遺失
+                </div>
+                <p className="text-slate-400 text-[11px]">
+                  • 斷網執行任務期間，<b>請勿清除 Safari 或瀏覽器的網站歷史與快取</b>。<br/>
+                  • 平時請直接點擊桌面的 <b>TAIWAN NAVY 圖示</b> 開啟。
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowGuideModal(false)}
+              className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950 active:scale-95 transition"
+            >
+              我知道了
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 授權密碼彈窗 (750120) */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
@@ -407,7 +526,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 艦型編輯彈窗 (含圖片網址設定) */}
+      {/* 艦型編輯彈窗 */}
       {editingClass && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-sm bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
@@ -430,7 +549,7 @@ export default function App() {
                 />
               </div>
               <div>
-                <label className="text-[11px] font-bold text-cyan-300 mb-1 block">🔗 官方艦艇照片網址 (全體同步 + 自動離線快取)</label>
+                <label className="text-[11px] font-bold text-cyan-300 mb-1 block">🔗 官方照片網址 (全體同步 + 自動離線快取)</label>
                 <input
                   type="url"
                   placeholder="https://.../ship.jpg"
@@ -531,7 +650,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 後台管理抽屜 (含新增艦型圖片網址) */}
+      {/* 後台管理抽屜 */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
           <div className="w-full max-w-md bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl">

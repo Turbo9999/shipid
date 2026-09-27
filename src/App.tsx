@@ -883,10 +883,10 @@ export default function App() {
                     清空比對池
                   </button>
                 </div>
-              );
-            })()}
-          </div>
-        )}
+              ) : null}
+            </div>
+          );
+        })()}
       </main>
 
       {/* 底部戰術控制底座 */}

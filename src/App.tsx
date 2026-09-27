@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.27 v5.4';
+const CURRENT_APP_VERSION = '2026.09.28 Desktop V2';
 
 interface ShipClass {
   id: string;
@@ -73,6 +73,7 @@ export default function App() {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('全部');
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     const saved = localStorage.getItem('tn_recent_searches');
     return saved ? JSON.parse(saved) : [];
@@ -384,6 +385,10 @@ export default function App() {
       matchingShipClassIds.has(c.id)
     );
   });
+
+  if (categoryFilter !== '全部') {
+    displayedClasses = displayedClasses.filter(c => c.category === categoryFilter);
+  }
 
   if (activeBottomTab === 'favorites') {
     displayedClasses = displayedClasses.filter(c => favorites.includes(c.id));
@@ -751,8 +756,8 @@ export default function App() {
     <div className={`w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
       
       {/* 戰術抬頭列 */}
-      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-[52px] pb-4 flex flex-col items-center shadow-lg transition-all`}>
-        <div className="w-full max-w-md md:max-w-6xl flex justify-between items-center">
+      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 sm:px-6 pt-[max(18px,env(safe-area-inset-top))] md:pt-6 pb-5 flex flex-col items-center shadow-lg transition-all`}>
+        <div className="w-full max-w-xl md:max-w-[1500px] flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
@@ -840,7 +845,7 @@ export default function App() {
         </div>
 
         {bannerText && (
-          <div className={`w-full max-w-md md:max-w-6xl mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-sky-800' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
+          <div className={`w-full max-w-xl md:max-w-[1500px] mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-sky-800' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
             <span className={`w-2 h-2 rounded-full ${themeMode === 'red' ? 'bg-red-500' : 'bg-cyan-400'} animate-ping`}></span>
             <span className="flex-1">{bannerText}</span>
           </div>
@@ -848,7 +853,7 @@ export default function App() {
       </header>
 
       {/* 主內容區 */}
-      <main className="w-full max-w-md md:max-w-6xl px-4 md:px-6 pt-4 md:pt-6 pb-48 flex flex-col flex-1 gap-3">
+      <main className="w-full max-w-xl md:max-w-[1500px] px-4 md:px-8 pt-6 md:pt-9 pb-48 flex flex-col flex-1 gap-6">
         {(activeBottomTab === 'classes' || activeBottomTab === 'favorites') && (
           <>
             {searchTerm && matchingShips.length > 0 && (
@@ -881,7 +886,39 @@ export default function App() {
               </div>
             )}
 
-            <section className="space-y-3 md:space-y-4">
+            {activeBottomTab === 'classes' && !searchTerm && (
+              <section className={`relative overflow-hidden rounded-[28px] border p-5 md:p-8 ${currentTheme.cardBg}`}>
+                <div className={`absolute right-0 top-0 h-full w-1/2 pointer-events-none opacity-30 ${themeMode === 'red' ? 'bg-gradient-to-l from-red-800/40 to-transparent' : themeMode === 'high_contrast' ? 'bg-gradient-to-l from-cyan-100 to-transparent' : 'bg-gradient-to-l from-cyan-700/30 to-transparent'}`} />
+                <div className="relative flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+                  <div className="space-y-2 min-w-0">
+                    <div className={`font-mono text-xs md:text-sm font-bold tracking-[0.18em] ${currentTheme.accentText}`}>SHIPID / VESSEL RECOGNITION</div>
+                    <h2 className={`text-2xl md:text-4xl font-black tracking-wide ${primaryText}`}>艦艇快速識別</h2>
+                    <p className={`text-sm md:text-base ${currentTheme.textMuted}`}>離線優先 · 艦型檢索 · 舷號查詢</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 md:gap-4 shrink-0">
+                    <div className={`rounded-2xl border px-5 py-3 min-w-[110px] ${currentTheme.subPanelBg}`}>
+                      <div className={`text-xs font-bold ${currentTheme.textMuted}`}>已收錄艦型</div>
+                      <div className={`text-2xl md:text-3xl font-black font-mono ${currentTheme.accentText}`}>{classes.length}</div>
+                    </div>
+                    <div className={`rounded-2xl border px-5 py-3 min-w-[110px] ${currentTheme.subPanelBg}`}>
+                      <div className={`text-xs font-bold ${currentTheme.textMuted}`}>已收錄單艦</div>
+                      <div className={`text-2xl md:text-3xl font-black font-mono ${currentTheme.accentText}`}>{ships.length}</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            <section className="space-y-4 md:space-y-5">
+              <div className="flex gap-2 overflow-x-auto pb-1" aria-label="艦種篩選">
+                {['全部', ...Array.from(new Set(classes.map(c => c.category).filter(Boolean)))].map(category => (
+                  <button key={category} type="button" onClick={() => setCategoryFilter(category)}
+                    aria-pressed={categoryFilter === category}
+                    className={`shrink-0 whitespace-nowrap min-h-[46px] px-4 rounded-xl border font-bold text-sm md:text-base transition-colors ${categoryFilter === category ? currentTheme.accentBg + ' border-transparent' : currentTheme.btnSecondary}`}>
+                    {category}
+                  </button>
+                ))}
+              </div>
               <div className="flex justify-between items-center px-1">
                 <span className={`text-xs md:text-sm font-mono font-bold tracking-wider uppercase ${currentTheme.textMuted}`}>
                   {activeBottomTab === 'favorites' ? `我的最愛 (${displayedClasses.length})` : `作戰艦型清單 (${displayedClasses.length})`}
@@ -897,7 +934,7 @@ export default function App() {
                   查無符合條件的艦艇資料
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
                 {displayedClasses.map(c => {
                   const isFav = favorites.includes(c.id);
                   const classShips = ships.filter(s => s.class_id === c.id);
@@ -906,46 +943,33 @@ export default function App() {
                     <div
                       key={c.id}
                       onClick={() => handleOpenDetail(c)}
-                      className={`relative overflow-hidden p-4 md:p-6 md:min-h-[150px] rounded-2xl border transition-all cursor-pointer shadow-sm md:hover:-translate-y-1 md:hover:shadow-xl flex items-center justify-between gap-3 ${currentTheme.cardBg}`}
+                      className={`group relative min-w-0 overflow-hidden rounded-2xl border transition-all cursor-pointer shadow-sm md:hover:-translate-y-0.5 md:hover:shadow-xl ${currentTheme.cardBg}`}
                     >
-                      <div className={`hidden md:block absolute inset-x-0 top-0 h-1 ${themeMode === 'red' ? 'bg-gradient-to-r from-red-900 via-red-500 to-red-900' : themeMode === 'high_contrast' ? 'bg-gradient-to-r from-cyan-700 via-sky-400 to-cyan-700' : 'bg-gradient-to-r from-cyan-700 via-cyan-400 to-blue-700'}`}></div>
-                      <div className="space-y-1.5 md:space-y-3 flex-1">
-                        <div className="flex items-baseline gap-2.5">
-                          <span className={`font-mono font-black md:text-3xl ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
-                            {c.code}
-                          </span>
-                          <span className={`font-bold md:text-lg ${primaryText} ${fontStyle.cardSub}`}>
-                            {c.name_zh}
-                          </span>
+                      <div className={`h-1 w-full ${themeMode === 'red' ? 'bg-gradient-to-r from-red-800 via-red-500 to-transparent' : themeMode === 'high_contrast' ? 'bg-gradient-to-r from-cyan-700 via-sky-400 to-transparent' : 'bg-gradient-to-r from-cyan-700 via-cyan-400 to-transparent'}`} />
+                      <div className="flex flex-col sm:flex-row gap-4 p-4 md:p-6 min-w-0">
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0">
+                            <span className={`font-mono font-black text-2xl md:text-3xl shrink-0 ${currentTheme.accentText}`}>{c.code}</span>
+                            <span className={`font-black text-lg md:text-xl leading-snug break-keep ${primaryText}`}>{c.name_zh}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <span className={`px-3 py-1 rounded-lg border text-sm font-semibold ${currentTheme.badge}`}>{c.category}</span>
+                            {c.nato_code && <span className={`font-mono text-sm ${currentTheme.textMuted}`}>{c.nato_code}</span>}
+                            {c.identification_status === 'verified' && <span className="text-emerald-400 text-sm font-bold">✓ 已查證</span>}
+                          </div>
+                          <div className={`border-t pt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm md:text-base ${currentTheme.border}`}>
+                            <span className={currentTheme.textMuted}>收錄單艦 <strong className={primaryText}>{classShips.length}</strong></span>
+                            <span className={`font-semibold ${currentTheme.accentText}`}>查看艦型資料 →</span>
+                          </div>
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm">
-                          <span className={`px-2.5 py-0.5 rounded-md ${currentTheme.badge} font-medium`}>
-                            {c.nato_code ? `${c.nato_code} · ${c.category}` : c.category}
-                          </span>
-                          <span className={currentTheme.textMuted}>共登錄 {classShips.length} 艘</span>
-                          {c.identification_status === 'verified' && (
-                            <span className={themeMode === 'red' ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}>✓ 已查證</span>
-                          )}
+                        <div className="flex sm:flex-col items-center justify-end gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                          <button type="button" onClick={e => toggleFavorite(c.id, e)} aria-label={isFav ? '取消收藏' : '加入收藏'}
+                            className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border active:scale-95 transition ${currentTheme.btnSecondary}`}>
+                            <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
+                          </button>
+                          <button type="button" onClick={() => handleOpenDetail(c)} aria-label={`查看${c.name_zh}`}
+                            className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border font-bold text-xl active:scale-95 transition ${currentTheme.btnSecondary}`}>›</button>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={e => toggleFavorite(c.id, e)}
-                          className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border text-xl active:scale-90 transition ${currentTheme.btnSecondary}`}
-                        >
-                          <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDetail(c)}
-                          className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border font-mono text-base active:scale-95 transition ${currentTheme.btnSecondary}`}
-                        >
-                          &gt;
-                        </button>
                       </div>
                     </div>
                   );

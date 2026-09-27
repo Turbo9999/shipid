@@ -52,7 +52,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [expandedSpecsId, setExpandedSpecsId] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.7');
+  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.8');
 
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
@@ -661,12 +661,11 @@ export default function App() {
     fetchData();
   };
 
-  // 🎯 全欄位智慧分段解析演算法：支援 Shift+Enter 換行、頓號、分號，以及制式型號邊界切分
   const renderFormattedList = (text?: string) => {
     if (!text) return <span className="text-slate-100 font-medium">-</span>;
 
     let normalized = text
-      .replace(/([^\n\r])(?=H\/)/g, '$1\n') // 在 H/ 代號前自動換行
+      .replace(/([^\n\r])(?=H\/)/g, '$1\n')
       .replace(/([^\n\r])(?=Type\s*[0-9])/gi, '$1\n')
       .replace(/[\r\n；;、]+/g, '\n');
 
@@ -909,7 +908,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* 頂部工具列 */}
+                      {/* 頂部工具列：編輯、比對、最愛、展開 */}
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
@@ -949,7 +948,7 @@ export default function App() {
                           </div>
                         ) : (
                           <div className="rounded-xl border border-dashed border-slate-800 p-3 bg-slate-900/40 text-center text-xs text-slate-500">
-                            暫無艦影照片
+                            暫無艦影照片（可點上方「編輯」貼上圖片網址）
                           </div>
                         )}
 
@@ -964,7 +963,7 @@ export default function App() {
                           </p>
                         </div>
 
-                        {/* 第二欄：技術數據 (全 11 項技術指標全面支援智慧分段) */}
+                        {/* 第二欄：技術數據 (全 11 項技術指標全部支援 Shift+Enter 換行與智慧條列) */}
                         <div className="space-y-1.5">
                           <button
                             type="button"
@@ -1206,7 +1205,7 @@ export default function App() {
             <form onSubmit={handleVerifyPassword} className="space-y-3">
               <input type="password" required maxLength={10} placeholder="請輸入 6 位授權碼" value={adminPasswordInput} onChange={e => setAdminPasswordInput(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-center text-lg tracking-widest font-mono text-white" />
               <div className="flex gap-2">
-                <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 py-2 bg-slate-800 rounded-xl text-slate-400">取消</button>
+                <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 py-2 bg-slate-800 rounded-xl text-xs text-slate-400">取消</button>
                 <button type="submit" className={`flex-1 py-2 ${theme.accentBg} rounded-xl font-bold text-white`}>確認</button>
               </div>
             </form>
@@ -1214,25 +1213,26 @@ export default function App() {
         </div>
       )}
 
-      {/* 艦型編輯彈窗 (所有欄位改為支援換行輸入) */}
+      {/* 艦型編輯彈窗 (所有 11 項技術指標欄位全數升級為 textarea 支援 Shift+Enter 換行分段) */}
       {editingClass && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto text-xs">
             <h3 className="font-bold text-sm text-white">編輯艦型資料 ({editingClass.code})</h3>
-            <div><label className="text-slate-400 block mb-1">第一欄：艦型概述 (維基第一大段)</label><textarea rows={4} value={editingClass.overview || ''} onChange={e => setEditingClass({ ...editingClass, overview: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">第一欄：艦型概述</label><textarea rows={4} value={editingClass.overview || ''} onChange={e => setEditingClass({ ...editingClass, overview: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">官方照片網址</label><input type="url" value={editingClass.image_url || ''} onChange={e => setEditingClass({ ...editingClass, image_url: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">排水量 (支援 Shift+Enter 換行)</label><textarea rows={2} value={editingClass.displacement || ''} onChange={e => setEditingClass({ ...editingClass, displacement: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div className="grid grid-cols-2 gap-2">
               <div><label className="text-slate-400 block mb-1">長度</label><textarea rows={2} value={editingClass.length || ''} onChange={e => setEditingClass({ ...editingClass, length: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
               <div><label className="text-slate-400 block mb-1">型寬</label><textarea rows={2} value={editingClass.beam || ''} onChange={e => setEditingClass({ ...editingClass, beam: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             </div>
-            <div><label className="text-slate-400 block mb-1">最高速度 (支援換行)</label><textarea rows={2} value={editingClass.max_speed || ''} onChange={e => setEditingClass({ ...editingClass, max_speed: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">動力方式 (支援換行)</label><textarea rows={2} value={editingClass.propulsion || ''} onChange={e => setEditingClass({ ...editingClass, propulsion: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">動力輸出 (支援換行)</label><textarea rows={2} value={editingClass.power_output || ''} onChange={e => setEditingClass({ ...editingClass, power_output: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">乘員</label><input type="text" value={editingClass.crew || ''} onChange={e => setEditingClass({ ...editingClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">最高速度</label><textarea rows={2} value={editingClass.max_speed || ''} onChange={e => setEditingClass({ ...editingClass, max_speed: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">動力方式</label><textarea rows={2} value={editingClass.propulsion || ''} onChange={e => setEditingClass({ ...editingClass, propulsion: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">動力輸出</label><textarea rows={2} value={editingClass.power_output || ''} onChange={e => setEditingClass({ ...editingClass, power_output: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">乘員</label><textarea rows={2} value={editingClass.crew || ''} onChange={e => setEditingClass({ ...editingClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">搜索系統 (雷達/聲納)</label><textarea rows={3} value={editingClass.radar_systems || ''} onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">武器系統</label><textarea rows={3} value={editingClass.weapons_summary || ''} onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">電戰系統</label><textarea rows={2} value={editingClass.electronic_warfare || ''} onChange={e => setEditingClass({ ...editingClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">艦載機</label><input type="text" value={editingClass.aircraft || ''} onChange={e => setEditingClass({ ...editingClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">艦載機</label><textarea rows={2} value={editingClass.aircraft || ''} onChange={e => setEditingClass({ ...editingClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2 bg-slate-800 rounded-xl text-slate-300">取消</button>
               <button type="button" onClick={saveClassEdit} className={`flex-1 py-2 ${theme.accentBg} rounded-xl font-bold text-white`}>儲存修改</button>
@@ -1329,11 +1329,11 @@ export default function App() {
                         <textarea rows={2} placeholder="動力方式" value={newClass.propulsion || ''} onChange={e => setNewClass({ ...newClass, propulsion: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                         <textarea rows={2} placeholder="動力輸出" value={newClass.power_output || ''} onChange={e => setNewClass({ ...newClass, power_output: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                       </div>
-                      <input placeholder="乘員" value={newClass.crew || ''} onChange={e => setNewClass({ ...newClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
+                      <textarea rows={2} placeholder="乘員" value={newClass.crew || ''} onChange={e => setNewClass({ ...newClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                       <textarea rows={3} placeholder="搜索系統 (雷達/聲納)" value={newClass.radar_systems || ''} onChange={e => setNewClass({ ...newClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                       <textarea rows={3} placeholder="武器系統" value={newClass.weapons_summary || ''} onChange={e => setNewClass({ ...newClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                       <textarea rows={2} placeholder="電戰系統" value={newClass.electronic_warfare || ''} onChange={e => setNewClass({ ...newClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
-                      <input placeholder="艦載機" value={newClass.aircraft || ''} onChange={e => setNewClass({ ...newClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
+                      <textarea rows={2} placeholder="艦載機" value={newClass.aircraft || ''} onChange={e => setNewClass({ ...newClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                     </div>
 
                     <button type="submit" className={`w-full py-3 ${theme.accentBg} rounded-xl font-bold text-white shadow-lg`}>

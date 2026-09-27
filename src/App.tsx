@@ -529,7 +529,7 @@ export default function App() {
         propulsion: getVal(['動力方式', '主機']),
         max_speed: getVal(['最高速度', '航速']),
         crew: getVal(['乘員', '定員']),
-        radar_systems: getVal(['搜索系統', '雷達', '雷达']),
+        radar_systems: getVal(['搜索系統', '偵搜系統', '偵蒐系統', '侦搜系统', '侦蒐系统', '雷達', '雷达']),
         weapons_summary: getVal(['武器系統', '武器']),
         electronic_warfare: getVal(['電戰系統', '電子戰']),
         aircraft: getVal(['艦載機', '直升機'])
@@ -1042,7 +1042,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className={`w-full max-w-md border-t sm:border rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto ${currentTheme.modalBg}`}>
             <div className={`flex justify-between items-center border-b pb-3 ${currentTheme.border}`}>
-              <h3 className="font-bold text-base">次級資訊與系統設定</h3>
+              <h3 className="font-bold text-base">資訊與系統設定</h3>
               <button type="button" onClick={() => setShowMoreModal(null)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>
             </div>
 
@@ -1053,6 +1053,13 @@ export default function App() {
               <button type="button" onClick={() => setShowMoreModal('guide')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'guide' ? currentTheme.accentBg : currentTheme.textMuted}`}>離線說明</button>
               <button type="button" onClick={() => setShowMoreModal('sources')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'sources' ? currentTheme.accentBg : currentTheme.textMuted}`}>資料來源</button>
             </div>
+
+            <a
+              href={`mailto:pkddqq@gmail.com?subject=${encodeURIComponent('TAIWAN NAVY 使用者意見')}`}
+              className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold ${currentTheme.btnSecondary}`}
+            >
+              ✉ 提供問題或意見
+            </a>
 
             {showMoreModal === 'update' && (
               <div className={`space-y-3.5 p-4 rounded-2xl border text-xs ${currentTheme.subPanelBg}`}>
@@ -1347,7 +1354,7 @@ export default function App() {
                   <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>最高速度:</span>{renderFormattedList(selectedClassDetail.max_speed)}</div>
                   <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>乘員:</span>{renderFormattedList(selectedClassDetail.crew)}</div>
                 </div>
-                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>搜索系統 (雷達/聲納):</span>{renderFormattedList(selectedClassDetail.radar_systems)}</div>
+                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>搜索／偵搜系統 (雷達/聲納):</span>{renderFormattedList(selectedClassDetail.radar_systems)}</div>
                 <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>武器系統:</span>{renderFormattedList(selectedClassDetail.weapons_summary)}</div>
                 <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>電戰系統:</span>{renderFormattedList(selectedClassDetail.electronic_warfare)}</div>
                 <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>艦載機:</span>{renderFormattedList(selectedClassDetail.aircraft)}</div>
@@ -1610,7 +1617,7 @@ export default function App() {
                         <textarea rows={2} placeholder="最高速度" value={editingClassForm.max_speed || ''} onChange={e => setEditingClassForm({ ...editingClassForm, max_speed: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
                         <textarea rows={2} placeholder="乘員" value={editingClassForm.crew || ''} onChange={e => setEditingClassForm({ ...editingClassForm, crew: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
                       </div>
-                      <textarea rows={3} placeholder="搜索系統 (雷達/聲納)" value={editingClassForm.radar_systems || ''} onChange={e => setEditingClassForm({ ...editingClassForm, radar_systems: e.target.value })} className={`w-full rounded-xl p-2 ${currentTheme.input}`} />
+                      <textarea rows={3} placeholder="搜索／偵搜系統 (雷達/聲納)" value={editingClassForm.radar_systems || ''} onChange={e => setEditingClassForm({ ...editingClassForm, radar_systems: e.target.value })} className={`w-full rounded-xl p-2 ${currentTheme.input}`} />
                       <textarea rows={3} placeholder="武器系統" value={editingClassForm.weapons_summary || ''} onChange={e => setEditingClassForm({ ...editingClassForm, weapons_summary: e.target.value })} className={`w-full rounded-xl p-2 ${currentTheme.input}`} />
                       <textarea rows={3} placeholder="電戰系統" value={editingClassForm.electronic_warfare || ''} onChange={e => setEditingClassForm({ ...editingClassForm, electronic_warfare: e.target.value })} className={`w-full rounded-xl p-2 ${currentTheme.input}`} />
                       <textarea rows={3} placeholder="艦載機" value={editingClassForm.aircraft || ''} onChange={e => setEditingClassForm({ ...editingClassForm, aircraft: e.target.value })} className={`w-full rounded-xl p-2 ${currentTheme.input}`} />

@@ -52,7 +52,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [expandedSpecsId, setExpandedSpecsId] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.5');
+  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.6');
 
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
@@ -257,13 +257,21 @@ export default function App() {
         }
       }
 
+      // 改進的 Infobox 取值：在取文字前，先將換行/清單項目補上換行符號，防止文字擠在一起
       const getInfoBoxValue = (keywords: string[]) => {
         const rows = Array.from(doc.querySelectorAll('table.infobox tr'));
         for (const row of rows) {
           const th = row.querySelector('th')?.textContent?.trim() || '';
           if (keywords.some(k => th.includes(k))) {
             const td = row.querySelector('td');
-            if (td) return td.textContent?.replace(/\[.*?\]/g, '').trim().slice(0, 300) || '';
+            if (td) {
+              // 把 br, li, p 都轉成換行
+              const clone = td.cloneNode(true) as HTMLElement;
+              clone.querySelectorAll('br').forEach(b => b.replaceWith('\n'));
+              clone.querySelectorAll('li').forEach(l => l.append('\n'));
+              clone.querySelectorAll('p').forEach(p => p.append('\n'));
+              return clone.textContent?.replace(/\[.*?\]/g, '').trim().slice(0, 800) || '';
+            }
           }
         }
         return '';
@@ -308,9 +316,9 @@ export default function App() {
         propulsion: propulsion || '柴燃聯合動力方式 (CODOG)',
         max_speed: maxSpeedVal || '30 節',
         crew: crewVal || '約 280 人',
-        radar_systems: radarVal || '346A型 主動相位陣列雷達、超視距對海雷達、517B型對空警戒雷達',
-        weapons_summary: weaponsVal || '64單元通用垂直發射系統、130mm主砲、紅旗-10防空飛彈、1130近防砲',
-        electronic_warfare: ewVal || '726型 電子對抗系統、主被動干擾發射器',
+        radar_systems: radarVal || '346A型 主動相位陣列雷達\n超視距對海雷達\n517B型對空警戒雷達',
+        weapons_summary: weaponsVal || '64單元通用垂直發射系統\n130mm主砲\n紅旗-10防空飛彈\n1130近防砲',
+        electronic_warfare: ewVal || '726型 電子對抗系統\n主被動干擾發射器',
         aircraft: airVal || '直-9C / 直-20F 反潛直升機 1 架'
       });
 
@@ -655,19 +663,28 @@ export default function App() {
     fetchData();
   };
 
-  // 輔助函式：將長段落文字根據頓號、分號、換行等符號，自動分段為條列清單
+  // 🎯 強大的智慧條列分段演算法：針對無標點直接相連的 H/ 代號，也能自動拆分
   const renderFormattedList = (text?: string) => {
     if (!text) return <span className="text-slate-100 font-medium">-</span>;
-    const items = text.split(/[\n\r；;、]/).map(s => s.trim()).filter(Boolean);
+
+    // 先在各型號開頭（如 H/ 或特定雷達代號）前補上換行，即使維基黏在一起也能秒切開！
+    let normalized = text
+      .replace(/([^\n\r])(?=H\/)/g, '$1\n') // 在 H/ 裝備代號前自動切行
+      .replace(/([^\n\r])(?=Type\s*[0-9])/gi, '$1\n')
+      .replace(/[\r\n；;、]+/g, '\n'); // 把頓號、分號統一轉成換行
+
+    const items = normalized.split('\n').map(s => s.trim()).filter(Boolean);
+
     if (items.length <= 1) {
       return <span className="text-slate-100 font-medium leading-relaxed">{text}</span>;
     }
+
     return (
-      <div className="space-y-1 pt-0.5">
+      <div className="space-y-1.5 pt-1">
         {items.map((item, idx) => (
-          <div key={idx} className="flex items-start gap-1.5 text-slate-100 leading-snug">
-            <span className="text-slate-500 font-mono text-[10px] leading-tight select-none">•</span>
-            <span className="font-medium">{item}</span>
+          <div key={idx} className="flex items-start gap-2 text-slate-100 leading-snug">
+            <span className="text-slate-500 font-mono text-[10px] leading-tight select-none mt-0.5">•</span>
+            <span className="font-medium text-slate-100">{item}</span>
           </div>
         ))}
       </div>
@@ -1005,25 +1022,25 @@ export default function App() {
                                 <span className="text-slate-100 font-medium">{c.crew || '-'}</span>
                               </div>
 
-                              {/* 搜索系統 (白色文字 + 自動分段) */}
+                              {/* 搜索系統 (白色文字 + 智慧分段) */}
                               <div className="border-b border-slate-900 pb-2.5">
                                 <span className="text-slate-400 block text-[10px] mb-0.5">搜索系統 (雷達/聲納):</span>
                                 {renderFormattedList(c.radar_systems)}
                               </div>
 
-                              {/* 武器系統 (白色文字 + 自動分段) */}
+                              {/* 武器系統 (白色文字 + 智慧分段) */}
                               <div className="border-b border-slate-900 pb-2.5">
                                 <span className="text-slate-400 block text-[10px] mb-0.5">武器系統:</span>
                                 {renderFormattedList(c.weapons_summary)}
                               </div>
 
-                              {/* 電戰系統 (白色文字 + 自動分段) */}
+                              {/* 電戰系統 (白色文字 + 智慧分段) */}
                               <div className="border-b border-slate-900 pb-2.5">
                                 <span className="text-slate-400 block text-[10px] mb-0.5">電戰系統:</span>
                                 {renderFormattedList(c.electronic_warfare)}
                               </div>
 
-                              {/* 艦載機 (白色文字 + 自動分段) */}
+                              {/* 艦載機 (白色文字 + 智慧分段) */}
                               <div>
                                 <span className="text-slate-400 block text-[10px] mb-0.5">艦載機:</span>
                                 {renderFormattedList(c.aircraft)}
@@ -1211,9 +1228,9 @@ export default function App() {
             <div><label className="text-slate-400 block mb-1">動力方式</label><input type="text" value={editingClass.propulsion || ''} onChange={e => setEditingClass({ ...editingClass, propulsion: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">動力輸出</label><input type="text" value={editingClass.power_output || ''} onChange={e => setEditingClass({ ...editingClass, power_output: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">乘員</label><input type="text" value={editingClass.crew || ''} onChange={e => setEditingClass({ ...editingClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">搜索系統 (雷達/聲納)</label><textarea rows={3} placeholder="以頓號或換行隔開各雷達型號" value={editingClass.radar_systems || ''} onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">武器系統</label><textarea rows={3} placeholder="以頓號或換行隔開各武器型號" value={editingClass.weapons_summary || ''} onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">電戰系統</label><textarea rows={2} placeholder="以頓號或換行隔開" value={editingClass.electronic_warfare || ''} onChange={e => setEditingClass({ ...editingClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">搜索系統 (雷達/聲納，支援自動分行)</label><textarea rows={3} value={editingClass.radar_systems || ''} onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">武器系統</label><textarea rows={3} value={editingClass.weapons_summary || ''} onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">電戰系統</label><textarea rows={2} value={editingClass.electronic_warfare || ''} onChange={e => setEditingClass({ ...editingClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">艦載機</label><input type="text" value={editingClass.aircraft || ''} onChange={e => setEditingClass({ ...editingClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2 bg-slate-800 rounded-xl text-slate-300">取消</button>
@@ -1312,8 +1329,8 @@ export default function App() {
                         <input placeholder="動力輸出" value={newClass.power_output || ''} onChange={e => setNewClass({ ...newClass, power_output: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                       </div>
                       <input placeholder="乘員" value={newClass.crew || ''} onChange={e => setNewClass({ ...newClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
-                      <textarea rows={2} placeholder="搜索系統 (雷達/聲納，以頓號或換行隔開)" value={newClass.radar_systems || ''} onChange={e => setNewClass({ ...newClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
-                      <textarea rows={2} placeholder="武器系統 (以頓號或換行隔開)" value={newClass.weapons_summary || ''} onChange={e => setNewClass({ ...newClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
+                      <textarea rows={2} placeholder="搜索系統 (雷達/聲納)" value={newClass.radar_systems || ''} onChange={e => setNewClass({ ...newClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
+                      <textarea rows={2} placeholder="武器系統" value={newClass.weapons_summary || ''} onChange={e => setNewClass({ ...newClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                       <textarea rows={2} placeholder="電戰系統" value={newClass.electronic_warfare || ''} onChange={e => setNewClass({ ...newClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                       <input placeholder="艦載機" value={newClass.aircraft || ''} onChange={e => setNewClass({ ...newClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                     </div>

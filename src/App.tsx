@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.27 v4.6';
+const CURRENT_APP_VERSION = '2026.09.27 v4.7';
 
 interface ShipClass {
   id: string;
@@ -254,7 +254,6 @@ export default function App() {
     }
   };
 
-  // 全面紅光階調自適應
   const getStatusLabel = (code?: string, fallbackStatus?: string) => {
     if (themeMode === 'red') {
       return { label: fallbackStatus || '現役', color: 'bg-red-950 text-red-200 border-red-800' };
@@ -359,7 +358,6 @@ export default function App() {
     displayedClasses = displayedClasses.filter(c => favorites.includes(c.id));
   }
 
-  // 🎯 全域設計語言體系：所有彈窗、抽屜、面板與按鈕 100% 依隨主題！
   const getThemeStyles = () => {
     if (themeMode === 'red') {
       return {
@@ -568,14 +566,18 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleForceUpdateApp}
-                className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs animate-bounce flex items-center gap-1 shadow-lg"
+                className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs animate-bounce flex items-center gap-1.5 shadow-lg"
                 title="點擊立即更新至最新版面"
               >
-                <span>🚀 新版就緒</span>
+                {/* 新版就緒 SVG 圖標 */}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                <span>新版就緒</span>
               </button>
             )}
 
-            {/* 三段切換：🌙 暗藍 -> 🔴 紅外線紅光 -> ☀️ 日間高對比 */}
+            {/* 三段切換：🌙 暗藍 -> 🔴 紅外線紅光 -> ☀️ 日間高對比 (SVG) */}
             <button
               type="button"
               onClick={() => {
@@ -586,7 +588,22 @@ export default function App() {
               className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl ${currentTheme.btnSecondary} active:scale-95 transition`}
               title="切換顯示主題（暗藍／紅光／日間）"
             >
-              {themeMode === 'red' ? '🔴' : themeMode === 'high_contrast' ? '☀️' : '🌙'}
+              {themeMode === 'red' ? (
+                // 紅光：標靶圖示
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zm-7.518-.267A8.25 8.25 0 1120.25 10.5M8.288 14.212A5.25 5.25 0 1117.25 10.5" />
+                </svg>
+              ) : themeMode === 'high_contrast' ? (
+                // 日間：太陽圖示
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                </svg>
+              ) : (
+                // 暗藍：月亮圖示
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                </svg>
+              )}
             </button>
 
             <button
@@ -715,7 +732,16 @@ export default function App() {
                           onClick={e => toggleFavorite(c.id, e)}
                           className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border text-xl active:scale-90 transition ${currentTheme.btnSecondary}`}
                         >
-                          {isFav ? <span className={themeMode === 'red' ? 'text-red-400 font-black' : 'text-amber-400'}>★</span> : <span className={currentTheme.textMuted}>☆</span>}
+                          {/* 收藏星星 SVG */}
+                          {isFav ? (
+                            <svg className={`w-6 h-6 ${themeMode === 'red' ? 'text-red-400' : 'text-amber-400'}`} fill="currentColor" viewBox="0 0 24 24">
+                              <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className={`w-6 h-6 ${currentTheme.textMuted}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                            </svg>
+                          )}
                         </button>
 
                         <button
@@ -781,7 +807,14 @@ export default function App() {
                 <div className="space-y-3 text-xs">
                   {(shipA.identification_features?.length || shipB.identification_features?.length) ? (
                     <div className={`p-4 rounded-2xl border space-y-2.5 ${themeMode === 'red' ? 'bg-[#180407] border-red-950' : 'bg-cyan-950/30 border-cyan-500/40'}`}>
-                      <span className={`font-bold text-sm block border-b pb-1.5 ${currentTheme.accentText} ${currentTheme.border}`}>👁 主要外觀辨識特徵對照</span>
+                      <span className={`font-bold text-sm flex items-center gap-2 border-b pb-1.5 ${currentTheme.accentText} ${currentTheme.border}`}>
+                        {/* 👁 外觀辨識圖標 SVG */}
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        主要外觀辨識特徵對照
+                      </span>
                       <div className="grid grid-cols-2 gap-3 pt-1">
                         <div className="space-y-1">
                           <span className={`font-mono font-bold block ${currentTheme.accentText}`}>{shipA.code}:</span>
@@ -830,11 +863,22 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComparePool([]);
+                      localStorage.removeItem('tn_compare_pool');
+                    }}
+                    className={`w-full min-h-[44px] rounded-xl font-bold ${currentTheme.btnSecondary}`}
+                  >
+                    清空比對池
+                  </button>
                 </div>
-              ) : null}
-            </div>
-          );
-        })()}
+              );
+            })()}
+          </div>
+        )}
       </main>
 
       {/* 底部戰術控制底座 */}
@@ -899,6 +943,7 @@ export default function App() {
               onClick={() => setActiveBottomTab('favorites')}
               className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition ${activeBottomTab === 'favorites' ? (themeMode === 'red' ? 'text-red-400 font-black' : 'text-amber-400') : currentTheme.textMuted}`}
             >
+              {/* 最愛 SVG */}
               <svg className="w-5 h-5" fill={activeBottomTab === 'favorites' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
               </svg>
@@ -933,7 +978,7 @@ export default function App() {
         </nav>
       </div>
 
-      {/* 「更多」抽屜視窗：全面換上紅光／高對比／暗藍自適應濾鏡 */}
+      {/* 「更多」抽屜視窗 */}
       {showMoreModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className={`w-full max-w-md border-t sm:border rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto ${currentTheme.modalBg}`}>
@@ -960,13 +1005,29 @@ export default function App() {
                   <p className="font-bold">為什麼有時候畫面沒有更新？</p>
                   <p className={currentTheme.textMuted}>為了確保在海上斷網時能照常運作，手機會自動將畫面鎖存在本機快取中。若雲端發布了新版面但畫面卡住，可點擊下方按鈕強制清除本機快取並刷新。</p>
                 </div>
+                
+                {/* 🔄 清除快取按鈕改用 SVG */}
                 <button
                   type="button"
                   disabled={isUpdating}
                   onClick={handleForceUpdateApp}
                   className={`w-full min-h-[48px] rounded-xl font-bold text-sm shadow-lg active:scale-95 transition flex items-center justify-center gap-2 ${currentTheme.accentBg}`}
                 >
-                  {isUpdating ? '正在清除快取並載入...' : '🔄 強制清除快取並更新至最新版面'}
+                  {isUpdating ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      正在清除快取並載入...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
+                      強制清除快取並更新至最新版面
+                    </span>
+                  )}
                 </button>
               </div>
             )}
@@ -1043,7 +1104,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 艦型詳細頁 Modal：100% 染上紅外線紅色玻璃紙主題 */}
+      {/* 艦型詳細頁 Modal */}
       {selectedClassDetail && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4">
           <div className={`w-full max-w-lg h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
@@ -1097,12 +1158,22 @@ export default function App() {
                     >
                       {comparePool.includes(selectedClassDetail.id) ? '已加入比對' : '＋加入比對'}
                     </button>
+                    
+                    {/* SVG 星星 */}
                     <button
                       type="button"
                       onClick={() => toggleFavorite(selectedClassDetail.id)}
-                      className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border text-lg ${currentTheme.btnSecondary}`}
+                      className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border ${currentTheme.btnSecondary}`}
                     >
-                      {favorites.includes(selectedClassDetail.id) ? '★' : '☆'}
+                      {favorites.includes(selectedClassDetail.id) ? (
+                        <svg className={`w-6 h-6 ${themeMode === 'red' ? 'text-red-400' : 'text-amber-400'}`} fill="currentColor" viewBox="0 0 24 24">
+                          <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg className={`w-6 h-6 ${currentTheme.textMuted}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                        </svg>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1117,7 +1188,12 @@ export default function App() {
               <div className={`p-4 rounded-2xl border space-y-2.5 ${currentTheme.subPanelBg}`}>
                 <div className={`flex justify-between items-center border-b pb-2 ${currentTheme.border}`}>
                   <span className={`font-bold text-base flex items-center gap-2 ${currentTheme.accentText}`}>
-                    <span>👁 外觀辨識</span>
+                    {/* SVG 眼睛 */}
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>外觀辨識</span>
                   </span>
                   {getVerificationBadge(selectedClassDetail.identification_status)}
                 </div>
@@ -1147,7 +1223,13 @@ export default function App() {
 
               {selectedClassDetail.similar_classes && selectedClassDetail.similar_classes.length > 0 && (
                 <div className={`p-4 rounded-2xl border space-y-2 ${currentTheme.subPanelBg}`}>
-                  <span className={`font-bold text-sm ${themeMode === 'red' ? 'text-red-400' : 'text-amber-300'}`}>⚠️ 容易混淆艦型 (點擊啟動比對)</span>
+                  <span className={`font-bold text-sm flex items-center gap-1.5 ${themeMode === 'red' ? 'text-red-400' : 'text-amber-300'}`}>
+                    {/* SVG 警告 */}
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    容易混淆艦型 (點擊啟動比對)
+                  </span>
                   <div className="flex flex-wrap gap-2 pt-1">
                     {selectedClassDetail.similar_classes.map(targetCode => {
                       const matched = classes.find(c => c.code.toLowerCase() === targetCode.toLowerCase());
@@ -1310,7 +1392,13 @@ export default function App() {
                   </div>
 
                   <div className={`p-3.5 rounded-2xl border space-y-3 ${currentTheme.subPanelBg}`}>
-                    <span className="font-bold text-sm block">👁 外觀辨識特徵人工管理</span>
+                    <span className="font-bold text-sm block flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      外觀辨識特徵人工管理
+                    </span>
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -1526,6 +1614,27 @@ export default function App() {
                         value={newShipForm.commissioned_year}
                         onChange={e => setNewShipForm({ ...newShipForm, commissioned_year: e.target.value })}
                         className={`w-full min-h-[44px] rounded-xl px-3 font-mono ${currentTheme.input}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={`block mb-1 ${currentTheme.textMuted}`}>所屬艦隊</label>
+                      <input
+                        placeholder="例: 南部戰區海軍"
+                        value={newShipForm.fleet}
+                        onChange={e => setNewShipForm({ ...newShipForm, fleet: e.target.value })}
+                        className={`w-full min-h-[44px] rounded-xl px-3 ${currentTheme.input}`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block mb-1 ${currentTheme.textMuted}`}>所屬支隊</label>
+                      <input
+                        placeholder="例: 驅逐艦第9支隊"
+                        value={newShipForm.squadron}
+                        onChange={e => setNewShipForm({ ...newShipForm, squadron: e.target.value })}
+                        className={`w-full min-h-[44px] rounded-xl px-3 ${currentTheme.input}`}
                       />
                     </div>
                   </div>

@@ -686,6 +686,18 @@ export default function App() {
     setShowAdmin(true);
   };
 
+  const handleDeleteEditingShip = async () => {
+    if (!isAuthenticated || !editingShipId || !supabase) return;
+    const confirmed = window.confirm(`確定要刪除單艦「${newShipForm.hull_number} ${newShipForm.name_zh}」嗎？\n此操作無法復原。`);
+    if (!confirmed) return;
+    const { error } = await supabase.from('ships').delete().eq('id', editingShipId);
+    if (error) return alert(`刪除單艦失敗: ${error.message}`);
+    alert(`單艦【${newShipForm.hull_number} ${newShipForm.name_zh}】已刪除。`);
+    setEditingShipId(null);
+    setShowAdmin(false);
+    await fetchData();
+  };
+
   const handleDeleteSelectedClass = async () => {
     if (!isAuthenticated || !selectedClassDetail || !supabase) return;
     const confirmed = window.confirm(`確定要刪除艦型「${selectedClassDetail.code} ${selectedClassDetail.name_zh}」嗎？\n此操作會一併刪除本級艦艇資料，且無法復原。`);
@@ -1900,12 +1912,23 @@ export default function App() {
                     </select>
                   </div>
 
-                  <button
-                    type="submit"
-                    className={`w-full min-h-[48px] rounded-xl font-bold text-sm shadow-lg active:scale-95 transition ${currentTheme.accentBg}`}
-                  >
-                    {editingShipId ? '儲存單艦修改' : '新增單艦履歷'}
-                  </button>
+                  <div className="flex gap-2">
+                    {editingShipId && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteEditingShip}
+                        className="min-h-[48px] px-5 rounded-xl border border-red-500/60 bg-red-950 text-red-200 font-bold text-sm active:scale-95 transition"
+                      >
+                        刪除單艦
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      className={`flex-1 min-h-[48px] rounded-xl font-bold text-sm shadow-lg active:scale-95 transition ${currentTheme.accentBg}`}
+                    >
+                      {editingShipId ? '儲存單艦修改' : '新增單艦履歷'}
+                    </button>
+                  </div>
                 </form>
               )}
 

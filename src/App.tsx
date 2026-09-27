@@ -462,9 +462,9 @@ export default function App() {
     return raw.replace(/\[\d+\]/g, '').replace(/\[註\s*\d+\]/g, '').trim();
   };
 
-  const toTraditional = (text: string) => text.replace(/[舰号现时间队装战计划态驱护导远标属区军萨连锡东无阳义庆济宁沈长门级国台湾产厂发后备录称]/g, char => ({
+  const toTraditional = (text: string) => text.replace(/[舰号现时间队装战计划态驱护导远标属区军萨连锡东无阳义庆济宁沈长门级国台湾产厂发后备录称试验编]/g, char => ({
     舰: '艦', 号: '號', 现: '現', 时: '時', 间: '間', 队: '隊', 装: '裝', 战: '戰', 计: '計', 划: '畫', 态: '態', 驱: '驅', 护: '護', 导: '導', 远: '遠', 标: '標',
-    属: '屬', 区: '區', 军: '軍', 萨: '薩', 连: '連', 锡: '錫', 东: '東', 无: '無', 阳: '陽', 义: '義', 庆: '慶', 济: '濟', 宁: '寧', 沈: '瀋', 长: '長', 门: '門', 级: '級', 国: '國', 台: '臺', 湾: '灣', 产: '產', 厂: '廠', 发: '發', 后: '後', 备: '備', 录: '錄', 称: '稱'
+    属: '屬', 区: '區', 军: '軍', 萨: '薩', 连: '連', 锡: '錫', 东: '東', 无: '無', 阳: '陽', 义: '義', 庆: '慶', 济: '濟', 宁: '寧', 沈: '瀋', 长: '長', 门: '門', 级: '級', 国: '國', 台: '臺', 湾: '灣', 产: '產', 厂: '廠', 发: '發', 后: '後', 备: '備', 录: '錄', 称: '稱', 试: '試', 验: '驗', 编: '編'
   }[char] || char));
 
   const fetchWikiDocument = async (query: string) => {
@@ -609,14 +609,14 @@ export default function App() {
         const squadronIndex = indexOf([/所屬支隊/, /支隊/]);
         const statusIndex = indexOf([/現狀/, /現況/, /狀態/]);
         for (const row of rows.slice(headerRowIndex + 1)) {
-          const cells = Array.from(row.querySelectorAll('td')).map(cell => toTraditional(cleanWikiText(cell.textContent || '').replace(/\s+/g, ' ').trim()));
+          const cells = Array.from(row.querySelectorAll('th,td')).map(cell => toTraditional(cleanWikiText(cell.textContent || '').replace(/\s+/g, ' ').trim()));
           const hull = (hullIndex >= 0 ? cells[hullIndex] : cells.find(value => /^\d{2,4}[A-Za-z啟]?[-A-Za-z]*$/.test(value))) || '';
           if (!hull || cells.length < 2) continue;
           const name = (nameIndex >= 0 ? cells[nameIndex] : cells.find(value => value && value !== hull && !/^\d{4}/.test(value))) || '';
           if (!name) continue;
           const commissioned = commissionedIndex >= 0 ? cells[commissionedIndex] || '' : '';
           const statusText = statusIndex >= 0 ? cells[statusIndex] || '' : '';
-          const statusCode: Ship['status_code'] = statusText.includes('退役') ? 'retired' : statusText.includes('海試') ? 'sea_trial' : statusText.includes('計畫') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') ? 'fitting_out' : statusText.includes('改裝') ? 'refit' : statusText.includes('現役') || statusText.includes('服役') ? 'active' : 'unknown';
+          const statusCode: Ship['status_code'] = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('航行試驗') || statusText.includes('試航') ? 'sea_trial' : statusText.includes('計畫') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') ? 'fitting_out' : statusText.includes('改裝') ? 'refit' : statusText.includes('現役') || statusText.includes('服役') ? 'active' : 'unknown';
           if (!extractedShips.some(ship => ship.hull_number === hull)) extractedShips.push({ hull_number: hull, name_zh: name, commissioned_year: commissioned, commission_precision: /\d{4}(?:-|年)\d{1,2}(?:-|月)\d{1,2}日?/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown', fleet: fleetIndex >= 0 ? cells[fleetIndex] || '' : '', squadron: squadronIndex >= 0 ? cells[squadronIndex] || '' : '', status_code: statusCode });
         }
       }
@@ -625,7 +625,7 @@ export default function App() {
       const name = getVal(['艦名', '舰名']) || resolvedTitle;
       const commissioned = getVal(['服役日期', '服役時間', '服役时间', '入役', '服役']);
       const statusText = getVal(['目前狀態', '目前状态', '服役狀態', '服役状态', '艦況', '舰况']);
-      const statusCode = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('海试') ? 'sea_trial' : statusText.includes('計畫') || statusText.includes('计划') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') || statusText.includes('舾装') ? 'fitting_out' : statusText.includes('改裝') || statusText.includes('改装') ? 'refit' : statusText.includes('現役') || statusText.includes('现役') || statusText.includes('服役') ? 'active' : 'unknown';
+      const statusCode = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('海试') || statusText.includes('航行試驗') || statusText.includes('航行试验') || statusText.includes('試航') || statusText.includes('试航') ? 'sea_trial' : statusText.includes('計畫') || statusText.includes('计划') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') || statusText.includes('舾装') ? 'fitting_out' : statusText.includes('改裝') || statusText.includes('改装') ? 'refit' : statusText.includes('現役') || statusText.includes('现役') || statusText.includes('服役') ? 'active' : 'unknown';
       const precision = /\d{4}(?:-|年)\d{1,2}(?:-|月)\d{1,2}日?/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown';
       const classCode = resolvedTitle.match(/([0-9A-Za-z-]+)(?:型|級)/)?.[1] || input.match(/[0-9A-Za-z-]+/)?.[0] || '';
       const matchedClass = classes.find(item => item.code.toLowerCase() === classCode.toLowerCase());
@@ -643,6 +643,13 @@ export default function App() {
     if (!supabase || wikiShipBatch.length === 0) return;
     const selectedClass = classes.find(item => item.id === newShipForm.class_id) || classes.find(item => newShipForm.class_id && item.code.toLowerCase() === newShipForm.class_id.toLowerCase());
     if (!selectedClass) return alert('請先選擇要匯入的所屬艦型');
+    const shiftedLegacyIds = ships
+      .filter(existing => existing.class_id === selectedClass.id && wikiShipBatch.some(imported => imported.name_zh === existing.hull_number))
+      .map(existing => existing.id);
+    if (shiftedLegacyIds.length > 0) {
+      const { error: cleanupError } = await supabase.from('ships').delete().in('id', shiftedLegacyIds);
+      if (cleanupError) return alert(`清理舊有錯位資料失敗: ${cleanupError.message}`);
+    }
     const { error } = await supabase.from('ships').upsert(wikiShipBatch.map(ship => ({
       id: `s-${ship.hull_number}`,
       class_id: selectedClass.id,
@@ -749,7 +756,7 @@ export default function App() {
           <div>
             <div className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
-              <h1 className="font-black tracking-widest text-lg font-mono">TAIWAN NAVY</h1>
+              <h1 className="font-black tracking-widest text-lg md:text-2xl font-mono">TAIWAN NAVY</h1>
             </div>
             <div className={`text-xs font-mono ${themeMode === 'red' ? 'text-red-500' : 'text-slate-400'} flex items-center gap-1.5 pt-0.5`}>
               {isOnline ? (
@@ -874,9 +881,9 @@ export default function App() {
               </div>
             )}
 
-            <section className="space-y-3">
+            <section className="space-y-3 md:space-y-4">
               <div className="flex justify-between items-center px-1">
-                <span className={`text-xs font-mono font-bold tracking-wider uppercase ${currentTheme.textMuted}`}>
+                <span className={`text-xs md:text-sm font-mono font-bold tracking-wider uppercase ${currentTheme.textMuted}`}>
                   {activeBottomTab === 'favorites' ? `我的最愛 (${displayedClasses.length})` : `作戰艦型清單 (${displayedClasses.length})`}
                 </span>
               </div>
@@ -899,19 +906,20 @@ export default function App() {
                     <div
                       key={c.id}
                       onClick={() => handleOpenDetail(c)}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm flex items-center justify-between gap-3 ${currentTheme.cardBg}`}
+                      className={`relative overflow-hidden p-4 md:p-6 md:min-h-[150px] rounded-2xl border transition-all cursor-pointer shadow-sm md:hover:-translate-y-1 md:hover:shadow-xl flex items-center justify-between gap-3 ${currentTheme.cardBg}`}
                     >
-                      <div className="space-y-1.5 flex-1">
+                      <div className={`hidden md:block absolute inset-x-0 top-0 h-1 ${themeMode === 'red' ? 'bg-gradient-to-r from-red-900 via-red-500 to-red-900' : themeMode === 'high_contrast' ? 'bg-gradient-to-r from-cyan-700 via-sky-400 to-cyan-700' : 'bg-gradient-to-r from-cyan-700 via-cyan-400 to-blue-700'}`}></div>
+                      <div className="space-y-1.5 md:space-y-3 flex-1">
                         <div className="flex items-baseline gap-2.5">
-                          <span className={`font-mono font-black ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
+                          <span className={`font-mono font-black md:text-3xl ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
                             {c.code}
                           </span>
-                          <span className={`font-bold ${primaryText} ${fontStyle.cardSub}`}>
+                          <span className={`font-bold md:text-lg ${primaryText} ${fontStyle.cardSub}`}>
                             {c.name_zh}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm">
                           <span className={`px-2.5 py-0.5 rounded-md ${currentTheme.badge} font-medium`}>
                             {c.nato_code ? `${c.nato_code} · ${c.category}` : c.category}
                           </span>
@@ -1303,10 +1311,10 @@ export default function App() {
           <div className={`w-full max-w-lg md:max-w-5xl h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
             <div className={`px-5 py-4 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
               <div className="flex items-center gap-2">
-                <span className={`font-mono text-2xl font-black ${currentTheme.accentText}`}>
+                <span className={`font-mono text-2xl md:text-3xl font-black ${currentTheme.accentText}`}>
                   {selectedClassDetail.code}
                 </span>
-                <span className="font-bold text-base truncate max-w-[200px]">
+                <span className="font-bold text-base md:text-xl truncate max-w-[200px] md:max-w-md">
                   {selectedClassDetail.name_zh}
                 </span>
               </div>
@@ -1503,17 +1511,17 @@ export default function App() {
                     {ships.filter(s => s.class_id === selectedClassDetail.id).map(s => {
                       const statusMeta = getStatusLabel(s.status_code, s.status);
                       return (
-                        <div key={s.id} className={`p-3 rounded-xl border flex flex-col gap-1.5 ${currentTheme.subPanelBg}`}>
+                        <div key={s.id} className={`relative p-3 md:p-5 md:pr-40 rounded-xl border flex flex-col gap-1.5 md:gap-3 shadow-sm ${currentTheme.subPanelBg}`}>
                           <div className="flex justify-between items-center">
                             <div className="flex items-baseline gap-2.5">
-                              <span className={`font-mono text-xl font-black ${currentTheme.accentText}`}>{s.hull_number}</span>
-                              <span className="font-bold text-base">{s.name_zh}</span>
+                              <span className={`font-mono text-xl md:text-4xl font-black ${currentTheme.accentText}`}>{s.hull_number}</span>
+                              <span className={`font-bold text-base md:text-xl ${primaryText}`}>{s.name_zh}</span>
                             </div>
-                            <span className={`text-xs px-2.5 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
+                            <span className={`text-xs md:text-sm px-2.5 md:px-3.5 py-0.5 md:py-1 rounded-md font-bold border ${statusMeta.color}`}>
                               {statusMeta.label}
                             </span>
                           </div>
-                          <div className={`text-xs space-y-0.5 pt-1 border-t ${currentTheme.border}`}>
+                          <div className={`text-xs md:text-base space-y-0.5 md:space-y-1.5 pt-1 md:pt-2 border-t ${currentTheme.border}`}>
                             <div><span className={currentTheme.textMuted}>服役時間：</span><span className="font-mono">{s.commissioned_year || '未載明'}</span></div>
                             <div><span className={currentTheme.textMuted}>編屬部隊：</span><span>{s.fleet || '未載明'}{s.squadron && ` · ${s.squadron}`}</span></div>
                           </div>
@@ -1521,7 +1529,7 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => openShipEditor(s)}
-                              className={`self-end min-h-[40px] px-3 rounded-lg text-xs font-bold border ${currentTheme.btnSecondary}`}
+                              className={`self-end md:absolute md:right-5 md:bottom-5 min-h-[40px] md:min-h-[46px] px-3 md:px-5 rounded-lg text-xs md:text-sm font-bold border ${currentTheme.btnSecondary}`}
                             >
                               編輯單艦
                             </button>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.27 v4.9';
+const CURRENT_APP_VERSION = '2026.09.27 v5.0';
 
 interface ShipClass {
   id: string;
@@ -47,7 +47,6 @@ type FontSizeOption = 'sm' | 'default' | 'md' | 'lg';
 type ThemeMode = 'dark' | 'red' | 'high_contrast';
 type BottomTab = 'classes' | 'favorites' | 'compare' | 'more';
 
-// 獨立乾淨的星號 SVG 組件，杜絕 JSX 巢狀語法問題
 function StarIcon({ isFilled, isRedMode }: { isFilled: boolean; isRedMode: boolean }) {
   if (isFilled) {
     return (
@@ -210,7 +209,7 @@ export default function App() {
 
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().then(granted => {
-        if (granted) console.log('✅ Persistent storage active');
+        if (granted) console.log('Persistent storage active');
       });
     }
   }, []);
@@ -1099,221 +1098,6 @@ export default function App() {
                 <button type="submit" className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold ${currentTheme.accentBg}`}>確認驗證</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* 詳細頁 Modal */}
-      {selectedClassDetail && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4">
-          <div className={`w-full max-w-lg h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
-            <div className={`px-5 py-4 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
-              <div className="flex items-center gap-2">
-                <span className={`font-mono text-2xl font-black ${currentTheme.accentText}`}>
-                  {selectedClassDetail.code}
-                </span>
-                <span className="font-bold text-base truncate max-w-[200px]">
-                  {selectedClassDetail.name_zh}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedClassDetail(null)}
-                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border font-bold ${currentTheme.btnSecondary}`}
-              >
-                ✕ 關閉
-              </button>
-            </div>
-
-            <div className="p-5 overflow-y-auto space-y-5 text-sm">
-              <div className="space-y-3">
-                {selectedClassDetail.image_url ? (
-                  <div className={`w-full h-48 rounded-2xl overflow-hidden border bg-black ${currentTheme.border} ${themeMode === 'red' ? 'brightness-75 contrast-125 sepia hue-rotate-[320deg]' : ''}`}>
-                    <img src={selectedClassDetail.image_url} alt={selectedClassDetail.name_zh} className="w-full h-full object-cover object-center" />
-                  </div>
-                ) : (
-                  <div className={`w-full h-24 rounded-2xl border border-dashed flex items-center justify-center text-xs ${currentTheme.subPanelBg} ${currentTheme.textMuted}`}>
-                    暫無艦影照片
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center pt-1">
-                  <div>
-                    <h2 className="text-xl font-black">{selectedClassDetail.name_zh}</h2>
-                    <p className={`text-xs font-mono ${currentTheme.textMuted}`}>
-                      {selectedClassDetail.nato_code} · {selectedClassDetail.category}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleCompare(selectedClassDetail.id)}
-                      className={`min-h-[44px] px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 ${
-                        comparePool.includes(selectedClassDetail.id)
-                          ? currentTheme.accentBg
-                          : currentTheme.btnSecondary
-                      }`}
-                    >
-                      {comparePool.includes(selectedClassDetail.id) ? '已加入比對' : '＋加入比對'}
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={() => toggleFavorite(selectedClassDetail.id)}
-                      className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border ${currentTheme.btnSecondary}`}
-                    >
-                      <StarIcon isFilled={favorites.includes(selectedClassDetail.id)} isRedMode={themeMode === 'red'} />
-                    </button>
-                  </div>
-                </div>
-
-                {selectedClassDetail.overview && (
-                  <p className={`text-xs p-3 rounded-xl border leading-relaxed text-justify ${currentTheme.subPanelBg}`}>
-                    {selectedClassDetail.overview}
-                  </p>
-                )}
-              </div>
-
-              <div className={`p-4 rounded-2xl border space-y-2.5 ${currentTheme.subPanelBg}`}>
-                <div className={`flex justify-between items-center border-b pb-2 ${currentTheme.border}`}>
-                  <span className={`font-bold text-base flex items-center gap-2 ${currentTheme.accentText}`}>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>外觀辨識</span>
-                  </span>
-                  {getVerificationBadge(selectedClassDetail.identification_status)}
-                </div>
-
-                {selectedClassDetail.identification_features && selectedClassDetail.identification_features.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {selectedClassDetail.identification_features.map((feature, idx) => (
-                      <div key={idx} className="flex items-start gap-2">
-                        <span className={`font-mono font-bold ${currentTheme.accentText}`}>•</span>
-                        <span className="font-medium leading-relaxed">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className={`text-xs py-1 italic ${currentTheme.textMuted}`}>
-                    目前尚未建立人工查證的外觀辨識資料
-                  </p>
-                )}
-
-                {selectedClassDetail.identification_notes && (
-                  <div className={`mt-2 pt-2 border-t text-xs ${currentTheme.border} ${currentTheme.textMuted}`}>
-                    <span className="font-bold block mb-0.5">辨識附註：</span>
-                    {selectedClassDetail.identification_notes}
-                  </div>
-                )}
-              </div>
-
-              {selectedClassDetail.similar_classes && selectedClassDetail.similar_classes.length > 0 && (
-                <div className={`p-4 rounded-2xl border space-y-2 ${currentTheme.subPanelBg}`}>
-                  <span className={`font-bold text-sm flex items-center gap-1.5 ${themeMode === 'red' ? 'text-red-400' : 'text-amber-300'}`}>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    容易混淆艦型 (點擊啟動比對)
-                  </span>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {selectedClassDetail.similar_classes.map(targetCode => {
-                      const matched = classes.find(c => c.code.toLowerCase() === targetCode.toLowerCase());
-                      return (
-                        <button
-                          key={targetCode}
-                          type="button"
-                          onClick={() => {
-                            if (matched) {
-                              setComparePool([selectedClassDetail.id, matched.id]);
-                              setSelectedClassDetail(null);
-                              setActiveBottomTab('compare');
-                            } else {
-                              alert(`資料庫中暫無【${targetCode}】之完整參數`);
-                            }
-                          }}
-                          className={`min-h-[44px] px-3.5 py-1.5 rounded-xl border font-mono font-bold text-xs flex items-center gap-1.5 active:scale-95 transition ${currentTheme.btnSecondary}`}
-                        >
-                          <span>{targetCode}</span>
-                          <span className={`text-[10px] ${currentTheme.textMuted}`}>➔ 比對</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div className={`p-4 rounded-2xl border space-y-3 ${currentTheme.cardBg}`}>
-                <span className={`font-bold text-base block border-b pb-2 ${currentTheme.border}`}>
-                  技術規格與裝備參數
-                </span>
-
-                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>排水量:</span>{renderFormattedList(selectedClassDetail.displacement)}</div>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>最高航速:</span>{renderFormattedList(selectedClassDetail.max_speed)}</div>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>長度:</span>{renderFormattedList(selectedClassDetail.length)}</div>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>型寬:</span>{renderFormattedList(selectedClassDetail.beam)}</div>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>動力方式:</span>{renderFormattedList(selectedClassDetail.propulsion)}</div>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>動力輸出:</span>{renderFormattedList(selectedClassDetail.power_output)}</div>
-                </div>
-
-                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>乘員編制:</span>{renderFormattedList(selectedClassDetail.crew)}</div>
-                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>搜索系統 (雷達/聲納):</span>{renderFormattedList(selectedClassDetail.radar_systems)}</div>
-                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>武器系統:</span>{renderFormattedList(selectedClassDetail.weapons_summary)}</div>
-                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>電戰系統:</span>{renderFormattedList(selectedClassDetail.electronic_warfare)}</div>
-                <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>艦載機:</span>{renderFormattedList(selectedClassDetail.aircraft)}</div>
-              </div>
-
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={() => setExpandedShipList(!expandedShipList)}
-                  className={`w-full min-h-[48px] px-4 rounded-xl border flex justify-between items-center text-sm font-bold ${currentTheme.subPanelBg}`}
-                >
-                  <span>本級艦各艇名冊 ({ships.filter(s => s.class_id === selectedClassDetail.id).length} 艘)</span>
-                  <span className={`font-mono ${currentTheme.accentText}`}>{expandedShipList ? '▲ 收合' : '▼ 展開'}</span>
-                </button>
-
-                {expandedShipList && (
-                  <div className="space-y-2 pt-1">
-                    {ships.filter(s => s.class_id === selectedClassDetail.id).map(s => {
-                      const statusMeta = getStatusLabel(s.status_code, s.status);
-                      return (
-                        <div key={s.id} className={`p-3 rounded-xl border flex flex-col gap-1.5 ${currentTheme.subPanelBg}`}>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-baseline gap-2.5">
-                              <span className={`font-mono text-xl font-black ${currentTheme.accentText}`}>{s.hull_number}</span>
-                              <span className="font-bold text-base">{s.name_zh}</span>
-                            </div>
-                            <span className={`text-xs px-2.5 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
-                              {statusMeta.label}
-                            </span>
-                          </div>
-                          <div className={`text-xs space-y-0.5 pt-1 border-t ${currentTheme.border}`}>
-                            <div><span className={currentTheme.textMuted}>服役時間：</span><span className="font-mono">{s.commissioned_year || '未載明'}</span></div>
-                            <div><span className={currentTheme.textMuted}>編屬部隊：</span><span>{s.fleet || '未載明'}{s.squadron && ` · ${s.squadron}`}</span></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className={`p-3.5 rounded-xl border text-xs space-y-1 ${currentTheme.subPanelBg}`}>
-                <div>資料來源：{selectedClassDetail.identification_source || 'Wikipedia 公開軍事情報資料庫'}</div>
-                <div>最後維護：{selectedClassDetail.identification_updated_at ? new Date(selectedClassDetail.identification_updated_at).toLocaleDateString('zh-TW') : CURRENT_APP_VERSION}</div>
-                <div>查證狀態：{selectedClassDetail.identification_status === 'verified' ? '已通過人工確認' : '尚待人工複核'}</div>
-              </div>
-            </div>
           </div>
         </div>
       )}

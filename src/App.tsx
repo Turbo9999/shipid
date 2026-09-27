@@ -137,6 +137,7 @@ export default function App() {
   const [wikiPreviewClass, setWikiPreviewClass] = useState<Partial<ShipClass> | null>(null);
   const [shipWikiQuery, setShipWikiQuery] = useState('');
   const [isFetchingShipWiki, setIsFetchingShipWiki] = useState(false);
+  const [wikiShipBatch, setWikiShipBatch] = useState<Array<{ hull_number: string; name_zh: string }>>([]);
 
   const [newShipForm, setNewShipForm] = useState<{
     class_id: string;
@@ -581,19 +582,57 @@ export default function App() {
         }
         return '';
       };
+      const extractedShips: Array<{ hull_number: string; name_zh: string }> = [];
+      for (const table of Array.from(doc.querySelectorAll('table'))) {
+        const rows = Array.from(table.querySelectorAll('tr'));
+        const tableText = rows[0]?.textContent || '';
+        if (!/舷號|舷号|艦名|舰名|艦艇|舰艇/.test(tableText)) continue;
+        for (const row of rows.slice(1)) {
+          const cells = Array.from(row.querySelectorAll('td')).map(cell => cleanWikiText(cell.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+          const hull = cells.find(value => /^\d{2,4}[A-Za-z啟]?[-A-Za-z]*$/.test(value)) || '';
+          if (!hull || cells.length < 2) continue;
+          const name = cells.find(value => value !== hull && !/^\d{4}/.test(value)) || '';
+          if (name && !extractedShips.some(ship => ship.hull_number === hull)) extractedShips.push({ hull_number: hull, name_zh: name });
+        }
+      }
+      setWikiShipBatch(extractedShips);
       const hull = getVal(['舷號', '舷号', '艦號', '舰号', '編號', '编号']) || (resolvedTitle.match(/\b\d{2,4}\b/)?.[0] || '');
       const name = getVal(['艦名', '舰名']) || resolvedTitle;
       const commissioned = getVal(['服役日期', '服役時間', '服役时间', '入役', '服役']);
       const statusText = getVal(['目前狀態', '目前状态', '服役狀態', '服役状态', '艦況', '舰况']);
       const statusCode = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('海试') ? 'sea_trial' : statusText.includes('計畫') || statusText.includes('计划') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') || statusText.includes('舾装') ? 'fitting_out' : statusText.includes('改裝') || statusText.includes('改装') ? 'refit' : statusText.includes('現役') || statusText.includes('现役') || statusText.includes('服役') ? 'active' : 'unknown';
       const precision = /\d{4}-\d{1,2}-\d{1,2}/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown';
-      setNewShipForm(prev => ({ ...prev, hull_number: hull, name_zh: name, commissioned_year: commissioned, commission_precision: precision, status_code: statusCode }));
-      alert(`已成功解析單艦維基條目【${resolvedTitle}】！請檢查下方資料後儲存。`);
+      const classCode = resolvedTitle.match(/([0-9A-Za-z-]+)(?:型|級)/)?.[1] || input.match(/[0-9A-Za-z-]+/)?.[0] || '';
+      const matchedClass = classes.find(item => item.code.toLowerCase() === classCode.toLowerCase());
+      setNewShipForm(prev => ({ ...prev, class_id: matchedClass?.id || prev.class_id, hull_number: hull, name_zh: name, commissioned_year: commissioned, commission_precision: precision, status_code: statusCode }));
+      alert(extractedShips.length > 0 ? `已找到【${extractedShips.length}】艘本級艦艇，請檢視下方列表後匯入。` : `已成功解析單艦維基條目【${resolvedTitle}】！請檢查下方資料後儲存。`);
     } catch (err: any) {
       alert(`擷取失敗: ${err.message || '連線逾時'}`);
     } finally {
       setIsFetchingShipWiki(false);
     }
+  };
+
+  const handleImportShipBatch = async () => {
+    if (!supabase || wikiShipBatch.length === 0) return;
+    const selectedClass = classes.find(item => item.id === newShipForm.class_id) || classes.find(item => newShipForm.class_id && item.code.toLowerCase() === newShipForm.class_id.toLowerCase());
+    if (!selectedClass) return alert('請先選擇要匯入的所屬艦型');
+    const { error } = await supabase.from('ships').upsert(wikiShipBatch.map(ship => ({
+      id: `s-${ship.hull_number}`,
+      class_id: selectedClass.id,
+      hull_number: ship.hull_number,
+      name_zh: ship.name_zh,
+      commissioned_year: '',
+      commission_precision: 'unknown',
+      fleet: '',
+      squadron: '',
+      status_code: 'unknown',
+      status: '未知'
+    })));
+    if (error) return alert(`匯入本級單艦失敗: ${error.message}`);
+    alert(`已匯入【${wikiShipBatch.length}】艘單艦至【${selectedClass.code}】名冊！`);
+    setWikiShipBatch([]);
+    await fetchData();
   };
 
   const openClassEditor = (classDetail: ShipClass, importWiki = false) => {
@@ -1713,6 +1752,25 @@ export default function App() {
                         {isFetchingShipWiki ? '解析中...' : '匯入'}
                       </button>
                     </div>
+                    {wikiShipBatch.length > 0 && (
+                      <div className={`rounded-xl border p-3 space-y-2 ${currentTheme.cardBg}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold">本級單艦列表預覽 ({wikiShipBatch.length})</span>
+                          <button type="button" onClick={() => setWikiShipBatch([])} className={`text-xs ${currentTheme.textMuted}`}>清除</button>
+                        </div>
+                        <div className="max-h-36 overflow-y-auto space-y-1 text-xs">
+                          {wikiShipBatch.map(ship => (
+                            <div key={ship.hull_number} className="flex justify-between border-b last:border-0 py-1">
+                              <span className="font-mono font-bold">{ship.hull_number}</span>
+                              <span>{ship.name_zh}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <button type="button" onClick={handleImportShipBatch} className={`w-full min-h-[42px] rounded-lg font-bold ${currentTheme.accentBg}`}>
+                          匯入本級單艦列表
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div>

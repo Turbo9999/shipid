@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 Desktop V2';
+const CURRENT_APP_VERSION = '2026.09.27 v5.4';
 
 interface ShipClass {
   id: string;
@@ -73,7 +73,6 @@ export default function App() {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('全部');
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     const saved = localStorage.getItem('tn_recent_searches');
     return saved ? JSON.parse(saved) : [];
@@ -385,10 +384,6 @@ export default function App() {
       matchingShipClassIds.has(c.id)
     );
   });
-
-  if (categoryFilter !== '全部') {
-    displayedClasses = displayedClasses.filter(c => c.category === categoryFilter);
-  }
 
   if (activeBottomTab === 'favorites') {
     displayedClasses = displayedClasses.filter(c => favorites.includes(c.id));
@@ -756,8 +751,8 @@ export default function App() {
     <div className={`w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
       
       {/* 戰術抬頭列 */}
-      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 sm:px-6 pt-[max(18px,env(safe-area-inset-top))] md:pt-6 pb-5 flex flex-col items-center shadow-lg transition-all`}>
-        <div className="w-full max-w-xl md:max-w-[1500px] flex justify-between items-center">
+      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-[52px] pb-4 flex flex-col items-center shadow-lg transition-all`}>
+        <div className="w-full max-w-md md:max-w-6xl flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
@@ -845,7 +840,7 @@ export default function App() {
         </div>
 
         {bannerText && (
-          <div className={`w-full max-w-xl md:max-w-[1500px] mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-sky-800' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
+          <div className={`w-full max-w-md md:max-w-6xl mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-sky-800' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
             <span className={`w-2 h-2 rounded-full ${themeMode === 'red' ? 'bg-red-500' : 'bg-cyan-400'} animate-ping`}></span>
             <span className="flex-1">{bannerText}</span>
           </div>
@@ -853,7 +848,7 @@ export default function App() {
       </header>
 
       {/* 主內容區 */}
-      <main className="w-full max-w-xl md:max-w-[1500px] px-4 md:px-8 pt-6 md:pt-9 pb-48 flex flex-col flex-1 gap-6">
+      <main className="w-full max-w-md md:max-w-6xl px-4 md:px-6 pt-4 md:pt-6 pb-48 flex flex-col flex-1 gap-3">
         {(activeBottomTab === 'classes' || activeBottomTab === 'favorites') && (
           <>
             {searchTerm && matchingShips.length > 0 && (
@@ -886,39 +881,7 @@ export default function App() {
               </div>
             )}
 
-            {activeBottomTab === 'classes' && !searchTerm && (
-              <section className={`relative overflow-hidden rounded-[28px] border p-5 md:p-8 ${currentTheme.cardBg}`}>
-                <div className={`absolute right-0 top-0 h-full w-1/2 pointer-events-none opacity-30 ${themeMode === 'red' ? 'bg-gradient-to-l from-red-800/40 to-transparent' : themeMode === 'high_contrast' ? 'bg-gradient-to-l from-cyan-100 to-transparent' : 'bg-gradient-to-l from-cyan-700/30 to-transparent'}`} />
-                <div className="relative flex flex-col md:flex-row md:items-end md:justify-between gap-5">
-                  <div className="space-y-2 min-w-0">
-                    <div className={`font-mono text-xs md:text-sm font-bold tracking-[0.18em] ${currentTheme.accentText}`}>SHIPID / VESSEL RECOGNITION</div>
-                    <h2 className={`text-2xl md:text-4xl font-black tracking-wide ${primaryText}`}>艦艇快速識別</h2>
-                    <p className={`text-sm md:text-base ${currentTheme.textMuted}`}>離線優先 · 艦型檢索 · 舷號查詢</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 md:gap-4 shrink-0">
-                    <div className={`rounded-2xl border px-5 py-3 min-w-[110px] ${currentTheme.subPanelBg}`}>
-                      <div className={`text-xs font-bold ${currentTheme.textMuted}`}>已收錄艦型</div>
-                      <div className={`text-2xl md:text-3xl font-black font-mono ${currentTheme.accentText}`}>{classes.length}</div>
-                    </div>
-                    <div className={`rounded-2xl border px-5 py-3 min-w-[110px] ${currentTheme.subPanelBg}`}>
-                      <div className={`text-xs font-bold ${currentTheme.textMuted}`}>已收錄單艦</div>
-                      <div className={`text-2xl md:text-3xl font-black font-mono ${currentTheme.accentText}`}>{ships.length}</div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            <section className="space-y-4 md:space-y-5">
-              <div className="flex gap-2 overflow-x-auto pb-1" aria-label="艦種篩選">
-                {['全部', ...Array.from(new Set(classes.map(c => c.category).filter(Boolean)))].map(category => (
-                  <button key={category} type="button" onClick={() => setCategoryFilter(category)}
-                    aria-pressed={categoryFilter === category}
-                    className={`shrink-0 whitespace-nowrap min-h-[46px] px-4 rounded-xl border font-bold text-sm md:text-base transition-colors ${categoryFilter === category ? currentTheme.accentBg + ' border-transparent' : currentTheme.btnSecondary}`}>
-                    {category}
-                  </button>
-                ))}
-              </div>
+            <section className="space-y-3 md:space-y-4">
               <div className="flex justify-between items-center px-1">
                 <span className={`text-xs md:text-sm font-mono font-bold tracking-wider uppercase ${currentTheme.textMuted}`}>
                   {activeBottomTab === 'favorites' ? `我的最愛 (${displayedClasses.length})` : `作戰艦型清單 (${displayedClasses.length})`}
@@ -934,7 +897,7 @@ export default function App() {
                   查無符合條件的艦艇資料
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {displayedClasses.map(c => {
                   const isFav = favorites.includes(c.id);
                   const classShips = ships.filter(s => s.class_id === c.id);
@@ -943,33 +906,46 @@ export default function App() {
                     <div
                       key={c.id}
                       onClick={() => handleOpenDetail(c)}
-                      className={`group relative min-w-0 overflow-hidden rounded-2xl border transition-all cursor-pointer shadow-sm md:hover:-translate-y-0.5 md:hover:shadow-xl ${currentTheme.cardBg}`}
+                      className={`relative overflow-hidden p-4 md:p-6 md:min-h-[150px] rounded-2xl border transition-all cursor-pointer shadow-sm md:hover:-translate-y-1 md:hover:shadow-xl flex items-center justify-between gap-3 ${currentTheme.cardBg}`}
                     >
-                      <div className={`h-1 w-full ${themeMode === 'red' ? 'bg-gradient-to-r from-red-800 via-red-500 to-transparent' : themeMode === 'high_contrast' ? 'bg-gradient-to-r from-cyan-700 via-sky-400 to-transparent' : 'bg-gradient-to-r from-cyan-700 via-cyan-400 to-transparent'}`} />
-                      <div className="flex flex-col sm:flex-row gap-4 p-4 md:p-6 min-w-0">
-                        <div className="min-w-0 flex-1 space-y-3">
-                          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0">
-                            <span className={`font-mono font-black text-2xl md:text-3xl shrink-0 ${currentTheme.accentText}`}>{c.code}</span>
-                            <span className={`font-black text-lg md:text-xl leading-snug break-keep ${primaryText}`}>{c.name_zh}</span>
-                          </div>
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <span className={`px-3 py-1 rounded-lg border text-sm font-semibold ${currentTheme.badge}`}>{c.category}</span>
-                            {c.nato_code && <span className={`font-mono text-sm ${currentTheme.textMuted}`}>{c.nato_code}</span>}
-                            {c.identification_status === 'verified' && <span className="text-emerald-400 text-sm font-bold">✓ 已查證</span>}
-                          </div>
-                          <div className={`border-t pt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm md:text-base ${currentTheme.border}`}>
-                            <span className={currentTheme.textMuted}>收錄單艦 <strong className={primaryText}>{classShips.length}</strong></span>
-                            <span className={`font-semibold ${currentTheme.accentText}`}>查看艦型資料 →</span>
-                          </div>
+                      <div className={`hidden md:block absolute inset-x-0 top-0 h-1 ${themeMode === 'red' ? 'bg-gradient-to-r from-red-900 via-red-500 to-red-900' : themeMode === 'high_contrast' ? 'bg-gradient-to-r from-cyan-700 via-sky-400 to-cyan-700' : 'bg-gradient-to-r from-cyan-700 via-cyan-400 to-blue-700'}`}></div>
+                      <div className="space-y-1.5 md:space-y-3 flex-1">
+                        <div className="flex items-baseline gap-2.5">
+                          <span className={`font-mono font-black md:text-3xl ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
+                            {c.code}
+                          </span>
+                          <span className={`font-bold md:text-lg ${primaryText} ${fontStyle.cardSub}`}>
+                            {c.name_zh}
+                          </span>
                         </div>
-                        <div className="flex sm:flex-col items-center justify-end gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                          <button type="button" onClick={e => toggleFavorite(c.id, e)} aria-label={isFav ? '取消收藏' : '加入收藏'}
-                            className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border active:scale-95 transition ${currentTheme.btnSecondary}`}>
-                            <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
-                          </button>
-                          <button type="button" onClick={() => handleOpenDetail(c)} aria-label={`查看${c.name_zh}`}
-                            className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border font-bold text-xl active:scale-95 transition ${currentTheme.btnSecondary}`}>›</button>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm">
+                          <span className={`px-2.5 py-0.5 rounded-md ${currentTheme.badge} font-medium`}>
+                            {c.nato_code ? `${c.nato_code} · ${c.category}` : c.category}
+                          </span>
+                          <span className={currentTheme.textMuted}>共登錄 {classShips.length} 艘</span>
+                          {c.identification_status === 'verified' && (
+                            <span className={themeMode === 'red' ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}>✓ 已查證</span>
+                          )}
                         </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={e => toggleFavorite(c.id, e)}
+                          className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border text-xl active:scale-90 transition ${currentTheme.btnSecondary}`}
+                        >
+                          <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(c)}
+                          className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border font-mono text-base active:scale-95 transition ${currentTheme.btnSecondary}`}
+                        >
+                          &gt;
+                        </button>
                       </div>
                     </div>
                   );
@@ -1329,247 +1305,87 @@ export default function App() {
         </div>
       )}
 
-      {/* 詳細頁 Modal */}
+      {/* 詳細頁 Modal · Desktop V3 */}
       {selectedClassDetail && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4">
-          <div className={`w-full max-w-lg md:max-w-5xl h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
-            <div className={`px-5 py-4 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
-              <div className="flex items-center gap-2">
-                <span className={`font-mono text-2xl md:text-3xl font-black ${currentTheme.accentText}`}>
-                  {selectedClassDetail.code}
-                </span>
-                <span className="font-bold text-base md:text-xl truncate max-w-[200px] md:max-w-md">
-                  {selectedClassDetail.name_zh}
-                </span>
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4 lg:p-6">
+          <div className={`w-full sm:w-[96vw] lg:w-[90vw] xl:w-[88vw] max-w-[1560px] h-[94vh] sm:h-[92vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
+            <div className={`px-5 lg:px-8 py-4 lg:py-5 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
+              <div className="flex items-center gap-3 lg:gap-4 min-w-0">
+                <span className={`font-mono text-2xl md:text-3xl lg:text-4xl font-black ${currentTheme.accentText}`}>{selectedClassDetail.code}</span>
+                <span className="font-black text-base md:text-xl lg:text-2xl truncate">{selectedClassDetail.name_zh}</span>
               </div>
               <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setDetailMenuOpen(prev => !prev)}
-                  aria-label="小卡功能選單"
-                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border font-black text-xl ${currentTheme.btnSecondary}`}
-                >
-                  ⋯
-                </button>
+                <button type="button" onClick={() => setDetailMenuOpen(prev => !prev)} aria-label="小卡功能選單" className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border font-black text-xl ${currentTheme.btnSecondary}`}>⋯</button>
                 {detailMenuOpen && (
-                  <div className={`absolute right-0 top-[calc(100%+0.5rem)] z-10 w-32 rounded-xl border p-1.5 shadow-xl ${currentTheme.modalBg}`}>
-                    {isAuthenticated && (
-                      <>
-                        <button type="button" onClick={() => { setDetailMenuOpen(false); openClassEditor(selectedClassDetail); }} className={`w-full rounded-lg px-3 py-2.5 text-left text-sm font-bold ${currentTheme.btnSecondary}`}>編輯</button>
-                        <button type="button" onClick={handleDeleteSelectedClass} className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-bold text-red-400 hover:bg-red-950/40">刪除</button>
-                      </>
-                    )}
+                  <div className={`absolute right-0 top-[calc(100%+0.5rem)] z-10 w-36 rounded-xl border p-1.5 shadow-xl ${currentTheme.modalBg}`}>
+                    {isAuthenticated && (<><button type="button" onClick={() => { setDetailMenuOpen(false); openClassEditor(selectedClassDetail); }} className={`w-full rounded-lg px-3 py-2.5 text-left text-sm font-bold ${currentTheme.btnSecondary}`}>編輯</button><button type="button" onClick={handleDeleteSelectedClass} className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-bold text-red-400 hover:bg-red-950/40">刪除</button></>)}
                     <button type="button" onClick={() => { setDetailMenuOpen(false); setSelectedClassDetail(null); }} className={`w-full rounded-lg px-3 py-2.5 text-left text-sm font-bold ${currentTheme.btnSecondary}`}>關閉</button>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="p-5 overflow-y-auto space-y-5 text-sm">
-              <div className="space-y-3">
+            <div className="p-4 sm:p-5 lg:p-8 overflow-y-auto space-y-5 lg:space-y-7 text-[16px] lg:text-[18px] leading-relaxed">
+              <div className="space-y-4">
                 {selectedClassDetail.image_url ? (
-                  <div className={`w-full h-48 rounded-2xl overflow-hidden border bg-black ${currentTheme.border} ${themeMode === 'red' ? 'brightness-75 contrast-125 sepia hue-rotate-[320deg]' : ''}`}>
+                  <div className={`w-full h-52 sm:h-72 lg:h-[430px] xl:h-[500px] rounded-2xl lg:rounded-3xl overflow-hidden border bg-black ${currentTheme.border} ${themeMode === 'red' ? 'brightness-75 contrast-125 sepia hue-rotate-[320deg]' : ''}`}>
                     <img src={selectedClassDetail.image_url} alt={selectedClassDetail.name_zh} className="w-full h-full object-cover object-center" />
                   </div>
-                ) : (
-                  <div className={`w-full h-24 rounded-2xl border border-dashed flex items-center justify-center text-xs ${currentTheme.subPanelBg} ${currentTheme.textMuted}`}>
-                    暫無艦影照片
-                  </div>
-                )}
+                ) : <div className={`w-full h-32 rounded-2xl border border-dashed flex items-center justify-center ${currentTheme.subPanelBg} ${currentTheme.textMuted}`}>暫無艦影照片</div>}
 
-                <div className="flex justify-between items-center pt-1">
-                  <div>
-                    <h2 className="text-xl font-black">{selectedClassDetail.name_zh}</h2>
-                    <p className={`text-xs font-mono ${currentTheme.textMuted}`}>
-                      {selectedClassDetail.nato_code} · {selectedClassDetail.category}
-                    </p>
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 pt-1">
+                  <div className="min-w-0">
+                    <h2 className="text-2xl lg:text-3xl font-black tracking-tight">{selectedClassDetail.name_zh}</h2>
+                    <p className={`text-sm lg:text-base font-mono mt-1 ${currentTheme.textMuted}`}>{selectedClassDetail.nato_code} · {selectedClassDetail.category}</p>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleCompare(selectedClassDetail.id)}
-                      className={`min-h-[44px] px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 ${
-                        comparePool.includes(selectedClassDetail.id)
-                          ? currentTheme.accentBg
-                          : currentTheme.btnSecondary
-                      }`}
-                    >
-                      {comparePool.includes(selectedClassDetail.id) ? '已加入比對' : '＋加入比對'}
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={() => toggleFavorite(selectedClassDetail.id)}
-                      className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border ${currentTheme.btnSecondary}`}
-                    >
-                      <StarIcon isFilled={favorites.includes(selectedClassDetail.id)} isRedMode={themeMode === 'red'} />
-                    </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button type="button" onClick={() => toggleCompare(selectedClassDetail.id)} className={`min-h-[48px] px-4 lg:px-5 rounded-xl font-bold text-sm lg:text-base transition active:scale-95 ${comparePool.includes(selectedClassDetail.id) ? currentTheme.accentBg : currentTheme.btnSecondary}`}>{comparePool.includes(selectedClassDetail.id) ? '已加入比對' : '＋加入比對'}</button>
+                    <button type="button" onClick={() => toggleFavorite(selectedClassDetail.id)} className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border ${currentTheme.btnSecondary}`}><StarIcon isFilled={favorites.includes(selectedClassDetail.id)} isRedMode={themeMode === 'red'} /></button>
                   </div>
                 </div>
 
-                {selectedClassDetail.overview && (
-                  <p className={`text-xs p-3 rounded-xl border leading-relaxed text-justify ${currentTheme.subPanelBg}`}>
-                    {selectedClassDetail.overview}
-                  </p>
-                )}
+                {selectedClassDetail.overview && <p className={`text-[16px] lg:text-[19px] p-4 lg:p-5 rounded-2xl border leading-[1.8] text-justify ${currentTheme.subPanelBg}`}>{selectedClassDetail.overview}</p>}
               </div>
 
-              <div className={`p-4 rounded-2xl border space-y-2.5 ${currentTheme.subPanelBg}`}>
-                <div className={`flex justify-between items-center border-b pb-2 ${currentTheme.border}`}>
-                  <span className={`font-bold text-base flex items-center gap-2 ${currentTheme.accentText}`}>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>外觀辨識</span>
-                  </span>
+              <div className={`p-4 lg:p-6 rounded-2xl lg:rounded-3xl border space-y-4 ${currentTheme.subPanelBg}`}>
+                <div className={`flex justify-between items-center border-b pb-3 ${currentTheme.border}`}>
+                  <span className={`font-black text-xl lg:text-2xl flex items-center gap-2 ${currentTheme.accentText}`}><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>外觀辨識</span>
                   {getVerificationBadge(selectedClassDetail.identification_status)}
                 </div>
-
                 {selectedClassDetail.identification_features && selectedClassDetail.identification_features.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {selectedClassDetail.identification_features.map((feature, idx) => (
-                      <div key={idx} className="flex items-start gap-2">
-                        <span className={`font-mono font-bold ${currentTheme.accentText}`}>•</span>
-                        <span className="font-medium leading-relaxed">{feature}</span>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-3 lg:gap-y-4">
+                    {selectedClassDetail.identification_features.map((feature, idx) => <div key={idx} className="flex items-start gap-3"><span className={`font-mono text-xl font-black ${currentTheme.accentText}`}>•</span><span className="font-semibold text-[16px] lg:text-[19px] leading-[1.65]">{feature}</span></div>)}
                   </div>
-                ) : (
-                  <p className={`text-xs py-1 italic ${currentTheme.textMuted}`}>
-                    目前尚未建立人工查證的外觀辨識資料
-                  </p>
-                )}
-
-                {selectedClassDetail.identification_notes && (
-                  <div className={`mt-2 pt-2 border-t text-xs ${currentTheme.border} ${currentTheme.textMuted}`}>
-                    <span className="font-bold block mb-0.5">辨識附註：</span>
-                    {selectedClassDetail.identification_notes}
-                  </div>
-                )}
+                ) : <p className={`py-1 italic ${currentTheme.textMuted}`}>目前尚未建立人工查證的外觀辨識資料</p>}
+                {selectedClassDetail.identification_notes && <div className={`mt-3 pt-3 border-t text-sm lg:text-base ${currentTheme.border} ${currentTheme.textMuted}`}><span className="font-bold block mb-1">辨識附註：</span>{selectedClassDetail.identification_notes}</div>}
               </div>
 
               {selectedClassDetail.similar_classes && selectedClassDetail.similar_classes.length > 0 && (
-                <div className={`p-4 rounded-2xl border space-y-2 ${currentTheme.subPanelBg}`}>
-                  <span className={`font-bold text-sm flex items-center gap-1.5 ${themeMode === 'red' ? 'text-red-400' : themeMode === 'high_contrast' ? 'text-amber-700' : 'text-amber-300'}`}>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    容易混淆艦型 (點擊啟動比對)
-                  </span>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {selectedClassDetail.similar_classes.map(targetCode => {
-                      const matched = classes.find(c => c.code.toLowerCase() === targetCode.toLowerCase());
-                      return (
-                        <button
-                          key={targetCode}
-                          type="button"
-                          onClick={() => {
-                            if (matched) {
-                              setComparePool([selectedClassDetail.id, matched.id]);
-                              setSelectedClassDetail(null);
-                              setActiveBottomTab('compare');
-                            } else {
-                              alert(`資料庫中暫無【${targetCode}】之完整參數`);
-                            }
-                          }}
-                          className={`min-h-[44px] px-3.5 py-1.5 rounded-xl border font-mono font-bold text-xs flex items-center gap-1.5 active:scale-95 transition ${currentTheme.btnSecondary}`}
-                        >
-                          <span>{targetCode}</span>
-                          <span className={`text-[10px] ${currentTheme.textMuted}`}>➔ 比對</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <div className={`p-4 lg:p-5 rounded-2xl border space-y-3 ${currentTheme.subPanelBg}`}><span className={`font-bold text-base lg:text-lg flex items-center gap-1.5 ${themeMode === 'red' ? 'text-red-400' : themeMode === 'high_contrast' ? 'text-amber-700' : 'text-amber-300'}`}>容易混淆艦型（點擊啟動比對）</span><div className="flex flex-wrap gap-2">{selectedClassDetail.similar_classes.map(targetCode => { const matched = classes.find(c => c.code.toLowerCase() === targetCode.toLowerCase()); return <button key={targetCode} type="button" onClick={() => { if (matched) { setComparePool([selectedClassDetail.id, matched.id]); setSelectedClassDetail(null); setActiveBottomTab('compare'); } else alert(`資料庫中暫無【${targetCode}】之完整參數`); }} className={`min-h-[46px] px-4 rounded-xl border font-mono font-bold text-sm lg:text-base ${currentTheme.btnSecondary}`}>{targetCode} <span className={currentTheme.textMuted}>➔ 比對</span></button>; })}</div></div>
               )}
 
-              <div className={`p-4 rounded-2xl border space-y-3 ${currentTheme.cardBg}`}>
-                <span className={`font-bold text-base block border-b pb-2 ${currentTheme.border}`}>
-                  技術規格與裝備參數
-                </span>
-
-                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>艦種:</span>{renderFormattedList(selectedClassDetail.category)}</div>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>目前狀態:</span>{renderFormattedList(selectedClassDetail.current_status)}</div>
+              <div className={`p-4 lg:p-6 rounded-2xl lg:rounded-3xl border space-y-5 ${currentTheme.cardBg}`}>
+                <span className={`font-black text-xl lg:text-2xl block border-b pb-3 ${currentTheme.border}`}>技術規格與裝備參數</span>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+                  {[
+                    ['艦種', selectedClassDetail.category], ['目前狀態', selectedClassDetail.current_status],
+                    ['排水量', selectedClassDetail.displacement], ['長度', selectedClassDetail.length],
+                    ['型寬', selectedClassDetail.beam], ['吃水', selectedClassDetail.draft],
+                    ['動力方式', selectedClassDetail.propulsion], ['動力輸出', selectedClassDetail.power_output],
+                    ['最高速度', selectedClassDetail.max_speed], ['乘員', selectedClassDetail.crew]
+                  ].map(([label, value]) => <div key={label as string} className={`p-3 lg:p-4 rounded-xl border ${currentTheme.subPanelBg}`}><span className={`block text-sm lg:text-[15px] font-bold mb-1 ${currentTheme.textMuted}`}>{label}</span><div className="text-[16px] lg:text-[18px]">{renderFormattedList(value as string | undefined)}</div></div>)}
                 </div>
-
-                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>排水量:</span>{renderFormattedList(selectedClassDetail.displacement)}</div>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>長度:</span>{renderFormattedList(selectedClassDetail.length)}</div>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>型寬:</span>{renderFormattedList(selectedClassDetail.beam)}</div>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>吃水:</span>{renderFormattedList(selectedClassDetail.draft)}</div>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>動力方式:</span>{renderFormattedList(selectedClassDetail.propulsion)}</div>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>動力輸出:</span>{renderFormattedList(selectedClassDetail.power_output)}</div>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>最高速度:</span>{renderFormattedList(selectedClassDetail.max_speed)}</div>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>乘員:</span>{renderFormattedList(selectedClassDetail.crew)}</div>
-                </div>
-                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>搜索／偵搜系統 (雷達/聲納):</span>{renderFormattedList(selectedClassDetail.radar_systems)}</div>
-                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>武器系統:</span>{renderFormattedList(selectedClassDetail.weapons_summary)}</div>
-                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>電戰系統:</span>{renderFormattedList(selectedClassDetail.electronic_warfare)}</div>
-                <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>艦載機:</span>{renderFormattedList(selectedClassDetail.aircraft)}</div>
+                {[
+                  ['搜索／偵搜系統（雷達／聲納）', selectedClassDetail.radar_systems], ['武器系統', selectedClassDetail.weapons_summary], ['電戰系統', selectedClassDetail.electronic_warfare], ['艦載機', selectedClassDetail.aircraft]
+                ].map(([label, value]) => <div key={label as string} className={`p-3 lg:p-4 rounded-xl border ${currentTheme.subPanelBg}`}><span className={`block text-sm lg:text-[15px] font-bold mb-1.5 ${currentTheme.textMuted}`}>{label}</span><div className="text-[16px] lg:text-[18px]">{renderFormattedList(value as string | undefined)}</div></div>)}
               </div>
 
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={() => setExpandedShipList(!expandedShipList)}
-                  className={`w-full min-h-[48px] px-4 rounded-xl border flex justify-between items-center text-sm font-bold ${currentTheme.subPanelBg}`}
-                >
-                  <span>本級艦各艇名冊 ({ships.filter(s => s.class_id === selectedClassDetail.id).length} 艘)</span>
-                  <span className={`font-mono ${currentTheme.accentText}`}>{expandedShipList ? '▲ 收合' : '▼ 展開'}</span>
-                </button>
-
-                {expandedShipList && (
-                  <div className="space-y-2 pt-1">
-                    {ships.filter(s => s.class_id === selectedClassDetail.id).map(s => {
-                      const statusMeta = getStatusLabel(s.status_code, s.status);
-                      return (
-                        <div key={s.id} className={`relative p-3 md:p-5 md:pr-40 rounded-xl border flex flex-col gap-1.5 md:gap-3 shadow-sm ${currentTheme.subPanelBg}`}>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-baseline gap-2.5">
-                              <span className={`font-mono text-xl md:text-4xl font-black ${currentTheme.accentText}`}>{s.hull_number}</span>
-                              <span className={`font-bold text-base md:text-xl ${primaryText}`}>{s.name_zh}</span>
-                            </div>
-                            <span className={`text-xs md:text-sm px-2.5 md:px-3.5 py-0.5 md:py-1 rounded-md font-bold border ${statusMeta.color}`}>
-                              {statusMeta.label}
-                            </span>
-                          </div>
-                          <div className={`text-xs md:text-base space-y-0.5 md:space-y-1.5 pt-1 md:pt-2 border-t ${currentTheme.border}`}>
-                            <div><span className={currentTheme.textMuted}>服役時間：</span><span className="font-mono">{s.commissioned_year || '未載明'}</span></div>
-                            <div><span className={currentTheme.textMuted}>編屬部隊：</span><span>{s.fleet || '未載明'}{s.squadron && ` · ${s.squadron}`}</span></div>
-                          </div>
-                          {isAuthenticated && (
-                            <button
-                              type="button"
-                              onClick={() => openShipEditor(s)}
-                              className={`self-end md:absolute md:right-5 md:bottom-5 min-h-[40px] md:min-h-[46px] px-3 md:px-5 rounded-lg text-xs md:text-sm font-bold border ${currentTheme.btnSecondary}`}
-                            >
-                              編輯單艦
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              <div className="space-y-3">
+                <button type="button" onClick={() => setExpandedShipList(!expandedShipList)} className={`w-full min-h-[54px] px-4 lg:px-5 rounded-xl border flex justify-between items-center text-base lg:text-lg font-bold ${currentTheme.subPanelBg}`}><span>本級艦各艇名冊 ({ships.filter(s => s.class_id === selectedClassDetail.id).length} 艘)</span><span className={`font-mono ${currentTheme.accentText}`}>{expandedShipList ? '▲ 收合' : '▼ 展開'}</span></button>
+                {expandedShipList && <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">{ships.filter(s => s.class_id === selectedClassDetail.id).map(s => { const statusMeta = getStatusLabel(s.status_code, s.status); return <div key={s.id} className={`relative p-4 lg:p-5 rounded-xl border shadow-sm ${currentTheme.subPanelBg}`}><div className="flex justify-between items-center gap-3"><div className="flex items-baseline gap-3"><span className={`font-mono text-2xl lg:text-3xl font-black ${currentTheme.accentText}`}>{s.hull_number}</span><span className={`font-bold text-lg ${primaryText}`}>{s.name_zh}</span></div><span className={`text-sm px-3 py-1 rounded-md font-bold border ${statusMeta.color}`}>{statusMeta.label}</span></div><div className={`text-sm lg:text-base space-y-1.5 mt-3 pt-3 border-t ${currentTheme.border}`}><div><span className={currentTheme.textMuted}>服役時間：</span><span className="font-mono">{s.commissioned_year || '未載明'}</span></div><div><span className={currentTheme.textMuted}>編屬部隊：</span>{s.fleet || '未載明'}{s.squadron && ` · ${s.squadron}`}</div></div>{isAuthenticated && <button type="button" onClick={() => openShipEditor(s)} className={`mt-3 min-h-[42px] px-4 rounded-lg text-sm font-bold border ${currentTheme.btnSecondary}`}>編輯單艦</button>}</div>; })}</div>}
               </div>
 
-              <div className={`p-3.5 rounded-xl border text-xs space-y-1 ${currentTheme.subPanelBg}`}>
-                <div>資料來源：{selectedClassDetail.identification_source || 'Wikipedia 公開軍事情報資料庫'}</div>
-                <div>最後維護：{selectedClassDetail.identification_updated_at ? new Date(selectedClassDetail.identification_updated_at).toLocaleDateString('zh-TW') : CURRENT_APP_VERSION}</div>
-                <div>查證狀態：{selectedClassDetail.identification_status === 'verified' ? '已通過人工確認' : '尚待人工複核'}</div>
-              </div>
+              <div className={`p-4 rounded-xl border text-sm lg:text-base space-y-1.5 ${currentTheme.subPanelBg}`}><div>資料來源：{selectedClassDetail.identification_source || 'Wikipedia 公開軍事情報資料庫'}</div><div>最後維護：{selectedClassDetail.identification_updated_at ? new Date(selectedClassDetail.identification_updated_at).toLocaleDateString('zh-TW') : CURRENT_APP_VERSION}</div><div>查證狀態：{selectedClassDetail.identification_status === 'verified' ? '已通過人工確認' : '尚待人工複核'}</div></div>
             </div>
           </div>
         </div>

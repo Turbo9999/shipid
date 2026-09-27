@@ -53,7 +53,7 @@ export default function App() {
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [expandedSpecsId, setExpandedSpecsId] = useState<string | null>(null);
   const [expandedShipIds, setExpandedShipIds] = useState<Record<string, boolean>>({});
-  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v4.0');
+  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v4.2');
 
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
@@ -662,11 +662,9 @@ export default function App() {
     fetchData();
   };
 
-  // 🎯 完全移除自動猜測邏輯，百分之百依照你手動按 Shift + Enter 換行來分項！
   const renderFormattedList = (text?: string) => {
     if (!text) return <span className="text-slate-100 font-medium">-</span>;
 
-    // 僅以換行符號（\n）作為唯一分項依據，取消所有自動 H/ 或頓號拆分
     const items = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 
     if (items.length <= 1) {
@@ -830,6 +828,10 @@ export default function App() {
           activeBottomTab === 'stats' ? (
             <div className="space-y-4 pt-1">
               <div className="text-xs font-mono tracking-wider text-slate-400 font-bold uppercase flex items-center gap-2">
+                {/* 恢復圖標 */}
+                <svg className={`w-4 h-4 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                </svg>
                 <span>每月使用頻率統計圖</span>
               </div>
               <div className={`${theme.cardBg} border ${theme.cardBorder} rounded-2xl p-4 space-y-4`}>
@@ -860,8 +862,11 @@ export default function App() {
             <section className="space-y-3">
               {searchTerm && filteredShips.length > 0 && (
                 <div className={`${nightMode ? 'bg-red-950/30 border-red-500/30' : 'bg-cyan-950/30 border-cyan-500/30'} border rounded-2xl p-3.5 shadow-lg space-y-2.5`}>
-                  <div className="text-[11px] font-mono tracking-wider text-cyan-400 font-bold uppercase">
-                    舷號比對結果 ({filteredShips.length})
+                  <div className="text-[11px] font-mono tracking-wider text-cyan-400 font-bold uppercase flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                    <span>舷號比對結果 ({filteredShips.length})</span>
                   </div>
                   <div className="space-y-2">
                     {filteredShips.map(s => (
@@ -906,6 +911,7 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* 頂部工具列 */}
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
@@ -949,10 +955,12 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* 第一欄：艦型概述 */}
+                        {/* 第一欄：艦型概述 (附帶圖標) */}
                         <div className="space-y-1.5">
                           <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
+                            <svg className={`w-3.5 h-3.5 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
                             <span>艦型概述</span>
                           </div>
                           <p className="text-xs text-slate-300 bg-slate-900/80 p-3 rounded-xl border border-slate-800 leading-relaxed text-justify">
@@ -960,14 +968,19 @@ export default function App() {
                           </p>
                         </div>
 
-                        {/* 第二欄：技術數據 (完全聽從你手動按 Shift+Enter 的換行分項) */}
+                        {/* 第二欄：技術數據 (附帶圖標) */}
                         <div className="space-y-1.5">
                           <button
                             type="button"
                             onClick={() => setExpandedSpecsId(isSpecsExpanded ? null : c.id)}
                             className={`w-full py-2 px-3 rounded-xl border flex items-center justify-between text-xs font-semibold transition ${isSpecsExpanded ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-900/80 border-slate-800 text-slate-300'}`}
                           >
-                            <span className="font-mono">{isSpecsExpanded ? '▼' : '▶'} 技術數據 (11 項技術指標)</span>
+                            <span className="font-mono flex items-center gap-1.5">
+                              <svg className={`w-3.5 h-3.5 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                              </svg>
+                              <span>技術數據 (11 項技術指標)</span>
+                            </span>
                             <span className="text-[10px] text-slate-500 font-normal">{isSpecsExpanded ? '收合' : '展開完整數據'}</span>
                           </button>
 
@@ -1005,7 +1018,9 @@ export default function App() {
                             className="w-full py-2.5 px-3 rounded-xl border border-slate-800 bg-slate-900/70 hover:bg-slate-900 flex items-center justify-between text-xs font-bold text-slate-300 transition active:scale-98"
                           >
                             <span className="flex items-center gap-2">
-                              <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
+                              <svg className={`w-3.5 h-3.5 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                              </svg>
                               <span>本級單艦列表 ({classShips.length} 艘)</span>
                             </span>
                             <span className="text-[11px] font-mono text-cyan-400">
@@ -1183,7 +1198,7 @@ export default function App() {
             <h3 className="font-bold text-sm text-white">編輯艦型資料 ({editingClass.code})</h3>
             <div><label className="text-slate-400 block mb-1">第一欄：艦型概述 (維基第一大段)</label><textarea rows={4} value={editingClass.overview || ''} onChange={e => setEditingClass({ ...editingClass, overview: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">官方照片網址</label><input type="url" value={editingClass.image_url || ''} onChange={e => setEditingClass({ ...editingClass, image_url: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">排水量 (支援 Shift+Enter 換行)</label><textarea rows={2} value={editingClass.displacement || ''} onChange={e => setEditingClass({ ...editingClass, displacement: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">排水量</label><textarea rows={2} value={editingClass.displacement || ''} onChange={e => setEditingClass({ ...editingClass, displacement: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div className="grid grid-cols-2 gap-2">
               <div><label className="text-slate-400 block mb-1">長度</label><textarea rows={2} value={editingClass.length || ''} onChange={e => setEditingClass({ ...editingClass, length: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
               <div><label className="text-slate-400 block mb-1">型寬</label><textarea rows={2} value={editingClass.beam || ''} onChange={e => setEditingClass({ ...editingClass, beam: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
@@ -1192,8 +1207,8 @@ export default function App() {
             <div><label className="text-slate-400 block mb-1">動力方式</label><textarea rows={2} value={editingClass.propulsion || ''} onChange={e => setEditingClass({ ...editingClass, propulsion: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">動力輸出</label><textarea rows={2} value={editingClass.power_output || ''} onChange={e => setEditingClass({ ...editingClass, power_output: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">乘員</label><textarea rows={2} value={editingClass.crew || ''} onChange={e => setEditingClass({ ...editingClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">搜索系統 (雷達/聲納，請用 Shift+Enter 換行分項)</label><textarea rows={4} value={editingClass.radar_systems || ''} onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">武器系統 (請用 Shift+Enter 換行分項)</label><textarea rows={4} value={editingClass.weapons_summary || ''} onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">搜索系統 (雷達/聲納，完全依據您的換行分項)</label><textarea rows={4} value={editingClass.radar_systems || ''} onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">武器系統 (完全依據您的換行分項)</label><textarea rows={4} value={editingClass.weapons_summary || ''} onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">電戰系統</label><textarea rows={2} value={editingClass.electronic_warfare || ''} onChange={e => setEditingClass({ ...editingClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">艦載機</label><textarea rows={2} value={editingClass.aircraft || ''} onChange={e => setEditingClass({ ...editingClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div className="flex gap-2 pt-2">
@@ -1279,7 +1294,7 @@ export default function App() {
                     </div>
 
                     <div className="space-y-2 pt-1 border-t border-slate-800">
-                      <span className="text-slate-400 font-bold block">第二欄：技術數據 (皆支援 Shift+Enter 換行分段)</span>
+                      <span className="text-slate-400 font-bold block">第二欄：技術數據 (完全依據您的換行分項)</span>
                       <div className="grid grid-cols-2 gap-2">
                         <textarea rows={2} placeholder="排水量" value={newClass.displacement || ''} onChange={e => setNewClass({ ...newClass, displacement: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />
                         <textarea rows={2} placeholder="最高速度" value={newClass.max_speed || ''} onChange={e => setNewClass({ ...newClass, max_speed: e.target.value })} className="bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" />

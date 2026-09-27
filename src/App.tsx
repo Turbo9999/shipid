@@ -278,7 +278,11 @@ export default function App() {
 
   const getStatusLabel = (code?: string, fallbackStatus?: string) => {
     if (themeMode === 'red') {
-      return { label: fallbackStatus || '現役', color: 'bg-red-950 text-red-200 border-red-800' };
+      const redThemeLabels: Record<string, string> = {
+        active: '現役', retired: '退役', unknown: '未知', sea_trial: '海試',
+        planned: '計畫', fitting_out: '舾裝中', under_construction: '建造中', refit: '改裝中'
+      };
+      return { label: redThemeLabels[code || ''] || fallbackStatus || '未知', color: 'bg-red-950 text-red-200 border-red-800' };
     }
     switch (code) {
       case 'active': return { label: '現役', color: 'bg-emerald-950 text-emerald-300 border-emerald-500/40' };
@@ -457,8 +461,9 @@ export default function App() {
     return raw.replace(/\[\d+\]/g, '').replace(/\[註\s*\d+\]/g, '').trim();
   };
 
-  const toTraditional = (text: string) => text.replace(/[舰号现时间队装战计划态驱护导远标]/g, char => ({
-    舰: '艦', 号: '號', 现: '現', 时: '時', 间: '間', 队: '隊', 装: '裝', 战: '戰', 计: '計', 划: '畫', 态: '態', 驱: '驅', 护: '護', 导: '導', 远: '遠', 标: '標'
+  const toTraditional = (text: string) => text.replace(/[舰号现时间队装战计划态驱护导远标属区军萨连锡东无阳义庆济宁沈长门级国台湾产厂发后备录称]/g, char => ({
+    舰: '艦', 号: '號', 现: '現', 时: '時', 间: '間', 队: '隊', 装: '裝', 战: '戰', 计: '計', 划: '畫', 态: '態', 驱: '驅', 护: '護', 导: '導', 远: '遠', 标: '標',
+    属: '屬', 区: '區', 军: '軍', 萨: '薩', 连: '連', 锡: '錫', 东: '東', 无: '無', 阳: '陽', 义: '義', 庆: '慶', 济: '濟', 宁: '寧', 沈: '瀋', 长: '長', 门: '門', 级: '級', 国: '國', 台: '臺', 湾: '灣', 产: '產', 厂: '廠', 发: '發', 后: '後', 备: '備', 录: '錄', 称: '稱'
   }[char] || char));
 
   const fetchWikiDocument = async (query: string) => {
@@ -589,17 +594,20 @@ export default function App() {
       const extractedShips: Array<{ hull_number: string; name_zh: string; commissioned_year: string; commission_precision: 'exact' | 'year' | 'unknown'; fleet: string; squadron: string; status_code: Ship['status_code'] }> = [];
       for (const table of Array.from(doc.querySelectorAll('table'))) {
         const rows = Array.from(table.querySelectorAll('tr'));
-        const tableText = rows[0]?.textContent || '';
-        if (!/舷號|舷号|艦名|舰名|艦艇|舰艇/.test(tableText)) continue;
-        const headers = Array.from(rows[0]?.querySelectorAll('th,td') || []).map(cell => toTraditional(cleanWikiText(cell.textContent || '').replace(/\s+/g, ' ')));
+        const headerRowIndex = rows.findIndex(row => {
+          const rowText = toTraditional(cleanWikiText(row.textContent || '').replace(/\s+/g, ' '));
+          return /舷號|艦號/.test(rowText) && /艦名|名稱/.test(rowText);
+        });
+        if (headerRowIndex < 0) continue;
+        const headers = Array.from(rows[headerRowIndex].querySelectorAll('th,td')).map(cell => toTraditional(cleanWikiText(cell.textContent || '').replace(/\s+/g, ' ')));
         const indexOf = (patterns: RegExp[]) => headers.findIndex(header => patterns.some(pattern => pattern.test(header)));
         const hullIndex = indexOf([/舷號/, /艦號/, /編號/]);
         const nameIndex = indexOf([/艦名/, /名稱/]);
-        const commissionedIndex = indexOf([/服役/, /入役/]);
-        const fleetIndex = indexOf([/艦隊/, /舰队/]);
-        const squadronIndex = indexOf([/支隊/, /支队/]);
-        const statusIndex = indexOf([/現況/, /狀態/, /状态/]);
-        for (const row of rows.slice(1)) {
+        const commissionedIndex = indexOf([/服役時間/, /服役日期/, /入役/, /服役/]);
+        const fleetIndex = indexOf([/所屬艦隊/, /艦隊/]);
+        const squadronIndex = indexOf([/所屬支隊/, /支隊/]);
+        const statusIndex = indexOf([/現狀/, /現況/, /狀態/]);
+        for (const row of rows.slice(headerRowIndex + 1)) {
           const cells = Array.from(row.querySelectorAll('td')).map(cell => toTraditional(cleanWikiText(cell.textContent || '').replace(/\s+/g, ' ').trim()));
           const hull = (hullIndex >= 0 ? cells[hullIndex] : cells.find(value => /^\d{2,4}[A-Za-z啟]?[-A-Za-z]*$/.test(value))) || '';
           if (!hull || cells.length < 2) continue;
@@ -608,7 +616,7 @@ export default function App() {
           const commissioned = commissionedIndex >= 0 ? cells[commissionedIndex] || '' : '';
           const statusText = statusIndex >= 0 ? cells[statusIndex] || '' : '';
           const statusCode: Ship['status_code'] = statusText.includes('退役') ? 'retired' : statusText.includes('海試') ? 'sea_trial' : statusText.includes('計畫') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') ? 'fitting_out' : statusText.includes('改裝') ? 'refit' : statusText.includes('現役') || statusText.includes('服役') ? 'active' : 'unknown';
-          if (!extractedShips.some(ship => ship.hull_number === hull)) extractedShips.push({ hull_number: hull, name_zh: name, commissioned_year: commissioned, commission_precision: /\d{4}-\d{1,2}-\d{1,2}/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown', fleet: fleetIndex >= 0 ? cells[fleetIndex] || '' : '', squadron: squadronIndex >= 0 ? cells[squadronIndex] || '' : '', status_code: statusCode });
+          if (!extractedShips.some(ship => ship.hull_number === hull)) extractedShips.push({ hull_number: hull, name_zh: name, commissioned_year: commissioned, commission_precision: /\d{4}(?:-|年)\d{1,2}(?:-|月)\d{1,2}日?/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown', fleet: fleetIndex >= 0 ? cells[fleetIndex] || '' : '', squadron: squadronIndex >= 0 ? cells[squadronIndex] || '' : '', status_code: statusCode });
         }
       }
       setWikiShipBatch(extractedShips);
@@ -617,7 +625,7 @@ export default function App() {
       const commissioned = getVal(['服役日期', '服役時間', '服役时间', '入役', '服役']);
       const statusText = getVal(['目前狀態', '目前状态', '服役狀態', '服役状态', '艦況', '舰况']);
       const statusCode = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('海试') ? 'sea_trial' : statusText.includes('計畫') || statusText.includes('计划') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') || statusText.includes('舾装') ? 'fitting_out' : statusText.includes('改裝') || statusText.includes('改装') ? 'refit' : statusText.includes('現役') || statusText.includes('现役') || statusText.includes('服役') ? 'active' : 'unknown';
-      const precision = /\d{4}-\d{1,2}-\d{1,2}/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown';
+      const precision = /\d{4}(?:-|年)\d{1,2}(?:-|月)\d{1,2}日?/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown';
       const classCode = resolvedTitle.match(/([0-9A-Za-z-]+)(?:型|級)/)?.[1] || input.match(/[0-9A-Za-z-]+/)?.[0] || '';
       const matchedClass = classes.find(item => item.code.toLowerCase() === classCode.toLowerCase());
       const firstImportedShip = extractedShips[0];

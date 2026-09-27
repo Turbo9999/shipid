@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.1';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.2';
 
 interface ShipClass {
   id: string;
@@ -813,13 +813,15 @@ export default function App() {
       
       {/* 戰術抬頭列 */}
       <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-6 md:pt-8 pb-5 flex flex-col items-center shadow-lg transition-all`}>
-        <div className="w-full max-w-md md:max-w-[1480px] flex justify-between items-center">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
-              <h1 className="font-black tracking-widest text-lg md:text-2xl font-mono">TAIWAN NAVY</h1>
+        <div className="w-full max-w-md md:max-w-[1480px] grid grid-cols-[minmax(0,1fr)_auto] md:flex md:justify-between md:items-center gap-x-3 gap-y-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <span className={`w-2.5 h-2.5 shrink-0 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
+              <h1 className="font-black tracking-widest text-lg md:text-2xl font-mono whitespace-nowrap">TAIWAN NAVY</h1>
             </div>
-            <div className={`text-xs font-mono ${themeMode === 'red' ? 'text-red-500' : 'text-slate-400'} flex items-center gap-1.5 pt-0.5`}>
+
+            {/* Desktop 狀態列：維持原本位置 */}
+            <div className={`hidden md:flex text-xs font-mono ${themeMode === 'red' ? 'text-red-500' : 'text-slate-400'} items-center gap-1.5 pt-0.5`}>
               {isOnline ? (
                 <span className={themeMode === 'red' ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}>✓ 離線資料已就緒</span>
               ) : (
@@ -829,7 +831,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {hasUpdateAvailable && (
               <button
                 type="button"
@@ -877,7 +879,7 @@ export default function App() {
                 setFontSize(next);
                 localStorage.setItem('tn_font_size', next);
               }}
-              className={`min-w-[44px] min-h-[44px] px-2.5 rounded-xl ${currentTheme.btnSecondary} font-bold text-xs flex items-center justify-center active:scale-95 transition`}
+              className={`shipid-mobile-preset min-w-[56px] md:min-w-[44px] min-h-[44px] px-2.5 rounded-xl ${currentTheme.btnSecondary} font-bold text-xs flex items-center justify-center whitespace-nowrap break-keep active:scale-95 transition`}
               title="切換字體大小"
             >
               {fontSize === 'sm' ? '小字' : fontSize === 'default' ? '預設' : fontSize === 'md' ? '中字' : '大字'}
@@ -897,6 +899,16 @@ export default function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </button>
+          </div>
+
+          {/* Mobile 狀態列：獨立佔滿第二列，不再與右側按鈕搶寬度 */}
+          <div className={`md:hidden col-span-2 w-full text-xs font-mono ${themeMode === 'red' ? 'text-red-500' : 'text-slate-400'} flex flex-wrap items-center gap-x-2 gap-y-1 pt-1`}>
+            {isOnline ? (
+              <span className={`${themeMode === 'red' ? 'text-red-400' : 'text-emerald-400'} font-bold whitespace-nowrap`}>✓ 離線資料已就緒</span>
+            ) : (
+              <span className={`${themeMode === 'red' ? 'text-red-400' : 'text-amber-400'} font-black whitespace-nowrap`}>● OFFLINE · 使用本機資料</span>
+            )}
+            <span className={`${currentTheme.textMuted} whitespace-nowrap`}>| {CURRENT_APP_VERSION}</span>
           </div>
         </div>
 

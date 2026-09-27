@@ -1129,9 +1129,10 @@ export default function App() {
 
             {showMoreModal === 'guide' && (
               <div className={`space-y-2 text-xs leading-relaxed p-3.5 rounded-2xl border ${currentTheme.subPanelBg}`}>
-                <p>1. iPhone 點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝為獨立 App。</p>
-                <p>2. 出港前在基地有網路時，滑動瀏覽各級艦艇一次，即可啟動 180 天長效持久離線庫。</p>
-                <p>3. 任務斷網期間，切勿手動清除 Safari / Chrome 快取與瀏覽紀錄。</p>
+                <p>1. iPhone點選分享按鈕➔選擇「加入主畫面」即可安裝為獨立App。</p>
+                <p>2. 滑動瀏覽各級艦艇一次，即可啟動180天離線庫。</p>
+                <p>3. 任務斷網期間，切勿手動清除快取與瀏覽紀錄。</p>
+                <p>4. android手機操作亦同iPhone手機。</p>
               </div>
             )}
 

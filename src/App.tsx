@@ -53,7 +53,7 @@ export default function App() {
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [expandedSpecsId, setExpandedSpecsId] = useState<string | null>(null);
   const [expandedShipIds, setExpandedShipIds] = useState<Record<string, boolean>>({});
-  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.9');
+  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v4.0');
 
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
@@ -662,15 +662,12 @@ export default function App() {
     fetchData();
   };
 
+  // 🎯 完全移除自動猜測邏輯，百分之百依照你手動按 Shift + Enter 換行來分項！
   const renderFormattedList = (text?: string) => {
     if (!text) return <span className="text-slate-100 font-medium">-</span>;
 
-    let normalized = text
-      .replace(/([^\n\r])(?=H\/)/g, '$1\n')
-      .replace(/([^\n\r])(?=Type\s*[0-9])/gi, '$1\n')
-      .replace(/[\r\n；;、]+/g, '\n');
-
-    const items = normalized.split('\n').map(s => s.trim()).filter(Boolean);
+    // 僅以換行符號（\n）作為唯一分項依據，取消所有自動 H/ 或頓號拆分
+    const items = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 
     if (items.length <= 1) {
       return <span className="text-slate-100 font-medium leading-relaxed break-words">{text}</span>;
@@ -909,7 +906,6 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* 頂部工具列 */}
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
@@ -964,7 +960,7 @@ export default function App() {
                           </p>
                         </div>
 
-                        {/* 第二欄：技術數據 */}
+                        {/* 第二欄：技術數據 (完全聽從你手動按 Shift+Enter 的換行分項) */}
                         <div className="space-y-1.5">
                           <button
                             type="button"
@@ -998,7 +994,7 @@ export default function App() {
                           )}
                         </div>
 
-                        {/* 第三欄：本級單艦列表（預設收合，點擊後展開／收合所有單艦詳細資料） */}
+                        {/* 第三欄：單艦列表 */}
                         <div className="space-y-2 pt-1">
                           <button
                             type="button"
@@ -1196,10 +1192,10 @@ export default function App() {
             <div><label className="text-slate-400 block mb-1">動力方式</label><textarea rows={2} value={editingClass.propulsion || ''} onChange={e => setEditingClass({ ...editingClass, propulsion: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">動力輸出</label><textarea rows={2} value={editingClass.power_output || ''} onChange={e => setEditingClass({ ...editingClass, power_output: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">乘員</label><textarea rows={2} value={editingClass.crew || ''} onChange={e => setEditingClass({ ...editingClass, crew: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">搜索系統 (雷達/聲納)</label><textarea rows={3} value={editingClass.radar_systems || ''} onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">武器系統</label><textarea rows={3} value={editingClass.weapons_summary || ''} onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">搜索系統 (雷達/聲納，請用 Shift+Enter 換行分項)</label><textarea rows={4} value={editingClass.radar_systems || ''} onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">武器系統 (請用 Shift+Enter 換行分項)</label><textarea rows={4} value={editingClass.weapons_summary || ''} onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">電戰系統</label><textarea rows={2} value={editingClass.electronic_warfare || ''} onChange={e => setEditingClass({ ...editingClass, electronic_warfare: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
-            <div><label className="text-slate-400 block mb-1">艦載機 (支援 Shift+Enter 換行分項)</label><textarea rows={2} value={editingClass.aircraft || ''} onChange={e => setEditingClass({ ...editingClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">艦載機</label><textarea rows={2} value={editingClass.aircraft || ''} onChange={e => setEditingClass({ ...editingClass, aircraft: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2 bg-slate-800 rounded-xl text-slate-300">取消</button>
               <button type="button" onClick={saveClassEdit} className={`flex-1 py-2 ${theme.accentBg} rounded-xl font-bold text-white`}>儲存修改</button>

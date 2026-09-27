@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.27 v5.4';
+const CURRENT_APP_VERSION = '2026.09.28 v5.6 Desktop V2 + Detail V3';
 
 interface ShipClass {
   id: string;
@@ -751,8 +751,8 @@ export default function App() {
     <div className={`w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
       
       {/* 戰術抬頭列 */}
-      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-[52px] pb-4 flex flex-col items-center shadow-lg transition-all`}>
-        <div className="w-full max-w-md md:max-w-6xl flex justify-between items-center">
+      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-6 md:pt-8 pb-5 flex flex-col items-center shadow-lg transition-all`}>
+        <div className="w-full max-w-md md:max-w-[1480px] flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
@@ -840,7 +840,7 @@ export default function App() {
         </div>
 
         {bannerText && (
-          <div className={`w-full max-w-md md:max-w-6xl mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-sky-800' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
+          <div className={`w-full max-w-md md:max-w-[1480px] mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-sky-800' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
             <span className={`w-2 h-2 rounded-full ${themeMode === 'red' ? 'bg-red-500' : 'bg-cyan-400'} animate-ping`}></span>
             <span className="flex-1">{bannerText}</span>
           </div>
@@ -848,7 +848,7 @@ export default function App() {
       </header>
 
       {/* 主內容區 */}
-      <main className="w-full max-w-md md:max-w-6xl px-4 md:px-6 pt-4 md:pt-6 pb-48 flex flex-col flex-1 gap-3">
+      <main className="w-full max-w-md md:max-w-[1480px] px-4 md:px-8 pt-5 md:pt-9 pb-48 flex flex-col flex-1 gap-5">
         {(activeBottomTab === 'classes' || activeBottomTab === 'favorites') && (
           <>
             {searchTerm && matchingShips.length > 0 && (
@@ -897,7 +897,7 @@ export default function App() {
                   查無符合條件的艦艇資料
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5">
                 {displayedClasses.map(c => {
                   const isFav = favorites.includes(c.id);
                   const classShips = ships.filter(s => s.class_id === c.id);
@@ -906,46 +906,38 @@ export default function App() {
                     <div
                       key={c.id}
                       onClick={() => handleOpenDetail(c)}
-                      className={`relative overflow-hidden p-4 md:p-6 md:min-h-[150px] rounded-2xl border transition-all cursor-pointer shadow-sm md:hover:-translate-y-1 md:hover:shadow-xl flex items-center justify-between gap-3 ${currentTheme.cardBg}`}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleOpenDetail(c); } }}
+                      role="button"
+                      tabIndex={0}
+                      className={`group relative min-w-0 overflow-hidden rounded-2xl border cursor-pointer transition-all duration-200 shadow-sm hover:shadow-xl hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 ${currentTheme.cardBg}`}
                     >
-                      <div className={`hidden md:block absolute inset-x-0 top-0 h-1 ${themeMode === 'red' ? 'bg-gradient-to-r from-red-900 via-red-500 to-red-900' : themeMode === 'high_contrast' ? 'bg-gradient-to-r from-cyan-700 via-sky-400 to-cyan-700' : 'bg-gradient-to-r from-cyan-700 via-cyan-400 to-blue-700'}`}></div>
-                      <div className="space-y-1.5 md:space-y-3 flex-1">
-                        <div className="flex items-baseline gap-2.5">
-                          <span className={`font-mono font-black md:text-3xl ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
-                            {c.code}
-                          </span>
-                          <span className={`font-bold md:text-lg ${primaryText} ${fontStyle.cardSub}`}>
-                            {c.name_zh}
-                          </span>
+                      <div className={`absolute inset-y-0 left-0 w-1 ${themeMode === 'red' ? 'bg-red-700' : themeMode === 'high_contrast' ? 'bg-cyan-700' : 'bg-cyan-500'}`} />
+                      <div className="p-4 md:p-6 pl-5 md:pl-7 flex flex-col gap-4 min-h-[176px]">
+                        <div className="flex items-start justify-between gap-3 min-w-0">
+                          <div className="min-w-0 flex-1">
+                            <div className={`text-[11px] font-mono tracking-[0.16em] uppercase mb-1.5 ${currentTheme.textMuted}`}>
+                              SHIP CLASS / {c.category}
+                            </div>
+                            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0">
+                              <span className={`font-mono font-black tracking-tight ${fontStyle.cardTitle} ${currentTheme.accentText}`}>{c.code}</span>
+                              <span className={`font-bold break-words ${primaryText} ${fontStyle.cardSub}`}>{c.name_zh}</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            aria-label={isFav ? '取消收藏' : '加入收藏'}
+                            onClick={e => toggleFavorite(c.id, e)}
+                            className={`shrink-0 min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border active:scale-95 transition ${currentTheme.btnSecondary}`}
+                          >
+                            <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
+                          </button>
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm">
-                          <span className={`px-2.5 py-0.5 rounded-md ${currentTheme.badge} font-medium`}>
-                            {c.nato_code ? `${c.nato_code} · ${c.category}` : c.category}
-                          </span>
-                          <span className={currentTheme.textMuted}>共登錄 {classShips.length} 艘</span>
-                          {c.identification_status === 'verified' && (
-                            <span className={themeMode === 'red' ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}>✓ 已查證</span>
-                          )}
+                        <div className={`mt-auto pt-3 border-t flex flex-wrap items-center gap-x-3 gap-y-2 ${currentTheme.border}`}>
+                          {c.nato_code && <span className={`px-2.5 py-1 rounded-md font-mono text-sm ${currentTheme.badge}`}>{c.nato_code}</span>}
+                          <span className={`text-sm font-medium ${primaryText}`}>登錄 {classShips.length} 艘</span>
+                          {c.identification_status === 'verified' && <span className={themeMode === 'red' ? 'text-red-400 text-sm font-bold' : 'text-emerald-400 text-sm font-bold'}>✓ 已查證</span>}
+                          <span className={`ml-auto text-sm font-bold ${currentTheme.accentText} whitespace-nowrap`}>查看資料 →</span>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={e => toggleFavorite(c.id, e)}
-                          className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border text-xl active:scale-90 transition ${currentTheme.btnSecondary}`}
-                        >
-                          <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDetail(c)}
-                          className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border font-mono text-base active:scale-95 transition ${currentTheme.btnSecondary}`}
-                        >
-                          &gt;
-                        </button>
                       </div>
                     </div>
                   );

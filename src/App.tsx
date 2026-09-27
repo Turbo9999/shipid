@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.8';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9';
 
 interface ShipClass {
   id: string;
@@ -445,13 +445,13 @@ export default function App() {
   const getFontSizeStyles = () => {
     switch (fontSize) {
       case 'sm':
-        return { root: 'text-[15px]', cardTitle: 'text-xl', cardSub: 'text-sm', header: 'text-sm', button: 'text-xs' };
+        return { root: 'text-[15px] leading-relaxed', cardTitle: 'text-2xl', cardSub: 'text-[16px]', header: 'text-[15px]', button: 'text-[15px] font-semibold' };
       case 'md':
-        return { root: 'text-[19px] leading-relaxed', cardTitle: 'text-2xl', cardSub: 'text-base', header: 'text-base', button: 'text-sm font-bold' };
+        return { root: 'text-[20px] leading-relaxed', cardTitle: 'text-3xl', cardSub: 'text-[19px]', header: 'text-[18px]', button: 'text-[17px] font-bold' };
       case 'lg':
-        return { root: 'text-[22px] leading-loose', cardTitle: 'text-3xl', cardSub: 'text-lg', header: 'text-lg', button: 'text-base font-black' };
+        return { root: 'text-[22px] leading-loose', cardTitle: 'text-4xl', cardSub: 'text-xl', header: 'text-xl', button: 'text-lg font-black' };
       default:
-        return { root: 'text-[17px] leading-normal', cardTitle: 'text-2xl', cardSub: 'text-sm', header: 'text-sm', button: 'text-xs font-semibold' };
+        return { root: 'text-[18px] leading-relaxed', cardTitle: 'text-[28px]', cardSub: 'text-[18px]', header: 'text-[17px]', button: 'text-[16px] font-semibold' };
     }
   };
 
@@ -760,7 +760,17 @@ export default function App() {
   };
 
   return (
-    <div className={`w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
+    <div className={`shipid-app w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
+      <style>{`
+        .shipid-app .text-xs { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; line-height: 1.55 !important; }
+        .shipid-app .text-sm { font-size: ${fontSize === 'sm' ? '15px' : fontSize === 'md' ? '18px' : fontSize === 'lg' ? '20px' : '17px'} !important; line-height: 1.55 !important; }
+        .shipid-app .text-base { font-size: ${fontSize === 'sm' ? '16px' : fontSize === 'md' ? '19px' : fontSize === 'lg' ? '21px' : '18px'} !important; line-height: 1.6 !important; }
+        .shipid-app input, .shipid-app select, .shipid-app textarea { font-size: ${fontSize === 'sm' ? '15px' : fontSize === 'md' ? '18px' : fontSize === 'lg' ? '20px' : '17px'} !important; }
+        .shipid-app nav span { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; }
+        @media (min-width: 768px) {
+          .shipid-app .shipid-kicker { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; }
+        }
+      `}</style>
       
       {/* 戰術抬頭列 */}
       <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-6 md:pt-8 pb-5 flex flex-col items-center shadow-lg transition-all`}>
@@ -806,15 +816,15 @@ export default function App() {
               title="切換顯示主題"
             >
               {themeMode === 'red' ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zm-7.518-.267A8.25 8.25 0 1120.25 10.5M8.288 14.212A5.25 5.25 0 1117.25 10.5" />
                 </svg>
               ) : themeMode === 'high_contrast' ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
                 </svg>
               )}
@@ -843,7 +853,7 @@ export default function App() {
               className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl ${currentTheme.btnSecondary} active:scale-95 transition`}
               title="資料庫後台"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
@@ -927,7 +937,7 @@ export default function App() {
                       <div className="p-4 md:p-6 pl-5 md:pl-7 flex flex-col gap-4 min-h-[176px]">
                         <div className="flex items-start justify-between gap-3 min-w-0">
                           <div className="min-w-0 flex-1">
-                            <div className={`text-[11px] font-mono tracking-[0.16em] uppercase mb-1.5 ${currentTheme.textMuted}`}>
+                            <div className={`shipid-kicker text-[14px] font-mono tracking-[0.14em] uppercase mb-2 ${currentTheme.textMuted}`}>
                               SHIP CLASS / {c.category}
                             </div>
                             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0">
@@ -945,10 +955,10 @@ export default function App() {
                           </button>
                         </div>
                         <div className={`mt-auto pt-3 border-t flex flex-wrap items-center gap-x-3 gap-y-2 ${currentTheme.border}`}>
-                          {c.nato_code && <span className={`px-2.5 py-1 rounded-md font-mono text-sm ${currentTheme.badge}`}>{c.nato_code}</span>}
-                          <span className={`text-sm font-medium ${primaryText}`}>登錄 {classShips.length} 艘</span>
-                          {c.identification_status === 'verified' && <span className={themeMode === 'red' ? 'text-red-400 text-sm font-bold' : 'text-emerald-400 text-sm font-bold'}>✓ 已查證</span>}
-                          <span className={`ml-auto text-sm font-bold ${currentTheme.accentText} whitespace-nowrap`}>查看資料 →</span>
+                          {c.nato_code && <span className={`px-2.5 py-1 rounded-md font-mono text-base ${currentTheme.badge}`}>{c.nato_code}</span>}
+                          <span className={`text-base font-medium ${primaryText}`}>登錄 {classShips.length} 艘</span>
+                          {c.identification_status === 'verified' && <span className={themeMode === 'red' ? 'text-red-400 text-base font-bold' : 'text-emerald-400 text-base font-bold'}>✓ 已查證</span>}
+                          <span className={`ml-auto text-base font-bold ${currentTheme.accentText} whitespace-nowrap`}>查看資料 →</span>
                         </div>
                       </div>
                     </div>
@@ -1125,7 +1135,7 @@ export default function App() {
         )}
 
         <nav className={`w-full ${currentTheme.headerBg} border-t backdrop-blur-xl flex justify-center shadow-2xl pointer-events-auto`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)' }}>
-          <div className="w-full max-w-md md:max-w-4xl flex justify-around items-center px-3 py-1.5 text-xs font-bold">
+          <div className="w-full max-w-md md:max-w-4xl flex justify-around items-center px-3 py-2.5 text-base font-bold">
             <button
               type="button"
               onClick={() => setActiveBottomTab('classes')}
@@ -1193,7 +1203,7 @@ export default function App() {
               <button type="button" onClick={() => setShowMoreModal(null)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>
             </div>
 
-            <div className={`flex gap-1 p-1 rounded-xl text-xs font-bold overflow-x-auto no-scrollbar ${currentTheme.subPanelBg}`}>
+            <div className={`flex gap-1 p-1.5 rounded-xl text-base font-bold overflow-x-auto no-scrollbar ${currentTheme.subPanelBg}`}>
               <button type="button" onClick={() => setShowMoreModal('update')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'update' ? currentTheme.accentBg : currentTheme.textMuted}`}>版面更新</button>
               <button type="button" onClick={() => setShowMoreModal('rankings')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'rankings' ? currentTheme.accentBg : currentTheme.textMuted}`}>查詢排行</button>
               <button type="button" onClick={() => setShowMoreModal('stats')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'stats' ? currentTheme.accentBg : currentTheme.textMuted}`}>每月統計</button>
@@ -1202,7 +1212,7 @@ export default function App() {
             </div>
 
             {showMoreModal === 'update' && (
-              <div className={`space-y-3.5 p-4 rounded-2xl border text-xs ${currentTheme.subPanelBg}`}>
+              <div className={`space-y-4 p-5 rounded-2xl border text-base ${currentTheme.subPanelBg}`}>
                 <div className={`flex justify-between items-center border-b pb-2 ${currentTheme.border}`}>
                   <span className={currentTheme.textMuted}>目前本機版本：</span>
                   <span className={`font-mono font-bold ${currentTheme.accentText}`}>{CURRENT_APP_VERSION}</span>
@@ -1404,13 +1414,13 @@ export default function App() {
               <button type="button" onClick={() => setShowAdmin(false)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>
             </div>
 
-            <div className={`flex border-b text-xs font-bold p-1 mx-4 mt-3 rounded-xl gap-1 ${currentTheme.subPanelBg} ${currentTheme.border}`}>
+            <div className={`flex border-b text-base font-bold p-1.5 mx-4 mt-3 rounded-xl gap-1 ${currentTheme.subPanelBg} ${currentTheme.border}`}>
               <button type="button" onClick={() => setAdminActiveTab('class_edit')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'class_edit' ? currentTheme.accentBg : currentTheme.textMuted}`}>艦型與外觀特徵</button>
               <button type="button" onClick={() => { setEditingShipId(null); setAdminActiveTab('ship_add'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'ship_add' ? currentTheme.accentBg : currentTheme.textMuted}`}>單艦管理</button>
               <button type="button" onClick={() => setAdminActiveTab('banner')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'banner' ? currentTheme.accentBg : currentTheme.textMuted}`}>廣播通報</button>
             </div>
 
-            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+            <div className="p-5 md:p-6 overflow-y-auto space-y-5 text-base">
               {adminActiveTab === 'class_edit' && (
                 <div className="space-y-4">
                   <div className={`p-3.5 rounded-2xl border space-y-2.5 ${currentTheme.subPanelBg}`}>

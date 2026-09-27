@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.1';
 
 interface ShipClass {
   id: string;
@@ -767,6 +767,45 @@ export default function App() {
         .shipid-app .text-base { font-size: ${fontSize === 'sm' ? '16px' : fontSize === 'md' ? '19px' : fontSize === 'lg' ? '21px' : '18px'} !important; line-height: 1.6 !important; }
         .shipid-app input, .shipid-app select, .shipid-app textarea { font-size: ${fontSize === 'sm' ? '15px' : fontSize === 'md' ? '18px' : fontSize === 'lg' ? '20px' : '17px'} !important; }
         .shipid-app nav span { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; }
+
+        @media (max-width: 767px) {
+          .shipid-app .shipid-mobile-header {
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+          .shipid-app .shipid-mobile-brand {
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+          }
+          .shipid-app .shipid-mobile-brand-meta {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
+            gap: 4px 10px !important;
+            margin-top: 6px !important;
+          }
+          .shipid-app .shipid-mobile-status,
+          .shipid-app .shipid-mobile-version {
+            white-space: nowrap !important;
+          }
+          .shipid-app .shipid-mobile-actions {
+            flex: 0 0 auto !important;
+            gap: 6px !important;
+          }
+          .shipid-app .shipid-mobile-actions button {
+            min-width: 46px !important;
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+          }
+          .shipid-app .shipid-mobile-preset {
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+          }
+          .shipid-app main {
+            padding-bottom: 190px !important;
+          }
+        }
+
         @media (min-width: 768px) {
           .shipid-app .shipid-kicker { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; }
         }

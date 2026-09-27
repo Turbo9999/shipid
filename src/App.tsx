@@ -42,7 +42,7 @@ interface Ship {
   fleet?: string;
   squadron?: string;
   status: string;
-  status_code?: 'active' | 'sea_trial' | 'fitting_out' | 'under_construction' | 'retired' | 'unknown';
+  status_code?: 'active' | 'retired' | 'unknown' | 'sea_trial' | 'planned' | 'under_construction' | 'fitting_out' | 'refit';
 }
 
 type FontSizeOption = 'sm' | 'default' | 'md' | 'lg';
@@ -142,7 +142,7 @@ export default function App() {
     commission_precision: 'exact' | 'year' | 'unknown';
     fleet: string;
     squadron: string;
-    status_code: 'active' | 'sea_trial' | 'fitting_out' | 'under_construction' | 'retired' | 'unknown';
+    status_code: 'active' | 'retired' | 'unknown' | 'sea_trial' | 'planned' | 'under_construction' | 'fitting_out' | 'refit';
   }>({
     class_id: '', hull_number: '', name_zh: '', commissioned_year: '',
     commission_precision: 'year', fleet: '', squadron: '', status_code: 'active'
@@ -277,10 +277,13 @@ export default function App() {
     }
     switch (code) {
       case 'active': return { label: '現役', color: 'bg-emerald-950 text-emerald-300 border-emerald-500/40' };
+      case 'retired': return { label: '退役', color: 'bg-slate-800 text-slate-400 border-slate-700' };
+      case 'unknown': return { label: '未知', color: 'bg-slate-800 text-slate-300 border-slate-700' };
       case 'sea_trial': return { label: '海試', color: 'bg-amber-950 text-amber-300 border-amber-500/40' };
+      case 'planned': return { label: '計畫', color: 'bg-cyan-950 text-cyan-300 border-cyan-500/40' };
       case 'fitting_out': return { label: '舾裝中', color: 'bg-blue-950 text-blue-300 border-blue-500/40' };
       case 'under_construction': return { label: '建造中', color: 'bg-purple-950 text-purple-300 border-purple-500/40' };
-      case 'retired': return { label: '退役', color: 'bg-slate-800 text-slate-400 border-slate-700' };
+      case 'refit': return { label: '改裝中', color: 'bg-orange-950 text-orange-300 border-orange-500/40' };
       default: return { label: fallbackStatus || '現役', color: 'bg-slate-800 text-slate-300 border-slate-700' };
     }
   };
@@ -1669,12 +1672,14 @@ export default function App() {
                       onChange={e => setNewShipForm({ ...newShipForm, status_code: e.target.value as any })}
                       className={`w-full min-h-[48px] rounded-xl px-3 text-sm ${currentTheme.input}`}
                     >
-                      <option value="active">現役 (active)</option>
-                      <option value="sea_trial">海試 (sea_trial)</option>
-                      <option value="fitting_out">舾裝中 (fitting_out)</option>
-                      <option value="under_construction">建造中 (under_construction)</option>
-                      <option value="retired">退役 (retired)</option>
-                      <option value="unknown">未知 (unknown)</option>
+                      <option value="active">現役</option>
+                      <option value="retired">退役</option>
+                      <option value="unknown">未知</option>
+                      <option value="sea_trial">海試</option>
+                      <option value="planned">計畫</option>
+                      <option value="under_construction">建造中</option>
+                      <option value="fitting_out">舾裝中</option>
+                      <option value="refit">改裝中</option>
                     </select>
                   </div>
 

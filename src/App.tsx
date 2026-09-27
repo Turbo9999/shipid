@@ -37,7 +37,7 @@ export default function App() {
     return localStorage.getItem('tn_night_mode') === 'true';
   });
 
-  // 雙艦快速比對池 (儲存選取的 class id 陣列，最多 2 艘)
+  // 雙艦快速比對池
   const [comparePool, setComparePool] = useState<string[]>([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
 
@@ -90,7 +90,10 @@ export default function App() {
   const [newClass, setNewClass] = useState({ code: '', name_zh: '', category: '', nato_code: '', image_url: '', visual_features: '', weapons_summary: '' });
   const [newShip, setNewShip] = useState({ class_id: '', hull_number: '', name_zh: '', status: '現役' });
 
-  // 記錄每月使用量
+  // 維基百科抓取狀態
+  const [wikiQuery, setWikiQuery] = useState('');
+  const [isFetchingWiki, setIsFetchingWiki] = useState(false);
+
   useEffect(() => {
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -101,7 +104,6 @@ export default function App() {
     setMonthlyUsage(currentMap);
   }, []);
 
-  // 鎖定標題並向手機請求長效儲存配額
   useEffect(() => {
     document.title = "TAIWAN NAVY";
     if (navigator.storage && navigator.storage.persist) {
@@ -182,14 +184,84 @@ export default function App() {
     return Array.from(set);
   }, [classes]);
 
-  // 切換選入比對池
+  // 🌐 維基百科自動擷取功能
+  const handleFetchWikipedia = async () => {
+    if (!wikiQuery.trim()) {
+      alert('請先輸入維基條目名稱或網址 (例: 052D型导弹驱逐舰 或 054A)');
+      return;
+    }
+
+    setIsFetchingWiki(true);
+    try {
+      // 若使用者直接貼網址，自動解析出條目 title
+      let title = wikiQuery.trim();
+      if (title.includes('wikipedia.org/wiki/')) {
+        title = decodeURIComponent(title.split('wikipedia.org/wiki/')[1].split(/[?#]/)[0]);
+      }
+
+      // 呼叫維基百科 REST API
+      const res = await fetch(`https://zh.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+      if (!res.ok) {
+        throw new Error('找不到該條目，請確認條目名稱是否正確！');
+      }
+
+      const data = await res.json();
+      const extractText = data.extract || '';
+
+      // 智能推估艦型代號 (例: 從 052D型... 提取 052D)
+      const codeMatch = title.match(/([0-9A-Za-z\-]+)(?:型|級)/);
+      const guessedCode = codeMatch ? codeMatch[1] : title.slice(0, 6);
+
+      // 智能推估艦種分類
+      let guessedCategory = '驅逐艦';
+      if (extractText.includes('巡防艦') || extractText.includes('护卫舰')) guessedCategory = '巡防艦';
+      else if (extractText.includes('驅逐艦') || extractText.includes('驱逐舰')) guessedCategory = '驅逐艦';
+      else if (extractText.includes('登陸艦') || extractText.includes('登陆舰') || extractText.includes('兩棲')) guessedCategory = '兩棲登陸艦';
+      else if (extractText.includes('巡邏艦') || extractText.includes('巡逻舰')) guessedCategory = '巡邏艦';
+      else if (extractText.includes('航空母艦') || extractText.includes('航母')) guessedCategory = '航空母艦';
+      else if (extractText.includes('潛艇') || extractText.includes('潜艇')) guessedCategory = '潛艦';
+
+      // 智能推估北約/英文代號
+      let guessedNato = '';
+      if (extractText.includes('北約代號') || extractText.includes('北约代号')) {
+        const natoMatch = extractText.match(/北[約约]代[號号][：:\s]*([A-Za-z0-9\-]+)/);
+        if (natoMatch) guessedNato = natoMatch[1];
+      }
+
+      // 智能提取武裝關鍵字
+      let weaponsSummary = '';
+      const weaponKeywords = ['垂直發射', '垂直发射', '艦砲', '舰炮', '防空導彈', '防空导弹', '反艦導彈', '反舰导弹', '魚雷', '鱼雷'];
+      const sentences = extractText.split(/[。；;]/);
+      const matchedSentences = sentences.filter((s: string) => weaponKeywords.some(k => s.includes(k)));
+      if (matchedSentences.length > 0) {
+        weaponsSummary = matchedSentences.join('；').slice(0, 100);
+      }
+
+      // 帶入表單輸入框供審核
+      setNewClass({
+        code: newClass.code || guessedCode,
+        name_zh: data.title || '',
+        category: newClass.category || guessedCategory,
+        nato_code: newClass.nato_code || guessedNato,
+        image_url: data.originalimage?.source || data.thumbnail?.source || '',
+        visual_features: newClass.visual_features || '相控陣雷達, 封閉式艦橋',
+        weapons_summary: weaponsSummary || extractText.slice(0, 80)
+      });
+
+      alert(`✅ 成功抓取維基百科【${data.title}】資訊！請檢視下方欄位後按發布。`);
+    } catch (err: any) {
+      alert(`抓取失敗：${err.message || '連線逾時'}`);
+    } finally {
+      setIsFetchingWiki(false);
+    }
+  };
+
   const toggleCompare = (classId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (comparePool.includes(classId)) {
       setComparePool(comparePool.filter(id => id !== classId));
     } else {
       if (comparePool.length >= 2) {
-        // 若已滿 2 艘，替換掉第一艘
         setComparePool([comparePool[1], classId]);
       } else {
         setComparePool([...comparePool, classId]);
@@ -345,6 +417,7 @@ export default function App() {
       weapons_summary: newClass.weapons_summary.trim()
     }]);
     setNewClass({ code: '', name_zh: '', category: '', nato_code: '', image_url: '', visual_features: '', weapons_summary: '' });
+    setWikiQuery('');
     setShowAdmin(false);
     fetchData();
   };
@@ -368,7 +441,6 @@ export default function App() {
   const sortedMonths = Object.keys(monthlyUsage).sort().reverse();
   const maxUsageCount = Math.max(...Object.values(monthlyUsage), 1);
 
-  // 比對雙艦實體
   const compareShipA = classes.find(c => c.id === comparePool[0]);
   const compareShipB = classes.find(c => c.id === comparePool[1]);
 
@@ -424,7 +496,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* 夜戰暗紅光模式切換鈕 */}
             <button
               type="button"
               onClick={toggleNightMode}
@@ -436,7 +507,6 @@ export default function App() {
               </svg>
             </button>
 
-            {/* 字體調整鈕 */}
             <div className="bg-slate-900 border border-slate-800 rounded-full p-0.5 flex text-[10px] font-bold">
               {(['system', 'sm', 'md', 'lg'] as FontSizeOption[]).map(size => (
                 <button
@@ -499,7 +569,6 @@ export default function App() {
               )}
             </div>
 
-            {/* 特徵快速過濾標籤盤 */}
             {allVisualFeatures.length > 0 && (
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
                 <button
@@ -542,7 +611,6 @@ export default function App() {
           </div>
         ) : (
           activeBottomTab === 'stats' ? (
-            /* 每月統計頁面 */
             <div className="space-y-4 pt-1">
               <div className="text-xs font-mono tracking-wider text-slate-400 font-bold uppercase flex items-center gap-2">
                 <svg className={`w-4 h-4 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -590,7 +658,6 @@ export default function App() {
               </div>
             </div>
           ) : (
-            /* 艦型清單 / 我的最愛 / 排行榜 */
             <section className="space-y-3">
               {searchTerm && filteredShips.length > 0 && (
                 <div className={`${nightMode ? 'bg-red-950/30 border-red-500/30' : 'bg-cyan-950/30 border-cyan-500/30'} border rounded-2xl p-3.5 shadow-lg`}>
@@ -692,7 +759,6 @@ export default function App() {
                         </div>
                         
                         <div className="flex items-center gap-1.5">
-                          {/* ⚔️ 加入雙艦比對按鈕 */}
                           <button
                             type="button"
                             onClick={(e) => toggleCompare(c.id, e)}
@@ -705,7 +771,6 @@ export default function App() {
                             <span>{isCompared ? '已選取' : '比對'}</span>
                           </button>
 
-                          {/* 星號收藏 */}
                           <button
                             type="button"
                             onClick={(e) => toggleFavorite(c.id, e)}
@@ -820,7 +885,7 @@ export default function App() {
         </footer>
       </main>
 
-      {/* ⚔️ 雙艦快速比對懸浮戰術工具列 (當選中 1 艘以上時浮現) */}
+      {/* 雙艦比對懸浮列 */}
       {comparePool.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 z-30 flex justify-center px-4 pointer-events-none">
           <div className={`pointer-events-auto w-full max-w-sm ${nightMode ? 'bg-[#150406]/95 border-red-500/50' : 'bg-slate-900/95 border-cyan-500/50'} border backdrop-blur-xl p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2`}>
@@ -869,12 +934,11 @@ export default function App() {
         </div>
       )}
 
-      {/* ⚔️ 雙艦快速比對同屏視窗 (HUD Split Modal) */}
+      {/* 雙艦比對視窗 */}
       {showCompareModal && compareShipA && compareShipB && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className={`w-full max-w-lg ${nightMode ? 'bg-[#0a0203] border-red-900/60' : 'bg-slate-900 border-slate-800'} border-t sm:border rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl`}>
             
-            {/* 比對視窗頂部 Header */}
             <div className="p-4 border-b border-slate-800 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <svg className={`w-4 h-4 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -891,10 +955,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* 比對主要內容滾動區 */}
             <div className="p-4 overflow-y-auto space-y-4 text-xs">
-              
-              {/* 雙艦照片左右對稱並排 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black h-32 flex items-center justify-center">
@@ -925,7 +986,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 基本規格橫向對稱條 */}
               <div className="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2.5">
                 <div className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider text-center">
                   CLASSIFICATION & NATO CODE
@@ -946,7 +1006,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 視覺特徵交叉對抗 */}
               <div className="space-y-2">
                 <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
@@ -973,7 +1032,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 武裝配置對抗 */}
               <div className="space-y-2">
                 <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
@@ -1283,7 +1341,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 後台管理抽屜 */}
+      {/* 後台管理抽屜 (含維基百科一鍵匯入) */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
           <div className="w-full max-w-md bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl">
@@ -1360,81 +1418,117 @@ export default function App() {
               )}
 
               {activeTab === 'classes' && (
-                <form onSubmit={handleCreateClass} className="space-y-3">
-                  <div>
-                    <label className="text-slate-400 font-bold mb-1 block">艦型代號 (例: 052D)</label>
-                    <input 
-                      required 
-                      placeholder="例: 052D"
-                      value={newClass.code} 
-                      onChange={e => setNewClass({ ...newClass, code: e.target.value })} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
-                    />
+                <div className="space-y-4">
+                  {/* 🌐 維基百科一鍵自動抓取面板 */}
+                  <div className="p-3 bg-gradient-to-r from-cyan-950/40 to-slate-950 border border-cyan-500/30 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-cyan-300 text-xs flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                        </svg>
+                        <span>維基百科一鍵自動擷取</span>
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">MEDIAWIKI API</span>
+                    </div>
+
+                    <div className="flex gap-1.5">
+                      <input 
+                        type="text"
+                        placeholder="輸入維基條目名或網址 (例: 052D型导弹驱逐舰)"
+                        value={wikiQuery}
+                        onChange={e => setWikiQuery(e.target.value)}
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                      />
+                      <button
+                        type="button"
+                        disabled={isFetchingWiki}
+                        onClick={handleFetchWikipedia}
+                        className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition shrink-0 active:scale-95"
+                      >
+                        {isFetchingWiki ? '擷取中...' : '自動填表'}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      自動抓取維基官方艦影主圖、艦名、分類與武裝資訊，抓取後可手動微調再發布。
+                    </p>
                   </div>
-                  <div>
-                    <label className="text-slate-400 font-bold mb-1 block">艦型全名 (例: 052D型飛彈驅逐艦)</label>
-                    <input 
-                      required 
-                      placeholder="例: 052D型飛彈驅逐艦"
-                      value={newClass.name_zh} 
-                      onChange={e => setNewClass({ ...newClass, name_zh: e.target.value })} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-400 font-bold mb-1 block">艦艇照片網址 (選填，全體同步)</label>
-                    <input 
-                      type="url"
-                      placeholder="例: https://.../ship.jpg"
-                      value={newClass.image_url} 
-                      onChange={e => setNewClass({ ...newClass, image_url: e.target.value })} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
+
+                  <form onSubmit={handleCreateClass} className="space-y-3">
                     <div>
-                      <label className="text-slate-400 font-bold mb-1 block">艦種分類 (手動輸入)</label>
+                      <label className="text-slate-400 font-bold mb-1 block">艦型代號 (例: 052D)</label>
                       <input 
                         required 
-                        placeholder="例: 驅逐艦、巡防艦" 
-                        value={newClass.category} 
-                        onChange={e => setNewClass({ ...newClass, category: e.target.value })} 
+                        placeholder="例: 052D"
+                        value={newClass.code} 
+                        onChange={e => setNewClass({ ...newClass, code: e.target.value })} 
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
                       />
                     </div>
                     <div>
-                      <label className="text-slate-400 font-bold mb-1 block">英文代號</label>
+                      <label className="text-slate-400 font-bold mb-1 block">艦型全名 (例: 052D型飛彈驅逐艦)</label>
                       <input 
-                        placeholder="例: LHA、DDG、FFG"
-                        value={newClass.nato_code} 
-                        onChange={e => setNewClass({ ...newClass, nato_code: e.target.value })} 
+                        required 
+                        placeholder="例: 052D型飛彈驅逐艦"
+                        value={newClass.name_zh} 
+                        onChange={e => setNewClass({ ...newClass, name_zh: e.target.value })} 
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
                       />
                     </div>
-                  </div>
-                  <div>
-                    <label className="text-slate-400 font-bold mb-1 block">外型辨識特徵 (請用逗號隔開)</label>
-                    <textarea 
-                      rows={2} 
-                      value={newClass.visual_features} 
-                      onChange={e => setNewClass({ ...newClass, visual_features: e.target.value })} 
-                      placeholder="相控陣雷達, 封閉式艦橋, 64單元VLS" 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-400 font-bold mb-1 block">武裝概要</label>
-                    <input 
-                      placeholder="例: 64單元通用垂直發射系統、130mm艦砲"
-                      value={newClass.weapons_summary} 
-                      onChange={e => setNewClass({ ...newClass, weapons_summary: e.target.value })} 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
-                    />
-                  </div>
-                  <button type="submit" className={`w-full py-3 ${theme.accentBg} ${theme.accentHover} rounded-xl font-bold text-white shadow-lg active:scale-95 transition`}>
-                    新增艦型至雲端資料庫
-                  </button>
-                </form>
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">艦艇照片網址 (維基自動帶入或手動輸入)</label>
+                      <input 
+                        type="url"
+                        placeholder="例: https://.../ship.jpg"
+                        value={newClass.image_url} 
+                        onChange={e => setNewClass({ ...newClass, image_url: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-slate-400 font-bold mb-1 block">艦種分類 (手動輸入)</label>
+                        <input 
+                          required 
+                          placeholder="例: 驅逐艦、巡防艦" 
+                          value={newClass.category} 
+                          onChange={e => setNewClass({ ...newClass, category: e.target.value })} 
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 font-bold mb-1 block">英文代號</label>
+                        <input 
+                          placeholder="例: LHA、DDG、FFG"
+                          value={newClass.nato_code} 
+                          onChange={e => setNewClass({ ...newClass, nato_code: e.target.value })} 
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">外型辨識特徵 (請用逗號隔開)</label>
+                      <textarea 
+                        rows={2} 
+                        value={newClass.visual_features} 
+                        onChange={e => setNewClass({ ...newClass, visual_features: e.target.value })} 
+                        placeholder="相控陣雷達, 封閉式艦橋, 64單元VLS" 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">武裝概要</label>
+                      <input 
+                        placeholder="例: 64單元通用垂直發射系統、130mm艦砲"
+                        value={newClass.weapons_summary} 
+                        onChange={e => setNewClass({ ...newClass, weapons_summary: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
+                    </div>
+                    <button type="submit" className={`w-full py-3 ${theme.accentBg} ${theme.accentHover} rounded-xl font-bold text-white shadow-lg active:scale-95 transition`}>
+                      新增艦型至雲端資料庫
+                    </button>
+                  </form>
+                </div>
               )}
 
               {activeTab === 'ships' && (

@@ -1072,7 +1072,7 @@ export default function App() {
               <div className={`space-y-2 text-xs leading-relaxed p-3.5 rounded-2xl border ${currentTheme.subPanelBg}`}>
                 <p>1. iPhone點選分享按鈕➔「加入主畫面」即可安裝為獨立App。</p>
                 <p>2. 安卓手機操作亦跟iPhone相似。</p>
-                <p>3. 出港前在基地有網路時，滑動瀏覽各級艦艇一次，即可啟動180天持久離線。</p>
+                <p>3. 滑動瀏覽各級艦艇一次，即可啟動180天持久離線。</p>
                 <p>4. 任務斷網期間，切勿手動清除Safari/Chrome快取與瀏覽紀錄。</p>
               </div>
             )}

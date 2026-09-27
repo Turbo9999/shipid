@@ -456,6 +456,16 @@ export default function App() {
     return raw.replace(/\[\d+\]/g, '').replace(/\[註\s*\d+\]/g, '').trim();
   };
 
+  const fetchWikiDocument = async (query: string) => {
+    const response = await fetch(`/api/wiki?title=${encodeURIComponent(query)}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '維基資料擷取失敗');
+    return {
+      resolvedTitle: data.title as string,
+      doc: new DOMParser().parseFromString(data.html || '', 'text/html')
+    };
+  };
+
   const handleFetchWikiForComparison = async (queryOverride?: string) => {
     const query = (queryOverride ?? wikiQuery).trim();
     if (!query) return alert('請輸入艦型關鍵字（例: 052D）');
@@ -467,20 +477,7 @@ export default function App() {
       if (input.includes('wikipedia.org/wiki/')) {
         input = decodeURIComponent(input.split('wikipedia.org/wiki/')[1].split('?')[0].split('#')[0]);
       }
-      let resolvedTitle = input;
-      const searchUrl = `https://zh.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(input)}&limit=1&namespace=0&format=json&origin=*`;
-      const searchResp = await fetch(searchUrl);
-      if (searchResp.ok) {
-        const json = await searchResp.json();
-        if (json[1] && json[1][0]) resolvedTitle = json[1][0];
-      }
-
-      const parseApiUrl = `https://zh.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(resolvedTitle)}&prop=text|images&format=json&origin=*&redirects=1`;
-      const parseResp = await fetch(parseApiUrl);
-      const parseJson = await parseResp.json();
-      if (parseJson.error) throw new Error(parseJson.error.info || '查無條目');
-
-      const doc = new DOMParser().parseFromString(parseJson.parse?.text?.['*'] || '', 'text/html');
+      const { resolvedTitle, doc } = await fetchWikiDocument(input);
 
       let imgUrl = '';
       const firstImg = doc.querySelector('table.infobox img') || doc.querySelector('.thumbimage') || doc.querySelector('img');
@@ -573,16 +570,7 @@ export default function App() {
       if (input.includes('wikipedia.org/wiki/')) {
         input = decodeURIComponent(input.split('wikipedia.org/wiki/')[1].split('?')[0].split('#')[0]);
       }
-      let resolvedTitle = input;
-      const searchResp = await fetch(`https://zh.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(input)}&limit=1&namespace=0&format=json&origin=*`);
-      if (searchResp.ok) {
-        const json = await searchResp.json();
-        if (json[1]?.[0]) resolvedTitle = json[1][0];
-      }
-      const parseResp = await fetch(`https://zh.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(resolvedTitle)}&prop=text&format=json&origin=*&redirects=1`);
-      const parseJson = await parseResp.json();
-      if (parseJson.error) throw new Error(parseJson.error.info || '查無條目');
-      const doc = new DOMParser().parseFromString(parseJson.parse?.text?.['*'] || '', 'text/html');
+      const { resolvedTitle, doc } = await fetchWikiDocument(input);
       const getVal = (keywords: string[]) => {
         for (const row of Array.from(doc.querySelectorAll('table.infobox tr'))) {
           const th = row.querySelector('th')?.textContent?.trim() || '';

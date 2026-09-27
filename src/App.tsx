@@ -25,7 +25,7 @@ interface Ship {
   class_id: string;
   hull_number: string;
   name_zh: string;
-  commissioned_year?: string; // 服役時間
+  commissioned_year?: string; // 服役時間 (完整日期)
   fleet?: string;             // 所屬艦隊
   squadron?: string;          // 所屬支隊
   status: string;             // 目前現狀
@@ -51,7 +51,7 @@ export default function App() {
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [expandedSpecsId, setExpandedSpecsId] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v2.1');
+  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v2.2');
 
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
@@ -204,7 +204,7 @@ export default function App() {
     return Array.from(set);
   }, [classes]);
 
-  // 🌐 維基百科深度自動分析 (含舷號、艦名、服役時間、艦隊、支隊、現況)
+  // 🌐 維基百科深度自動分析 (完整不截斷日期、精確對齊艦隊/支隊/現狀)
   const handleFetchWikipedia = async () => {
     if (!wikiQuery.trim()) {
       alert('請輸入關鍵字 (例: 052D、054A 或 康定)');
@@ -319,7 +319,7 @@ export default function App() {
         aircraft: airVal || '直-9C / 直-20F 反潛直升機 1 架'
       });
 
-      // 3. 深入解析「本級艦 / 艦名列表」表格
+      // 3. 深入解析「艦名列表」表格
       const foundShips: ParsedShipItem[] = [];
       const tables = Array.from(doc.querySelectorAll('table'));
 
@@ -340,10 +340,10 @@ export default function App() {
             const txt = cell.textContent?.trim() || '';
             if (/舷[號号]|編[號号]|Hull/i.test(txt) && hullIdx === -1) hullIdx = idx;
             if (/艦名|舰名|Name/i.test(txt) && nameIdx === -1) nameIdx = idx;
-            if (/狀[態态]|服役|現況|现况|Status/i.test(txt) && statusIdx === -1) statusIdx = idx;
+            if (/狀[態态]|現況|现况|Status/i.test(txt) && statusIdx === -1) statusIdx = idx;
             if (/艦隊|舰队|配屬/i.test(txt) && fleetIdx === -1) fleetIdx = idx;
             if (/支隊|支队/i.test(txt) && squadronIdx === -1) squadronIdx = idx;
-            if (/服役[日年期]|入役|年份/i.test(txt) && yearIdx === -1) yearIdx = idx;
+            if (/服役[日年期]|入役|交付/i.test(txt) && yearIdx === -1) yearIdx = idx;
           });
         }
 
@@ -358,14 +358,15 @@ export default function App() {
               let squadron = squadronIdx !== -1 ? (cells[squadronIdx]?.textContent?.trim() || '') : '';
               let commYear = yearIdx !== -1 ? (cells[yearIdx]?.textContent?.trim() || '') : '';
 
+              // 去除註解括號，放寬字串長度至 30，確保完整的「2017年1月22日」不被切字！
               hull = hull.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '');
               name = name.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '');
               status = status.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '');
-              fleet = fleet.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '').slice(0, 15);
-              squadron = squadron.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '').slice(0, 15);
-              commYear = commYear.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '').slice(0, 15);
+              fleet = fleet.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '').slice(0, 25);
+              squadron = squadron.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '').slice(0, 25);
+              commYear = commYear.replace(/\[.*?\]/g, '').replace(/[\s\r\n]+/g, '').slice(0, 30);
 
-              // 若艦隊欄位裡包含支隊（例：南部戰區海軍驅9支隊），自動拆解
+              // 智能拆解艦隊與支隊
               if (fleet.includes('支隊') || fleet.includes('支队')) {
                 const matchSquad = fleet.match(/(.*?[艦队隊])(.*?[支队隊])/);
                 if (matchSquad) {
@@ -374,11 +375,12 @@ export default function App() {
                 }
               }
 
+              // 清理狀態文字
               if (/服役|現役|现役/.test(status)) status = '現役';
               else if (/海試|海试|試航/.test(status)) status = '海試';
               else if (/舾裝|舾装|下水|在建/.test(status)) status = '建造/舾裝中';
               else if (/退役/.test(status)) status = '退役';
-              else status = status.slice(0, 8);
+              else status = status.slice(0, 10);
 
               if (hull && name && /^[0-9A-Za-z\-]+$/.test(hull) && hull.length <= 8 && name.length <= 15) {
                 if (!foundShips.some(s => s.hull_number === hull)) {
@@ -400,7 +402,7 @@ export default function App() {
       if (foundShips.length > 0) {
         setParsedShips(foundShips);
         setIncludeParsedShips(true);
-        alert(`✅ 成功配對條目【${realTitle}】！\n已提取完整規格與 ${foundShips.length} 艘單艦（含舷號/艦名/服役日/艦隊/支隊/現狀）！`);
+        alert(`✅ 成功配對條目【${realTitle}】！\n已提取完整規格與 ${foundShips.length} 艘單艦完整履歷（包含完整年月日、艦隊、支隊與現況）！`);
       } else {
         alert(`✅ 成功配對條目【${realTitle}】！\n已填入基本規格與工程參數。`);
       }
@@ -1040,7 +1042,7 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* 詳細工程規格收合抽屜 */}
+                          {/* 第二層詳細規格收合抽屜 */}
                           <div className="pt-1">
                             <button
                               type="button"
@@ -1111,7 +1113,7 @@ export default function App() {
                             )}
                           </div>
 
-                          {/* 🎖️ 單艦身分列表（條列式戰術身分卡片：舷號 / 艦名 / 服役時間 / 艦隊 / 支隊 / 現狀） */}
+                          {/* 🎖️ 單艦身分列表（對齊維基百科：舷號 / 艦名 / 服役時間 / 所屬編制 / 目前現狀） */}
                           <div className="space-y-2">
                             <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center justify-between">
                               <span className="flex items-center gap-1.5">
@@ -1121,40 +1123,44 @@ export default function App() {
                             </div>
 
                             {classShips.length > 0 ? (
-                              <div className="space-y-2">
+                              <div className="space-y-2.5">
                                 {classShips.map(s => (
                                   <div key={s.id} className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 shadow-sm">
-                                    <div className="flex justify-between items-start">
+                                    {/* 頂部：大舷號 ＋ 艦名 ＋ 編輯按鈕 */}
+                                    <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
                                       <div className="flex items-baseline gap-2.5">
-                                        <span className={`font-mono text-xl font-black ${theme.accentText} tracking-tight`}>{s.hull_number}</span>
-                                        <span className="font-bold text-white text-sm">{s.name_zh}</span>
+                                        <span className={`font-mono text-2xl font-black ${theme.accentText} tracking-tight`}>{s.hull_number}</span>
+                                        <span className="font-bold text-white text-base">{s.name_zh}</span>
                                       </div>
-                                      <div className="flex items-center gap-1.5">
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${s.status === '現役' ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'}`}>
-                                          {s.status}
-                                        </span>
-                                        <button 
-                                          type="button"
-                                          onClick={(e) => { e.stopPropagation(); setEditingShip(s); }}
-                                          className="text-[10px] text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800 transition"
-                                        >
-                                          編輯
-                                        </button>
-                                      </div>
+                                      <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setEditingShip(s); }}
+                                        className="text-[10px] text-slate-400 hover:text-white px-2 py-0.8 rounded bg-slate-800 border border-slate-700 transition"
+                                      >
+                                        編輯履歷
+                                      </button>
                                     </div>
 
-                                    {/* 戰術編制詳細資訊 */}
-                                    <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-950/70 p-2 rounded-lg border border-slate-900">
-                                      <div>
-                                        <span className="text-slate-500 block text-[9px] uppercase font-mono">編屬部隊 (艦隊 / 支隊)</span>
-                                        <span className="text-slate-200 font-medium">
+                                    {/* 三大軍規戰術欄位（完整不切字）：服役時間 / 編屬部隊 / 目前現狀 */}
+                                    <div className="grid grid-cols-3 gap-2 text-[11px] pt-0.5">
+                                      <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/60">
+                                        <span className="text-slate-500 block text-[9px] font-mono">📅 服役入役時間</span>
+                                        <span className="font-mono text-cyan-300 font-bold block pt-0.5">
+                                          {s.commissioned_year || '未載明'}
+                                        </span>
+                                      </div>
+
+                                      <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/60">
+                                        <span className="text-slate-500 block text-[9px] font-mono">⚓️ 編屬部隊 (艦隊/支隊)</span>
+                                        <span className="text-slate-200 font-medium block pt-0.5 truncate" title={`${s.fleet || ''} ${s.squadron || ''}`}>
                                           {s.fleet || '未載明'}{s.squadron && ` · ${s.squadron}`}
                                         </span>
                                       </div>
-                                      <div>
-                                        <span className="text-slate-500 block text-[9px] uppercase font-mono">服役入役時間</span>
-                                        <span className="font-mono text-cyan-300 font-medium">
-                                          {s.commissioned_year || '未載明'}
+
+                                      <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/60">
+                                        <span className="text-slate-500 block text-[9px] font-mono">⚡️ 目前現狀</span>
+                                        <span className={`font-bold block pt-0.5 ${s.status === '現役' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                          {s.status || '現役'}
                                         </span>
                                       </div>
                                     </div>
@@ -1162,7 +1168,7 @@ export default function App() {
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-xs text-slate-500 py-1 bg-slate-900/40 p-3 rounded-xl border border-dashed border-slate-800 text-center">
+                              <p className="text-xs text-slate-500 py-2 bg-slate-900/40 p-3 rounded-xl border border-dashed border-slate-800 text-center">
                                 尚無登錄單艦舷號資料
                               </p>
                             )}
@@ -1624,7 +1630,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 單艦修改彈窗（完整包含 舷號 / 艦名 / 服役時間 / 艦隊 / 支隊 / 現狀） */}
+      {/* 單艦修改彈窗 */}
       {editingShip && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-sm bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4">
@@ -1663,7 +1669,7 @@ export default function App() {
                   <label className="text-[11px] font-bold text-slate-400 mb-1 block">所屬艦隊</label>
                   <input
                     type="text"
-                    placeholder="例: 南部戰區海軍"
+                    placeholder="例: 北部戰區海軍"
                     value={editingShip.fleet || ''}
                     onChange={e => setEditingShip({ ...editingShip, fleet: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
@@ -1673,7 +1679,7 @@ export default function App() {
                   <label className="text-[11px] font-bold text-slate-400 mb-1 block">所屬支隊</label>
                   <input
                     type="text"
-                    placeholder="例: 驅逐艦第9支隊"
+                    placeholder="例: 驅逐艦第1支隊"
                     value={editingShip.squadron || ''}
                     onChange={e => setEditingShip({ ...editingShip, squadron: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
@@ -1683,13 +1689,13 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">服役入役時間</label>
+                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">服役入役時間 (完整)</label>
                   <input
                     type="text"
-                    placeholder="例: 2014-03-21"
+                    placeholder="例: 2017年1月22日"
                     value={editingShip.commissioned_year || ''}
                     onChange={e => setEditingShip({ ...editingShip, commissioned_year: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
                   />
                 </div>
                 <div>
@@ -1797,7 +1803,7 @@ export default function App() {
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
                         </svg>
-                        <span>維基百科深度自動擷取 (規格＋單艦履歷)</span>
+                        <span>維基百科深度自動擷取 (規格＋單艦完整履歷)</span>
                       </span>
                       <span className="text-[10px] text-slate-500 font-mono">OPENSEARCH</span>
                     </div>
@@ -1845,7 +1851,7 @@ export default function App() {
                                   <span className="text-slate-400">{s.fleet}{s.squadron && `/${s.squadron}`}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-slate-500">{s.commissioned_year}</span>
+                                  <span className="font-mono text-slate-300">{s.commissioned_year}</span>
                                   <span className="px-1.5 py-0.2 bg-slate-800 text-slate-300 rounded">{s.status}</span>
                                 </div>
                               </div>
@@ -1991,7 +1997,7 @@ export default function App() {
                     <div>
                       <label className="text-slate-400 font-bold mb-1 block">所屬艦隊</label>
                       <input 
-                        placeholder="例: 南部戰區海軍"
+                        placeholder="例: 北部戰區海軍"
                         value={newShip.fleet} 
                         onChange={e => setNewShip({ ...newShip, fleet: e.target.value })} 
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
@@ -2000,7 +2006,7 @@ export default function App() {
                     <div>
                       <label className="text-slate-400 font-bold mb-1 block">所屬支隊</label>
                       <input 
-                        placeholder="例: 驅逐艦第9支隊"
+                        placeholder="例: 驅逐艦第1支隊"
                         value={newShip.squadron} 
                         onChange={e => setNewShip({ ...newShip, squadron: e.target.value })} 
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
@@ -2009,12 +2015,12 @@ export default function App() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-slate-400 font-bold mb-1 block">服役入役時間</label>
+                      <label className="text-slate-400 font-bold mb-1 block">服役入役時間 (完整)</label>
                       <input 
-                        placeholder="例: 2016-07-12"
+                        placeholder="例: 2017年1月22日"
                         value={newShip.commissioned_year} 
                         onChange={e => setNewShip({ ...newShip, commissioned_year: e.target.value })} 
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white font-mono" 
                       />
                     </div>
                     <div>

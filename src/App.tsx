@@ -467,8 +467,7 @@ export default function App() {
                   <span>⚠️</span> 避免資料遺失
                 </div>
                 <p className="text-slate-400 text-[11px]">
-                  • 斷網執行任務期間，<b>請勿清除 Safari 或瀏覽器的網站歷史與快取</b>。<br/>
-                  • 平時請直接點擊桌面的 <b>TAIWAN NAVY 圖示</b> 開啟。
+                  • 斷網執行任務期間，<b>切勿手動清除手機瀏覽紀錄與快取資料</b>。
                 </p>
               </div>
             </div>

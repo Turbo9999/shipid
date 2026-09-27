@@ -21,7 +21,6 @@ interface ShipClass {
   weapons_summary?: string;
   electronic_warfare?: string;
   aircraft?: string;
-  // 外觀辨識與查證欄位
   identification_features?: string[];
   identification_notes?: string;
   similar_classes?: string[];
@@ -48,14 +47,12 @@ type ThemeMode = 'dark' | 'red' | 'high_contrast';
 type BottomTab = 'classes' | 'favorites' | 'compare' | 'more';
 
 export default function App() {
-  // 資料與連線狀態
   const [classes, setClasses] = useState<ShipClass[]>([]);
   const [ships, setShips] = useState<Ship[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [lastUpdated, setLastUpdated] = useState<string>('2026/09/27');
 
-  // UI 互動狀態
   const [searchTerm, setSearchTerm] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     const saved = localStorage.getItem('tn_recent_searches');
@@ -64,7 +61,6 @@ export default function App() {
   const [selectedClassDetail, setSelectedClassDetail] = useState<ShipClass | null>(null);
   const [expandedShipList, setExpandedShipList] = useState(false);
 
-  // 顯示模式與字體
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('tn_theme_mode') as ThemeMode) || 'dark';
   });
@@ -72,17 +68,14 @@ export default function App() {
     return (localStorage.getItem('tn_font_size') as FontSizeOption) || 'default';
   });
 
-  // 底部導航與次級畫面
   const [activeBottomTab, setActiveBottomTab] = useState<BottomTab>('classes');
   const [showMoreModal, setShowMoreModal] = useState<null | 'rankings' | 'stats' | 'guide' | 'sources'>(null);
 
-  // 雙艦比對
   const [comparePool, setComparePool] = useState<string[]>(() => {
     const saved = localStorage.getItem('tn_compare_pool');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // 最愛收藏與統計
   const [favorites, setFavorites] = useState<string[]>(() => {
     const saved = localStorage.getItem('tn_favorites');
     return saved ? JSON.parse(saved) : [];
@@ -96,7 +89,6 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
-  // 後台管理與身分驗證
   const [showAdmin, setShowAdmin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('tn_admin_auth') === 'true';
@@ -105,13 +97,11 @@ export default function App() {
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [adminActiveTab, setAdminActiveTab] = useState<'class_edit' | 'ship_add' | 'banner'>('class_edit');
 
-  // 頂部公告橫幅
   const [bannerText, setBannerText] = useState<string>(() => {
     return localStorage.getItem('tn_banner_text') || '';
   });
   const [adminBannerInput, setAdminBannerInput] = useState('');
 
-  // 艦型編輯/新增表單
   const [editingClassForm, setEditingClassForm] = useState<Partial<ShipClass>>({
     code: '', name_zh: '', category: '驅逐艦', nato_code: '', image_url: '', overview: '',
     displacement: '', length: '', beam: '', power_output: '', propulsion: '', max_speed: '',
@@ -121,12 +111,10 @@ export default function App() {
   });
   const [tempFeatureInput, setTempFeatureInput] = useState('');
 
-  // Wikipedia 擷取與預覽對照
   const [wikiQuery, setWikiQuery] = useState('');
   const [isFetchingWiki, setIsFetchingWiki] = useState(false);
   const [wikiPreviewClass, setWikiPreviewClass] = useState<Partial<ShipClass> | null>(null);
 
-  // 單艦新增表單
   const [newShipForm, setNewShipForm] = useState<{
     class_id: string;
     hull_number: string;
@@ -141,7 +129,6 @@ export default function App() {
     commission_precision: 'year', fleet: '', squadron: '', status_code: 'active'
   });
 
-  // 監聽連線狀態
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -153,7 +140,6 @@ export default function App() {
     };
   }, []);
 
-  // 記錄使用量與持久快取申請
   useEffect(() => {
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -170,7 +156,6 @@ export default function App() {
     }
   }, []);
 
-  // 讀取資料
   const fetchData = async () => {
     setIsLoading(true);
     const cachedClasses = localStorage.getItem('tn_cache_classes');
@@ -214,7 +199,6 @@ export default function App() {
     fetchData();
   }, []);
 
-  // 搜尋處理（紀錄最近 5 筆）
   const handleSelectRecentSearch = (term: string) => {
     setSearchTerm(term);
   };
@@ -228,7 +212,6 @@ export default function App() {
     }
   };
 
-  // 狀態碼中文對照
   const getStatusLabel = (code?: string, fallbackStatus?: string) => {
     switch (code) {
       case 'active': return { label: '現役', color: 'bg-emerald-950 text-emerald-300 border-emerald-500/40' };
@@ -240,7 +223,6 @@ export default function App() {
     }
   };
 
-  // 外觀查證狀態標籤
   const getVerificationBadge = (status?: string) => {
     switch (status) {
       case 'verified':
@@ -252,7 +234,6 @@ export default function App() {
     }
   };
 
-  // 收藏切換
   const toggleFavorite = (classId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     let updated: string[];
@@ -265,7 +246,6 @@ export default function App() {
     localStorage.setItem('tn_favorites', JSON.stringify(updated));
   };
 
-  // 比對池切換
   const toggleCompare = (classId: string) => {
     let updated: string[];
     if (comparePool.includes(classId)) {
@@ -281,7 +261,6 @@ export default function App() {
     localStorage.setItem('tn_compare_pool', JSON.stringify(updated));
   };
 
-  // 點擊艦型卡片進入詳細頁
   const handleOpenDetail = (shipClass: ShipClass) => {
     setSelectedClassDetail(shipClass);
     setExpandedShipList(false);
@@ -290,7 +269,6 @@ export default function App() {
     localStorage.setItem('tn_query_counts', JSON.stringify(updated));
   };
 
-  // 換行渲染輔助函式
   const renderFormattedList = (text?: string) => {
     if (!text) return <span className="text-white font-medium">-</span>;
     const items = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
@@ -309,7 +287,6 @@ export default function App() {
     );
   };
 
-  // 智慧搜尋比對
   const lowerSearch = searchTerm.toLowerCase().trim();
 
   const matchingShipClassIds = new Set<string>();
@@ -333,7 +310,6 @@ export default function App() {
     displayedClasses = displayedClasses.filter(c => favorites.includes(c.id));
   }
 
-  // 視覺樣式規範
   const getThemeStyles = () => {
     if (themeMode === 'red') {
       return {
@@ -373,7 +349,6 @@ export default function App() {
 
   const currentTheme = getThemeStyles();
 
-  // 字體階層
   const getFontSizeStyles = () => {
     switch (fontSize) {
       case 'sm':
@@ -389,7 +364,6 @@ export default function App() {
 
   const fontStyle = getFontSizeStyles();
 
-  // 維基百科抓取與比對
   const handleFetchWikiForComparison = async () => {
     if (!wikiQuery.trim()) return alert('請輸入艦型關鍵字（例: 052D）');
     setIsFetchingWiki(true);
@@ -474,7 +448,6 @@ export default function App() {
     }
   };
 
-  // 儲存艦型
   const handleConfirmSaveClass = async () => {
     if (!supabase || !editingClassForm.code) return;
     const cid = `c-${editingClassForm.code.toLowerCase().trim()}`;
@@ -494,7 +467,6 @@ export default function App() {
     await fetchData();
   };
 
-  // 密碼驗證
   const handleVerifyPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (adminPasswordInput.trim() === '750120') {
@@ -511,15 +483,15 @@ export default function App() {
   return (
     <div className={`w-full min-h-screen ${currentTheme.bg} text-slate-100 flex flex-col items-center select-none ${fontStyle.root}`}>
       
-      {/* 戰術抬頭列 (Header) */}
-      <header className={`w-full sticky top-0 z-30 ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-6 pb-3 flex flex-col items-center shadow-lg`}>
+      {/* 戰術抬頭列 (Header)：大幅下調高度，保留顯眼空間感 */}
+      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-12 pb-4 flex flex-col items-center shadow-lg transition-all`}>
         <div className="w-full max-w-md flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
-              <h1 className="font-black tracking-widest text-base font-mono">TAIWAN NAVY</h1>
+              <h1 className="font-black tracking-widest text-lg font-mono">TAIWAN NAVY</h1>
             </div>
-            <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5 pt-0.5">
+            <div className="text-xs font-mono text-slate-400 flex items-center gap-1.5 pt-0.5">
               {isOnline ? (
                 <span className="text-emerald-400 font-bold">✓ 離線資料已就緒</span>
               ) : (
@@ -575,70 +547,19 @@ export default function App() {
         </div>
 
         {bannerText && (
-          <div className="w-full max-w-md mt-2.5 px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 text-xs font-semibold flex items-center gap-2">
+          <div className="w-full max-w-md mt-3 px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 text-xs font-semibold flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
             <span className="flex-1">{bannerText}</span>
           </div>
         )}
       </header>
 
-      {/* 主工作區 (Main Container) */}
-      <main className="w-full max-w-md px-4 pt-3 pb-32 flex flex-col flex-1 gap-3">
+      {/* 主清單區 (保留極大捲動空間，底部預留給搜尋欄與導航列) */}
+      <main className="w-full max-w-md px-4 pt-4 pb-48 flex flex-col flex-1 gap-3">
         
-        {/* 最重要操作元素：即時大字搜尋欄 */}
-        <div className="space-y-2">
-          <div className="relative flex items-center">
-            <svg className="w-5 h-5 absolute left-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="搜尋舷號、艦名或艦型，例如：172、052D、昆明"
-              value={searchTerm}
-              onChange={e => handleExecuteSearch(e.target.value)}
-              className={`w-full min-h-[48px] rounded-2xl pl-11 pr-10 text-base font-medium transition shadow-inner focus:outline-none ${currentTheme.input}`}
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {!searchTerm && recentSearches.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-              <span className="text-[11px] text-slate-500 font-mono shrink-0">最近查詢:</span>
-              {recentSearches.map(term => (
-                <button
-                  key={term}
-                  type="button"
-                  onClick={() => handleSelectRecentSearch(term)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300 hover:border-slate-600 shrink-0"
-                >
-                  {term}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => {
-                  setRecentSearches([]);
-                  localStorage.removeItem('tn_recent_searches');
-                }}
-                className="text-[10px] text-slate-600 hover:text-slate-400 underline px-1 shrink-0"
-              >
-                清除
-              </button>
-            </div>
-          )}
-        </div>
-
         {/* 搜尋結果即時舷號命中快顯 */}
         {searchTerm && matchingShips.length > 0 && (
-          <div className="p-3 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 space-y-2">
+          <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 space-y-2">
             <div className="text-xs font-mono font-bold text-cyan-400 uppercase">
               配對舷號與單艦 ({matchingShips.length})
             </div>
@@ -650,14 +571,14 @@ export default function App() {
                   <div
                     key={s.id}
                     onClick={() => parentClass && handleOpenDetail(parentClass)}
-                    className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex justify-between items-center cursor-pointer hover:border-cyan-400 transition"
+                    className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex justify-between items-center cursor-pointer hover:border-cyan-400 transition"
                   >
                     <div className="flex items-baseline gap-2.5">
                       <span className="font-mono text-xl font-black text-cyan-300">{s.hull_number}</span>
                       <span className="font-bold text-white text-base">{s.name_zh}</span>
                       {parentClass && <span className="text-xs text-slate-400 font-mono">({parentClass.code})</span>}
                     </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
+                    <span className={`text-xs px-2.5 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
                       {statusMeta.label}
                     </span>
                   </div>
@@ -668,7 +589,7 @@ export default function App() {
         )}
 
         {/* 艦型清單 Card */}
-        <section className="space-y-2.5">
+        <section className="space-y-3">
           <div className="flex justify-between items-center px-1">
             <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
               {activeBottomTab === 'favorites' ? `我的最愛 (${displayedClasses.length})` : `作戰艦型清單 (${displayedClasses.length})`}
@@ -694,7 +615,7 @@ export default function App() {
                   onClick={() => handleOpenDetail(c)}
                   className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm flex items-center justify-between gap-3 ${currentTheme.cardBg}`}
                 >
-                  <div className="space-y-1 flex-1">
+                  <div className="space-y-1.5 flex-1">
                     <div className="flex items-baseline gap-2.5">
                       <span className={`font-mono font-black ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
                         {c.code}
@@ -705,7 +626,7 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <span className={`px-2 py-0.5 rounded-md ${currentTheme.badge} font-medium`}>
+                      <span className={`px-2.5 py-0.5 rounded-md ${currentTheme.badge} font-medium`}>
                         {c.nato_code ? `${c.nato_code} · ${c.category}` : c.category}
                       </span>
                       <span>共登錄 {classShips.length} 艘</span>
@@ -715,11 +636,11 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
                     <button
                       type="button"
                       onClick={e => toggleFavorite(c.id, e)}
-                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-lg active:scale-90 transition"
+                      className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-xl active:scale-90 transition"
                     >
                       {isFav ? <span className="text-amber-400">★</span> : <span className="text-slate-500">☆</span>}
                     </button>
@@ -727,7 +648,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleOpenDetail(c)}
-                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white font-mono text-sm active:scale-95 transition"
+                      className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white font-mono text-base active:scale-95 transition"
                     >
                       &gt;
                     </button>
@@ -739,12 +660,109 @@ export default function App() {
         </section>
       </main>
 
+      {/* 🚀 底部戰術控制底座（大拇指黃金操作區：搜尋欄 ＋ 底部導航一體化） */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 flex flex-col items-center pointer-events-none">
+        
+        {/* 懸浮底部大字搜尋列（單手大拇指極限友好） */}
+        <div className="w-full max-w-md px-4 pb-2 pointer-events-auto">
+          <div className="relative flex items-center shadow-2xl">
+            <svg className="w-5 h-5 absolute left-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="搜尋舷號、艦名或艦型 (例: 172、052D)..."
+              value={searchTerm}
+              onChange={e => handleExecuteSearch(e.target.value)}
+              className={`w-full min-h-[50px] rounded-2xl pl-11 pr-10 text-base font-semibold shadow-2xl transition focus:outline-none ${currentTheme.input}`}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* 最近搜尋小標籤 */}
+          {!searchTerm && recentSearches.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1.5">
+              <span className="text-[11px] text-slate-400 font-mono shrink-0">快搜:</span>
+              {recentSearches.map(term => (
+                <button
+                  key={term}
+                  type="button"
+                  onClick={() => handleSelectRecentSearch(term)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-900/90 backdrop-blur border border-slate-700 text-xs font-mono text-cyan-300 shrink-0 shadow-sm"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 底部 Navigation 列 */}
+        <nav className={`w-full ${currentTheme.headerBg} border-t backdrop-blur-xl flex justify-center shadow-2xl pointer-events-auto`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)' }}>
+          <div className="w-full max-w-md flex justify-around items-center px-3 py-1.5 text-xs font-bold">
+            
+            <button
+              type="button"
+              onClick={() => setActiveBottomTab('classes')}
+              className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition ${activeBottomTab === 'classes' ? currentTheme.accentText : 'text-slate-400'}`}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+              </svg>
+              <span>艦型</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveBottomTab('favorites')}
+              className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition ${activeBottomTab === 'favorites' ? 'text-amber-400' : 'text-slate-400'}`}
+            >
+              <svg className="w-5 h-5" fill={activeBottomTab === 'favorites' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+              </svg>
+              <span>收藏</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveBottomTab('compare')}
+              className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition ${activeBottomTab === 'compare' ? currentTheme.accentText : 'text-slate-400'}`}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+              </svg>
+              <span>比對 ({comparePool.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowMoreModal('rankings')}
+              className="min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+              </svg>
+              <span>更多</span>
+            </button>
+
+          </div>
+        </nav>
+      </div>
+
       {/* 艦型詳細頁 Modal */}
       {selectedClassDetail && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4">
           <div className={`w-full max-w-lg h-[92vh] sm:h-[88vh] ${currentTheme.bg} border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden`}>
             
-            <div className="px-5 py-3.5 border-b border-slate-800 flex justify-between items-center shrink-0">
+            <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <span className={`font-mono text-2xl font-black ${currentTheme.accentText}`}>
                   {selectedClassDetail.code}
@@ -926,7 +944,7 @@ export default function App() {
                               <span className="font-mono text-xl font-black text-cyan-300">{s.hull_number}</span>
                               <span className="font-bold text-white text-base">{s.name_zh}</span>
                             </div>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
+                            <span className={`text-xs px-2.5 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
                               {statusMeta.label}
                             </span>
                           </div>
@@ -942,7 +960,7 @@ export default function App() {
               </div>
 
               {/* 第六區：資料來源與查證紀錄 */}
-              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs text-slate-400 space-y-1">
                 <div>資料來源：{selectedClassDetail.identification_source || 'Wikipedia 公開軍事情報資料庫'}</div>
                 <div>最後維護：{selectedClassDetail.identification_updated_at ? new Date(selectedClassDetail.identification_updated_at).toLocaleDateString('zh-TW') : lastUpdated}</div>
                 <div>查證狀態：{selectedClassDetail.identification_status === 'verified' ? '已通過人工確認' : '尚待人工複核'}</div>
@@ -1052,57 +1070,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 底部導航列 */}
-      <nav className={`fixed bottom-0 left-0 right-0 z-30 ${currentTheme.headerBg} border-t backdrop-blur-xl flex justify-center shadow-2xl`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)' }}>
-        <div className="w-full max-w-md flex justify-around items-center px-3 py-1 text-xs font-bold">
-          
-          <button
-            type="button"
-            onClick={() => setActiveBottomTab('classes')}
-            className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition ${activeBottomTab === 'classes' ? currentTheme.accentText : 'text-slate-400'}`}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-            </svg>
-            <span>艦型</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveBottomTab('favorites')}
-            className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition ${activeBottomTab === 'favorites' ? 'text-amber-400' : 'text-slate-400'}`}
-          >
-            <svg className="w-5 h-5" fill={activeBottomTab === 'favorites' ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-            </svg>
-            <span>收藏</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveBottomTab('compare')}
-            className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition ${activeBottomTab === 'compare' ? currentTheme.accentText : 'text-slate-400'}`}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-            </svg>
-            <span>比對 ({comparePool.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowMoreModal('rankings')}
-            className="min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-            </svg>
-            <span>更多</span>
-          </button>
-
-        </div>
-      </nav>
-
       {/* 「更多」抽屜視窗 */}
       {showMoreModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -1196,7 +1163,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-lg h-[92vh] sm:h-[88vh] bg-slate-900 border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden">
             
-            <div className="px-5 py-3.5 border-b border-slate-800 flex justify-between items-center shrink-0">
+            <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center shrink-0">
               <h2 className="font-bold text-base text-white">資料庫管理與外觀特徵維護</h2>
               <button type="button" onClick={() => setShowAdmin(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white">✕</button>
             </div>
@@ -1237,7 +1204,7 @@ export default function App() {
                     {wikiPreviewClass && (
                       <div className="p-3 rounded-xl bg-black/60 border border-cyan-500/30 space-y-2 mt-2">
                         <span className="font-bold text-cyan-400 block">新擷取資料比對預覽：</span>
-                        <div className="text-[11px] text-slate-300 space-y-1">
+                        <div className="text-xs text-slate-300 space-y-1">
                           <div>艦名：{wikiPreviewClass.name_zh}</div>
                           <div>排水量：{wikiPreviewClass.displacement}</div>
                           <div>長度/型寬：{wikiPreviewClass.length} / {wikiPreviewClass.beam}</div>
@@ -1288,7 +1255,7 @@ export default function App() {
 
                     <div className="space-y-1.5">
                       {editingClassForm.identification_features?.map((feat, idx) => (
-                        <div key={idx} className="flex justify-between items-center p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+                        <div key={idx} className="flex justify-between items-center p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
                           <span className="text-white">{feat}</span>
                           <button
                             type="button"
@@ -1296,7 +1263,7 @@ export default function App() {
                               const updated = editingClassForm.identification_features?.filter((_, i) => i !== idx);
                               setEditingClassForm({ ...editingClassForm, identification_features: updated });
                             }}
-                            className="text-red-400 hover:text-red-300 px-2 py-1 font-bold"
+                            className="text-red-400 hover:text-red-300 px-2.5 py-1 font-bold"
                           >
                             刪除
                           </button>

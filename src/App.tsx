@@ -1042,7 +1042,15 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className={`w-full max-w-md border-t sm:border rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto ${currentTheme.modalBg}`}>
             <div className={`flex justify-between items-center border-b pb-3 ${currentTheme.border}`}>
-              <h3 className="font-bold text-base">資訊與系統設定</h3>
+              <div className="flex items-center gap-2 min-w-0">
+                <h3 className="font-bold text-base whitespace-nowrap">資訊與系統設定</h3>
+                <a
+                  href={`mailto:pkddqq@gmail.com?subject=${encodeURIComponent('TAIWAN NAVY 使用者意見')}`}
+                  className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-bold ${currentTheme.btnSecondary}`}
+                >
+                  提供問題或意見
+                </a>
+              </div>
               <button type="button" onClick={() => setShowMoreModal(null)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>
             </div>
 
@@ -1053,13 +1061,6 @@ export default function App() {
               <button type="button" onClick={() => setShowMoreModal('guide')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'guide' ? currentTheme.accentBg : currentTheme.textMuted}`}>離線說明</button>
               <button type="button" onClick={() => setShowMoreModal('sources')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'sources' ? currentTheme.accentBg : currentTheme.textMuted}`}>資料來源</button>
             </div>
-
-            <a
-              href={`mailto:pkddqq@gmail.com?subject=${encodeURIComponent('TAIWAN NAVY 使用者意見')}`}
-              className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold ${currentTheme.btnSecondary}`}
-            >
-              提供問題或意見
-            </a>
 
             {showMoreModal === 'update' && (
               <div className={`space-y-3.5 p-4 rounded-2xl border text-xs ${currentTheme.subPanelBg}`}>
@@ -1129,10 +1130,9 @@ export default function App() {
 
             {showMoreModal === 'guide' && (
               <div className={`space-y-2 text-xs leading-relaxed p-3.5 rounded-2xl border ${currentTheme.subPanelBg}`}>
-                <p>1. iPhone點選分享按鈕➔選擇「加入主畫面」即可安裝為獨立App。</p>
-                <p>2. 滑動瀏覽各級艦艇一次，即可啟動180天離線庫。</p>
-                <p>3. 任務斷網期間，切勿手動清除快取與瀏覽紀錄。</p>
-                <p>4. android手機操作亦同iPhone手機。</p>
+                <p>1. iPhone 點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝為獨立 App。</p>
+                <p>2. 出港前在基地有網路時，滑動瀏覽各級艦艇一次，即可啟動 180 天長效持久離線庫。</p>
+                <p>3. 任務斷網期間，切勿手動清除 Safari / Chrome 快取與瀏覽紀錄。</p>
               </div>
             )}
 

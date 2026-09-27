@@ -680,7 +680,7 @@ export default function App() {
               type="button"
               onClick={() => {
                 const list: FontSizeOption[] = ['sm', 'default', 'md', 'lg'];
-                const next = list[(list.indexOf(fontSize) + 2) % list.length];
+                const next = list[(list.indexOf(fontSize) + 1) % list.length];
                 setFontSize(next);
                 localStorage.setItem('tn_font_size', next);
               }}

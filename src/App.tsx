@@ -512,7 +512,7 @@ export default function App() {
     <div className={`w-full min-h-screen ${currentTheme.bg} text-slate-100 flex flex-col items-center select-none ${fontStyle.root}`}>
       
       {/* 戰術抬頭列 (Header) */}
-      <header className={`w-full sticky top-0 z-30 ${currentTheme.headerBg} border-b backdrop-blur-md px-4 py-3 flex flex-col items-center shadow-lg`}>
+      <header className={`w-full sticky top-0 z-30 ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-6 pb-3 flex flex-col items-center shadow-lg`}>
         <div className="w-full max-w-md flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">

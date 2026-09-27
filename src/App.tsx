@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
 interface ShipClass {
@@ -8,9 +8,7 @@ interface ShipClass {
   category: string;
   nato_code?: string;
   image_url?: string;
-  // 第一欄：概述段落
   overview?: string;
-  // 第二欄：技術數據
   displacement?: string;
   length?: string;
   beam?: string;
@@ -22,7 +20,6 @@ interface ShipClass {
   weapons_summary?: string;
   electronic_warfare?: string;
   aircraft?: string;
-  visual_features?: string[];
 }
 
 interface Ship {
@@ -54,7 +51,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.0');
+  const [expandedSpecsId, setExpandedSpecsId] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.1');
 
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
@@ -246,7 +244,6 @@ export default function App() {
       const codeMatch = realTitle.match(/([0-9A-Za-z\-]+)(?:型|級)/);
       const guessedCode = codeMatch ? codeMatch[1] : input.slice(0, 8);
 
-      // 提取維基百科第一大段概述
       let overviewParagraph = '';
       const paragraphs = Array.from(doc.querySelectorAll('p'));
       for (const p of paragraphs) {
@@ -314,7 +311,6 @@ export default function App() {
         aircraft: airVal || '直-9C / 直-20F 反潛直升機 1 架'
       });
 
-      // 解析單艦表格
       const foundShips: ParsedShipItem[] = [];
       const tables = Array.from(doc.querySelectorAll('table'));
 
@@ -507,13 +503,9 @@ export default function App() {
   );
 
   let displayedClasses = classes.filter(c => {
-    const matchSearch = 
-      c.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return c.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.name_zh.includes(searchTerm) ||
       (c.nato_code && c.nato_code.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchFeature = !selectedFeature || (c.visual_features && c.visual_features.includes(selectedFeature));
-    return matchSearch && matchFeature;
   });
 
   if (activeBottomTab === 'favorites') {
@@ -588,8 +580,7 @@ export default function App() {
       radar_systems: newClass.radar_systems?.trim() || '',
       weapons_summary: newClass.weapons_summary?.trim() || '',
       electronic_warfare: newClass.electronic_warfare?.trim() || '',
-      aircraft: newClass.aircraft?.trim() || '',
-      visual_features: []
+      aircraft: newClass.aircraft?.trim() || ''
     }]);
 
     if (includeParsedShips && parsedShips.length > 0) {
@@ -806,7 +797,6 @@ export default function App() {
             </div>
           ) : (
             <section className="space-y-3">
-              {/* 搜尋舷號即時小卡 */}
               {searchTerm && filteredShips.length > 0 && (
                 <div className={`${nightMode ? 'bg-red-950/30 border-red-500/30' : 'bg-cyan-950/30 border-cyan-500/30'} border rounded-2xl p-3.5 shadow-lg space-y-2.5`}>
                   <div className="text-[11px] font-mono tracking-wider text-cyan-400 font-bold uppercase">
@@ -843,7 +833,6 @@ export default function App() {
 
                 return (
                   <div key={c.id} className={`${theme.cardBg} border rounded-2xl overflow-hidden transition-all duration-200 ${isExpanded ? theme.accentBorder : theme.cardBorder}`}>
-                    {/* 卡片標題列 */}
                     <div onClick={() => handleToggleExpand(c.id)} className="p-3.5 flex justify-between items-center cursor-pointer select-none">
                       <div className="space-y-1 flex-1 pr-2">
                         <div className="flex items-center gap-2">
@@ -877,10 +866,8 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* 展開詳細內容 */}
                     {isExpanded && (
                       <div className="px-4 pb-4 pt-2 border-t border-slate-800/80 bg-black/40 space-y-3.5">
-                        {/* 艦影 */}
                         {c.image_url ? (
                           <div className="relative rounded-xl overflow-hidden border border-slate-700/80 shadow-md">
                             <img src={c.image_url} alt={c.name_zh} loading="lazy" className="w-full h-44 object-cover object-center bg-slate-950" />
@@ -891,7 +878,7 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* 👉 第一欄：艦型概述 (維基百科第一大段文字) */}
+                        {/* 👉 第一欄：艦型概述 */}
                         <div className="space-y-1.5">
                           <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
                             <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
@@ -902,7 +889,7 @@ export default function App() {
                           </p>
                         </div>
 
-                        {/* 👉 第二欄：技術數據 (完整 11 項規格) */}
+                        {/* 👉 第二欄：技術數據 */}
                         <div className="space-y-1.5">
                           <button
                             type="button"
@@ -951,7 +938,7 @@ export default function App() {
                           )}
                         </div>
 
-                        {/* 單艦小卡列表 */}
+                        {/* 單艦列表 */}
                         <div className="space-y-2 pt-1">
                           <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
                             <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
@@ -1024,7 +1011,6 @@ export default function App() {
         </footer>
       </main>
 
-      {/* 雙艦比對懸浮列 */}
       {comparePool.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 z-30 flex justify-center px-4 pointer-events-none">
           <div className={`pointer-events-auto w-full max-w-sm ${nightMode ? 'bg-[#150406]/95 border-red-500/50' : 'bg-slate-900/95 border-cyan-500/50'} border backdrop-blur-xl p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2`}>
@@ -1050,7 +1036,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 雙艦比對視窗 */}
       {showCompareModal && compareShipA && compareShipB && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className={`w-full max-w-lg ${nightMode ? 'bg-[#0a0203] border-red-900/60' : 'bg-slate-900 border-slate-800'} border-t sm:border rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl`}>
@@ -1084,7 +1069,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 底部導航列 */}
       <nav className={`fixed bottom-0 left-0 right-0 z-40 ${nightMode ? 'bg-[#080203]/95 border-red-900/50' : 'bg-[#0b0f17]/95 border-slate-800'} backdrop-blur-xl border-t flex justify-center shadow-2xl`} style={{ paddingBottom: "env(safe-area-inset-bottom, 0.5rem)" }}>
         <div className="w-full max-w-md flex justify-around items-center px-3 py-1.5 text-[11px] font-medium">
           <button type="button" onClick={() => setActiveBottomTab('all')} className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl ${activeBottomTab === 'all' ? `${theme.accentText} font-bold` : 'text-slate-400'}`}>全部艦型</button>
@@ -1094,7 +1078,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* 指南彈窗 */}
       {showGuideModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
@@ -1108,7 +1091,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 授權密碼彈窗 */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 text-center">
@@ -1118,19 +1100,18 @@ export default function App() {
               <input type="password" required maxLength={10} placeholder="請輸入 6 位授權碼" value={adminPasswordInput} onChange={e => setAdminPasswordInput(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-center text-lg tracking-widest font-mono text-white" />
               <div className="flex gap-2">
                 <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 py-2 bg-slate-800 rounded-xl text-xs text-slate-400">取消</button>
-                <button type="submit" className={`flex-1 py-2 ${theme.accentBg} rounded-xl text-xs font-bold text-white`}>確認</button>
+                <button type="submit" className={`flex-1 py-2 ${theme.accentBg} rounded-xl font-bold text-white`}>確認</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* 艦型編輯彈窗 */}
       {editingClass && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto text-xs">
             <h3 className="font-bold text-sm text-white">編輯艦型資料</h3>
-            <div><label className="text-slate-400 block mb-1">第一欄：艦型概述 (維基百科大段文字)</label><textarea rows={4} value={editingClass.overview || ''} onChange={e => setEditingClass({ ...editingClass, overview: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
+            <div><label className="text-slate-400 block mb-1">第一欄：艦型概述 (維基第一大段)</label><textarea rows={4} value={editingClass.overview || ''} onChange={e => setEditingClass({ ...editingClass, overview: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div><label className="text-slate-400 block mb-1">排水量</label><input type="text" value={editingClass.displacement || ''} onChange={e => setEditingClass({ ...editingClass, displacement: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
             <div className="grid grid-cols-2 gap-2">
               <div><label className="text-slate-400 block mb-1">長度</label><input type="text" value={editingClass.length || ''} onChange={e => setEditingClass({ ...editingClass, length: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white" /></div>
@@ -1147,7 +1128,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 單艦修改彈窗 */}
       {editingShip && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 text-xs">
@@ -1170,7 +1150,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 後台管理抽屜 */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl">
@@ -1198,7 +1177,6 @@ export default function App() {
 
               {activeTab === 'classes' && (
                 <div className="space-y-4">
-                  {/* 維基抓取面板 */}
                   <div className="p-3 bg-slate-950 border border-cyan-500/30 rounded-2xl space-y-2">
                     <span className="font-bold text-cyan-300 block">維基百科自動擷取 (概述＋11項技術數據＋單艦)</span>
                     <div className="flex gap-1.5">

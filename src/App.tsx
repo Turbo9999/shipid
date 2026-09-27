@@ -79,6 +79,7 @@ export default function App() {
   });
   const [selectedClassDetail, setSelectedClassDetail] = useState<ShipClass | null>(null);
   const [expandedShipList, setExpandedShipList] = useState(false);
+  const [detailMenuOpen, setDetailMenuOpen] = useState(false);
 
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('tn_theme_mode') as ThemeMode) || 'dark';
@@ -333,6 +334,7 @@ export default function App() {
   const handleOpenDetail = (shipClass: ShipClass) => {
     setSelectedClassDetail(shipClass);
     setExpandedShipList(false);
+    setDetailMenuOpen(false);
     const updated = { ...queryCounts, [shipClass.id]: (queryCounts[shipClass.id] || 0) + 1 };
     setQueryCounts(updated);
     localStorage.setItem('tn_query_counts', JSON.stringify(updated));
@@ -585,6 +587,19 @@ export default function App() {
     setAdminActiveTab('ship_add');
     setSelectedClassDetail(null);
     setShowAdmin(true);
+  };
+
+  const handleDeleteSelectedClass = async () => {
+    if (!isAuthenticated || !selectedClassDetail || !supabase) return;
+    const confirmed = window.confirm(`確定要刪除艦型「${selectedClassDetail.code} ${selectedClassDetail.name_zh}」嗎？\n此操作會一併刪除本級艦艇資料，且無法復原。`);
+    if (!confirmed) return;
+    const { error: shipsError } = await supabase.from('ships').delete().eq('class_id', selectedClassDetail.id);
+    if (shipsError) return alert(`刪除本級艦艇失敗: ${shipsError.message}`);
+    const { error } = await supabase.from('ship_classes').delete().eq('id', selectedClassDetail.id);
+    if (error) return alert(`刪除艦型失敗: ${error.message}`);
+    setDetailMenuOpen(false);
+    setSelectedClassDetail(null);
+    await fetchData();
   };
 
   const handleVerifyPassword = (e: React.FormEvent) => {
@@ -1160,13 +1175,27 @@ export default function App() {
                   {selectedClassDetail.name_zh}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedClassDetail(null)}
-                className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border font-bold ${currentTheme.btnSecondary}`}
-              >
-                ✕
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDetailMenuOpen(prev => !prev)}
+                  aria-label="小卡功能選單"
+                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border font-black text-xl ${currentTheme.btnSecondary}`}
+                >
+                  ⋯
+                </button>
+                {detailMenuOpen && (
+                  <div className={`absolute right-0 top-[calc(100%+0.5rem)] z-10 w-32 rounded-xl border p-1.5 shadow-xl ${currentTheme.modalBg}`}>
+                    {isAuthenticated && (
+                      <>
+                        <button type="button" onClick={() => { setDetailMenuOpen(false); openClassEditor(selectedClassDetail); }} className={`w-full rounded-lg px-3 py-2.5 text-left text-sm font-bold ${currentTheme.btnSecondary}`}>編輯</button>
+                        <button type="button" onClick={handleDeleteSelectedClass} className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-bold text-red-400 hover:bg-red-950/40">刪除</button>
+                      </>
+                    )}
+                    <button type="button" onClick={() => { setDetailMenuOpen(false); setSelectedClassDetail(null); }} className={`w-full rounded-lg px-3 py-2.5 text-left text-sm font-bold ${currentTheme.btnSecondary}`}>關閉</button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="p-5 overflow-y-auto space-y-5 text-sm">
@@ -1190,24 +1219,6 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {isAuthenticated && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => openClassEditor(selectedClassDetail)}
-                          className={`min-h-[44px] px-3 rounded-xl font-bold text-xs border ${currentTheme.btnSecondary}`}
-                        >
-                          編輯
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openClassEditor(selectedClassDetail, true)}
-                          className={`min-h-[44px] px-3 rounded-xl font-bold text-xs ${currentTheme.accentBg}`}
-                        >
-                          匯入維基
-                        </button>
-                      </>
-                    )}
                     <button
                       type="button"
                       onClick={() => toggleCompare(selectedClassDetail.id)}

@@ -135,6 +135,8 @@ export default function App() {
   const [wikiQuery, setWikiQuery] = useState('');
   const [isFetchingWiki, setIsFetchingWiki] = useState(false);
   const [wikiPreviewClass, setWikiPreviewClass] = useState<Partial<ShipClass> | null>(null);
+  const [shipWikiQuery, setShipWikiQuery] = useState('');
+  const [isFetchingShipWiki, setIsFetchingShipWiki] = useState(false);
 
   const [newShipForm, setNewShipForm] = useState<{
     class_id: string;
@@ -561,6 +563,49 @@ export default function App() {
     setShowAdmin(false);
     setWikiPreviewClass(null);
     await fetchData();
+  };
+
+  const handleFetchWikiForShip = async () => {
+    if (!shipWikiQuery.trim()) return alert('請輸入單艦維基關鍵字或網址');
+    setIsFetchingShipWiki(true);
+    try {
+      let input = shipWikiQuery.trim();
+      if (input.includes('wikipedia.org/wiki/')) {
+        input = decodeURIComponent(input.split('wikipedia.org/wiki/')[1].split('?')[0].split('#')[0]);
+      }
+      let resolvedTitle = input;
+      const searchResp = await fetch(`https://zh.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(input)}&limit=1&namespace=0&format=json&origin=*`);
+      if (searchResp.ok) {
+        const json = await searchResp.json();
+        if (json[1]?.[0]) resolvedTitle = json[1][0];
+      }
+      const parseResp = await fetch(`https://zh.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(resolvedTitle)}&prop=text&format=json&origin=*&redirects=1`);
+      const parseJson = await parseResp.json();
+      if (parseJson.error) throw new Error(parseJson.error.info || '查無條目');
+      const doc = new DOMParser().parseFromString(parseJson.parse?.text?.['*'] || '', 'text/html');
+      const getVal = (keywords: string[]) => {
+        for (const row of Array.from(doc.querySelectorAll('table.infobox tr'))) {
+          const th = row.querySelector('th')?.textContent?.trim() || '';
+          if (keywords.some(k => th.includes(k))) {
+            const td = row.querySelector('td');
+            if (td) return cleanWikiText(td.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+          }
+        }
+        return '';
+      };
+      const hull = getVal(['舷號', '舷号', '艦號', '舰号', '編號', '编号']) || (resolvedTitle.match(/\b\d{2,4}\b/)?.[0] || '');
+      const name = getVal(['艦名', '舰名']) || resolvedTitle;
+      const commissioned = getVal(['服役日期', '服役時間', '服役时间', '入役', '服役']);
+      const statusText = getVal(['目前狀態', '目前状态', '服役狀態', '服役状态', '艦況', '舰况']);
+      const statusCode = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('海试') ? 'sea_trial' : statusText.includes('計畫') || statusText.includes('计划') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') || statusText.includes('舾装') ? 'fitting_out' : statusText.includes('改裝') || statusText.includes('改装') ? 'refit' : statusText.includes('現役') || statusText.includes('现役') || statusText.includes('服役') ? 'active' : 'unknown';
+      const precision = /\d{4}-\d{1,2}-\d{1,2}/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown';
+      setNewShipForm(prev => ({ ...prev, hull_number: hull, name_zh: name, commissioned_year: commissioned, commission_precision: precision, status_code: statusCode }));
+      alert(`已成功解析單艦維基條目【${resolvedTitle}】！請檢查下方資料後儲存。`);
+    } catch (err: any) {
+      alert(`擷取失敗: ${err.message || '連線逾時'}`);
+    } finally {
+      setIsFetchingShipWiki(false);
+    }
   };
 
   const openClassEditor = (classDetail: ShipClass, importWiki = false) => {
@@ -1130,10 +1175,9 @@ export default function App() {
 
             {showMoreModal === 'guide' && (
               <div className={`space-y-2 text-xs leading-relaxed p-3.5 rounded-2xl border ${currentTheme.subPanelBg}`}>
-                <p>1. iPhone點選分享按鈕➔選擇「加入主畫面」即可安裝為獨立App。</p>
-                <p>2. 滑動瀏覽各級艦艇一次，即可啟動180天離線庫。</p>
-                <p>3. 任務斷網期間，切勿手動清除瀏覽器快取與瀏覽紀錄。</p>
-                <p>4. android手機操作方式亦同iPhone手機。</p>
+                <p>1. iPhone 點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝為獨立 App。</p>
+                <p>2. 出港前在基地有網路時，滑動瀏覽各級艦艇一次，即可啟動 180 天長效持久離線庫。</p>
+                <p>3. 任務斷網期間，切勿手動清除 Safari / Chrome 快取與瀏覽紀錄。</p>
               </div>
             )}
 
@@ -1662,6 +1706,27 @@ export default function App() {
                   }}
                   className="space-y-3"
                 >
+                  <div className={`p-3.5 rounded-2xl border space-y-2.5 ${currentTheme.subPanelBg}`}>
+                    <span className={`font-bold block ${currentTheme.accentText}`}>Wikipedia 單艦資料匯入</span>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="輸入單艦名稱、舷號或維基網址"
+                        value={shipWikiQuery}
+                        onChange={e => setShipWikiQuery(e.target.value)}
+                        className={`flex-1 min-h-[44px] rounded-xl px-3 text-xs ${currentTheme.input}`}
+                      />
+                      <button
+                        type="button"
+                        disabled={isFetchingShipWiki}
+                        onClick={handleFetchWikiForShip}
+                        className={`min-h-[44px] px-3.5 font-bold rounded-xl active:scale-95 transition ${currentTheme.accentBg}`}
+                      >
+                        {isFetchingShipWiki ? '解析中...' : '匯入'}
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
                     <label className={`block mb-1 ${currentTheme.textMuted}`}>所屬艦型</label>
                     <select

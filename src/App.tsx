@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.6 Desktop V2 + Detail V3';
+const CURRENT_APP_VERSION = '2026.09.28 v5.7';
 
 interface ShipClass {
   id: string;

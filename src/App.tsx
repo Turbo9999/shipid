@@ -120,6 +120,7 @@ export default function App() {
     return localStorage.getItem('tn_banner_text') || '';
   });
   const [adminBannerInput, setAdminBannerInput] = useState('');
+  const [editingShipId, setEditingShipId] = useState<string | null>(null);
 
   const [editingClassForm, setEditingClassForm] = useState<Partial<ShipClass>>({
     code: '', name_zh: '', category: '驅逐艦', nato_code: '', image_url: '', overview: '',
@@ -451,13 +452,14 @@ export default function App() {
     return raw.replace(/\[\d+\]/g, '').replace(/\[註\s*\d+\]/g, '').trim();
   };
 
-  const handleFetchWikiForComparison = async () => {
-    if (!wikiQuery.trim()) return alert('請輸入艦型關鍵字（例: 052D）');
+  const handleFetchWikiForComparison = async (queryOverride?: string) => {
+    const query = (queryOverride ?? wikiQuery).trim();
+    if (!query) return alert('請輸入艦型關鍵字（例: 052D）');
     setIsFetchingWiki(true);
     setWikiPreviewClass(null);
 
     try {
-      let input = wikiQuery.trim();
+      let input = query;
       if (input.includes('wikipedia.org/wiki/')) {
         input = decodeURIComponent(input.split('wikipedia.org/wiki/')[1].split('?')[0].split('#')[0]);
       }
@@ -557,6 +559,32 @@ export default function App() {
     setShowAdmin(false);
     setWikiPreviewClass(null);
     await fetchData();
+  };
+
+  const openClassEditor = (classDetail: ShipClass, importWiki = false) => {
+    setEditingClassForm({ ...editingClassForm, ...classDetail });
+    setWikiQuery(classDetail.code);
+    setAdminActiveTab('class_edit');
+    setSelectedClassDetail(null);
+    setShowAdmin(true);
+    if (importWiki) void handleFetchWikiForComparison(classDetail.code);
+  };
+
+  const openShipEditor = (ship: Ship) => {
+    setEditingShipId(ship.id);
+    setNewShipForm({
+      class_id: ship.class_id,
+      hull_number: ship.hull_number,
+      name_zh: ship.name_zh,
+      commissioned_year: ship.commissioned_year || '',
+      commission_precision: ship.commission_precision || 'year',
+      fleet: ship.fleet || '',
+      squadron: ship.squadron || '',
+      status_code: ship.status_code || 'unknown'
+    });
+    setAdminActiveTab('ship_add');
+    setSelectedClassDetail(null);
+    setShowAdmin(true);
   };
 
   const handleVerifyPassword = (e: React.FormEvent) => {
@@ -1162,6 +1190,24 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {isAuthenticated && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openClassEditor(selectedClassDetail)}
+                          className={`min-h-[44px] px-3 rounded-xl font-bold text-xs border ${currentTheme.btnSecondary}`}
+                        >
+                          編輯
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openClassEditor(selectedClassDetail, true)}
+                          className={`min-h-[44px] px-3 rounded-xl font-bold text-xs ${currentTheme.accentBg}`}
+                        >
+                          匯入維基
+                        </button>
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={() => toggleCompare(selectedClassDetail.id)}
@@ -1325,6 +1371,15 @@ export default function App() {
                             <div><span className={currentTheme.textMuted}>服役時間：</span><span className="font-mono">{s.commissioned_year || '未載明'}</span></div>
                             <div><span className={currentTheme.textMuted}>編屬部隊：</span><span>{s.fleet || '未載明'}{s.squadron && ` · ${s.squadron}`}</span></div>
                           </div>
+                          {isAuthenticated && (
+                            <button
+                              type="button"
+                              onClick={() => openShipEditor(s)}
+                              className={`self-end min-h-[40px] px-3 rounded-lg text-xs font-bold border ${currentTheme.btnSecondary}`}
+                            >
+                              編輯單艦
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -1353,7 +1408,7 @@ export default function App() {
 
             <div className={`flex border-b text-xs font-bold p-1 mx-4 mt-3 rounded-xl gap-1 ${currentTheme.subPanelBg} ${currentTheme.border}`}>
               <button type="button" onClick={() => setAdminActiveTab('class_edit')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'class_edit' ? currentTheme.accentBg : currentTheme.textMuted}`}>艦型與外觀特徵</button>
-              <button type="button" onClick={() => setAdminActiveTab('ship_add')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'ship_add' ? currentTheme.accentBg : currentTheme.textMuted}`}>新增單艦與舷號</button>
+              <button type="button" onClick={() => { setEditingShipId(null); setAdminActiveTab('ship_add'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'ship_add' ? currentTheme.accentBg : currentTheme.textMuted}`}>新增單艦與舷號</button>
               <button type="button" onClick={() => setAdminActiveTab('banner')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'banner' ? currentTheme.accentBg : currentTheme.textMuted}`}>廣播通報</button>
             </div>
 
@@ -1373,7 +1428,7 @@ export default function App() {
                       <button
                         type="button"
                         disabled={isFetchingWiki}
-                        onClick={handleFetchWikiForComparison}
+                        onClick={() => handleFetchWikiForComparison()}
                         className={`min-h-[44px] px-3.5 font-bold rounded-xl active:scale-95 transition ${currentTheme.accentBg}`}
                       >
                         {isFetchingWiki ? '解析中...' : '擷取預覽'}
@@ -1566,7 +1621,7 @@ export default function App() {
                   onSubmit={async e => {
                     e.preventDefault();
                     if (!supabase) return;
-                    const sid = `s-${newShipForm.hull_number.trim()}`;
+                    const sid = editingShipId || `s-${newShipForm.hull_number.trim()}`;
                     const { error } = await supabase.from('ships').upsert([{
                       id: sid,
                       class_id: newShipForm.class_id,
@@ -1580,7 +1635,8 @@ export default function App() {
                       status: getStatusLabel(newShipForm.status_code).label
                     }]);
                     if (error) return alert(`新增單艦失敗: ${error.message}`);
-                    alert(`單艦【${newShipForm.hull_number} ${newShipForm.name_zh}】已成功寫入！`);
+                    alert(`單艦【${newShipForm.hull_number} ${newShipForm.name_zh}】已成功${editingShipId ? '修改' : '寫入'}！`);
+                    setEditingShipId(null);
                     setShowAdmin(false);
                     await fetchData();
                   }}
@@ -1687,7 +1743,7 @@ export default function App() {
                     type="submit"
                     className={`w-full min-h-[48px] rounded-xl font-bold text-sm shadow-lg active:scale-95 transition ${currentTheme.accentBg}`}
                   >
-                    新增單艦履歷
+                    {editingShipId ? '儲存單艦修改' : '新增單艦履歷'}
                   </button>
                 </form>
               )}

@@ -8,12 +8,14 @@ interface ShipClass {
   code: string;
   name_zh: string;
   category: string;
+  current_status?: string;
   nato_code?: string;
   image_url?: string;
   overview?: string;
   displacement?: string;
   length?: string;
   beam?: string;
+  draft?: string;
   power_output?: string;
   propulsion?: string;
   max_speed?: string;
@@ -121,7 +123,7 @@ export default function App() {
 
   const [editingClassForm, setEditingClassForm] = useState<Partial<ShipClass>>({
     code: '', name_zh: '', category: '驅逐艦', nato_code: '', image_url: '', overview: '',
-    displacement: '', length: '', beam: '', power_output: '', propulsion: '', max_speed: '',
+    displacement: '', length: '', beam: '', draft: '', power_output: '', propulsion: '', max_speed: '', current_status: '',
     crew: '', radar_systems: '', weapons_summary: '', electronic_warfare: '', aircraft: '',
     identification_features: [], identification_notes: '', similar_classes: [],
     identification_status: 'unverified', identification_source: ''
@@ -508,12 +510,14 @@ export default function App() {
       const previewData: Partial<ShipClass> = {
         code: extractedCode.toUpperCase(),
         name_zh: resolvedTitle,
-        category: (doc.body.textContent || '').includes('巡防艦') ? '巡防艦' : '驅逐艦',
+        category: getVal(['艦種', '舰种']) || ((doc.body.textContent || '').includes('巡防艦') ? '巡防艦' : '驅逐艦'),
+        current_status: getVal(['目前狀態', '目前状态', '服役狀態', '服役状态']),
         image_url: imgUrl,
         overview: overviewP,
         displacement: getVal(['排水量', '排水']),
         length: getVal(['全長', '全长', '長度']),
         beam: getVal(['型寬', '寬度', '舷寬']),
+        draft: getVal(['吃水']),
         power_output: getVal(['功率', '輸出', '出力']),
         propulsion: getVal(['動力方式', '主機']),
         max_speed: getVal(['最高速度', '航速']),
@@ -569,7 +573,7 @@ export default function App() {
     <div className={`w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
       
       {/* 戰術抬頭列 */}
-      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-[64px] pb-4 flex flex-col items-center shadow-lg transition-all`}>
+      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-[52px] pb-4 flex flex-col items-center shadow-lg transition-all`}>
         <div className="w-full max-w-md flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">
@@ -1130,7 +1134,7 @@ export default function App() {
                 onClick={() => setSelectedClassDetail(null)}
                 className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border font-bold ${currentTheme.btnSecondary}`}
               >
-                ✕ 關閉
+                ✕
               </button>
             </div>
 
@@ -1260,13 +1264,18 @@ export default function App() {
                 </span>
 
                 <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>排水量:</span>{renderFormattedList(selectedClassDetail.displacement)}</div>
-                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>最高航速:</span>{renderFormattedList(selectedClassDetail.max_speed)}</div>
+                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>艦種:</span>{renderFormattedList(selectedClassDetail.category)}</div>
+                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>目前狀態:</span>{renderFormattedList(selectedClassDetail.current_status)}</div>
                 </div>
 
                 <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
+                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>排水量:</span>{renderFormattedList(selectedClassDetail.displacement)}</div>
                   <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>長度:</span>{renderFormattedList(selectedClassDetail.length)}</div>
+                </div>
+
+                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
                   <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>型寬:</span>{renderFormattedList(selectedClassDetail.beam)}</div>
+                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>吃水:</span>{renderFormattedList(selectedClassDetail.draft)}</div>
                 </div>
 
                 <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
@@ -1274,7 +1283,10 @@ export default function App() {
                   <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>動力輸出:</span>{renderFormattedList(selectedClassDetail.power_output)}</div>
                 </div>
 
-                <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>乘員編制:</span>{renderFormattedList(selectedClassDetail.crew)}</div>
+                <div className={`grid grid-cols-2 gap-3 text-xs border-b pb-3 ${currentTheme.border}`}>
+                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>最高速度:</span>{renderFormattedList(selectedClassDetail.max_speed)}</div>
+                  <div><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>乘員:</span>{renderFormattedList(selectedClassDetail.crew)}</div>
+                </div>
                 <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>搜索系統 (雷達/聲納):</span>{renderFormattedList(selectedClassDetail.radar_systems)}</div>
                 <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>武器系統:</span>{renderFormattedList(selectedClassDetail.weapons_summary)}</div>
                 <div className={`border-b pb-3 ${currentTheme.border}`}><span className={`block text-[11px] mb-0.5 ${currentTheme.textMuted}`}>電戰系統:</span>{renderFormattedList(selectedClassDetail.electronic_warfare)}</div>
@@ -1445,7 +1457,7 @@ export default function App() {
                         <select
                           value={editingClassForm.identification_status}
                           onChange={e => setEditingClassForm({ ...editingClassForm, identification_status: e.target.value as any })}
-                          className={`w-full min-h-[44px] rounded-xl px-2.5 text-xs ${currentTheme.input}`}
+                          className={`w-full min-h-[48px] rounded-xl px-3 text-sm ${currentTheme.input}`}
                         >
                           <option value="unverified">待查證</option>
                           <option value="incomplete">資料未完整</option>
@@ -1510,15 +1522,29 @@ export default function App() {
                     <div className={`space-y-2 pt-2 border-t ${currentTheme.border}`}>
                       <span className="font-bold block">技術指標 (以 Shift+Enter 分項)</span>
                       <div className="grid grid-cols-2 gap-2">
-                        <textarea rows={2} placeholder="排水量" value={editingClassForm.displacement || ''} onChange={e => setEditingClassForm({ ...editingClassForm, displacement: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
-                        <textarea rows={2} placeholder="最高航速" value={editingClassForm.max_speed || ''} onChange={e => setEditingClassForm({ ...editingClassForm, max_speed: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
+                        <textarea rows={2} placeholder="艦種" value={editingClassForm.category || ''} onChange={e => setEditingClassForm({ ...editingClassForm, category: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
+                        <textarea rows={2} placeholder="目前狀態" value={editingClassForm.current_status || ''} onChange={e => setEditingClassForm({ ...editingClassForm, current_status: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
+                        <textarea rows={2} placeholder="排水量" value={editingClassForm.displacement || ''} onChange={e => setEditingClassForm({ ...editingClassForm, displacement: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
                         <textarea rows={2} placeholder="長度" value={editingClassForm.length || ''} onChange={e => setEditingClassForm({ ...editingClassForm, length: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
                         <textarea rows={2} placeholder="型寬" value={editingClassForm.beam || ''} onChange={e => setEditingClassForm({ ...editingClassForm, beam: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
+                        <textarea rows={2} placeholder="吃水" value={editingClassForm.draft || ''} onChange={e => setEditingClassForm({ ...editingClassForm, draft: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <textarea rows={2} placeholder="動力輸出" value={editingClassForm.power_output || ''} onChange={e => setEditingClassForm({ ...editingClassForm, power_output: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
+                        <textarea rows={2} placeholder="動力方式" value={editingClassForm.propulsion || ''} onChange={e => setEditingClassForm({ ...editingClassForm, propulsion: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <textarea rows={2} placeholder="最高速度" value={editingClassForm.max_speed || ''} onChange={e => setEditingClassForm({ ...editingClassForm, max_speed: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
+                        <textarea rows={2} placeholder="乘員" value={editingClassForm.crew || ''} onChange={e => setEditingClassForm({ ...editingClassForm, crew: e.target.value })} className={`rounded-xl p-2 ${currentTheme.input}`} />
                       </div>
                       <textarea rows={3} placeholder="搜索系統 (雷達/聲納)" value={editingClassForm.radar_systems || ''} onChange={e => setEditingClassForm({ ...editingClassForm, radar_systems: e.target.value })} className={`w-full rounded-xl p-2 ${currentTheme.input}`} />
                       <textarea rows={3} placeholder="武器系統" value={editingClassForm.weapons_summary || ''} onChange={e => setEditingClassForm({ ...editingClassForm, weapons_summary: e.target.value })} className={`w-full rounded-xl p-2 ${currentTheme.input}`} />
+                      <textarea rows={3} placeholder="電戰系統" value={editingClassForm.electronic_warfare || ''} onChange={e => setEditingClassForm({ ...editingClassForm, electronic_warfare: e.target.value })} className={`w-full rounded-xl p-2 ${currentTheme.input}`} />
+                      <textarea rows={3} placeholder="艦載機" value={editingClassForm.aircraft || ''} onChange={e => setEditingClassForm({ ...editingClassForm, aircraft: e.target.value })} className={`w-full rounded-xl p-2 ${currentTheme.input}`} />
                     </div>
 
                     <button
@@ -1597,7 +1623,7 @@ export default function App() {
                       <select
                         value={newShipForm.commission_precision}
                         onChange={e => setNewShipForm({ ...newShipForm, commission_precision: e.target.value as any })}
-                        className={`w-full min-h-[44px] rounded-xl px-2.5 ${currentTheme.input}`}
+                        className={`w-full min-h-[48px] rounded-xl px-3 text-sm ${currentTheme.input}`}
                       >
                         <option value="exact">完整年月日 (YYYY-MM-DD)</option>
                         <option value="year">僅年份 (YYYY)</option>
@@ -1641,7 +1667,7 @@ export default function App() {
                     <select
                       value={newShipForm.status_code}
                       onChange={e => setNewShipForm({ ...newShipForm, status_code: e.target.value as any })}
-                      className={`w-full min-h-[44px] rounded-xl px-3 ${currentTheme.input}`}
+                      className={`w-full min-h-[48px] rounded-xl px-3 text-sm ${currentTheme.input}`}
                     >
                       <option value="active">現役 (active)</option>
                       <option value="sea_trial">海試 (sea_trial)</option>

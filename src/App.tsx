@@ -202,7 +202,6 @@ export default function App() {
     return Array.from(set);
   }, [classes]);
 
-  // 🌐 維基百科全功能深度解析 (摘要＋Infobox規格＋艦名列表表格)
   const handleFetchWikipedia = async () => {
     if (!wikiQuery.trim()) {
       alert('請輸入關鍵字 (例: 052D、054A 或 康定)');
@@ -218,7 +217,6 @@ export default function App() {
         input = decodeURIComponent(input.split('wikipedia.org/wiki/')[1].split(/[?#]/)[0]);
       }
 
-      // 1. Opensearch 自動配對條目全名
       let resolvedTitle = input;
       const searchUrl = `https://zh.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(input)}&limit=1&namespace=0&format=json&origin=*`;
       const searchResp = await fetch(searchUrl);
@@ -229,7 +227,6 @@ export default function App() {
         }
       }
 
-      // 2. Action API 抓取完整 HTML 解析
       const parseApiUrl = `https://zh.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(resolvedTitle)}&prop=text|images&format=json&origin=*&redirects=1`;
       const parseResp = await fetch(parseApiUrl);
       const parseJson = await parseResp.json();
@@ -243,7 +240,6 @@ export default function App() {
       const parser = new DOMParser();
       const doc = parser.parseFromString(rawHtml, 'text/html');
 
-      // 抓取照片
       let imgUrl = '';
       const firstImg = doc.querySelector('table.infobox img') || doc.querySelector('.thumbimage') || doc.querySelector('img');
       if (firstImg) {
@@ -270,11 +266,11 @@ export default function App() {
       const displacement = getInfoBoxValue(['排水量', '排水']);
       const dimensions = getInfoBoxValue(['全長', '全长', '長度', '船長', '型寬', '吃水']);
       const propulsion = getInfoBoxValue(['動力', '动力', '主機']);
-      const maxSpeed = getInfoBoxValue(['航速', '最高速度', '極速']);
-      const crew = getInfoBoxValue(['乘員', '定員', '編制']);
-      const radarSystems = getInfoBoxValue(['雷達', '雷达', '偵搜', '搜索']);
-      const electronicWarfare = getInfoBoxValue(['電子戰', '电子战', '電戰', '干擾']);
-      const aircraft = getInfoBoxValue(['艦載機', '直升機', '直升机']);
+      const maxSpeedVal = getInfoBoxValue(['航速', '最高速度', '極速']);
+      const crewVal = getInfoBoxValue(['乘員', '定員', '編制']);
+      const radarVal = getInfoBoxValue(['雷達', '雷达', '偵搜', '搜索']);
+      const ewVal = getInfoBoxValue(['電子戰', '电子战', '電戰', '干擾']);
+      const airVal = getInfoBoxValue(['艦載機', '直升機', '直升机']);
 
       const fullText = doc.body.textContent || '';
       let guessedCategory = '驅逐艦';
@@ -313,14 +309,13 @@ export default function App() {
         displacement: displacement || '約 7,500 噸',
         dimensions: dimensions || '長 157 公尺 / 寬 19 公尺 / 吃水 6 公尺',
         propulsion: propulsion || '柴燃聯合動力方式 (CODOG)',
-        maxSpeed: maxSpeed || '30 節',
-        crew: crew || '約 280 人',
-        radarSystems: radarSystems || '346A型 主動相位陣列雷達',
-        electronicWarfare: electronicWarfare || '726型 電子對抗系統',
-        aircraft: aircraft || '直-9C / 直-20F 反潛直升機 1 架'
+        max_speed: maxSpeedVal || '30 節',
+        crew: crewVal || '約 280 人',
+        radar_systems: radarVal || '346A型 主動相位陣列雷達',
+        electronic_warfare: ewVal || '726型 電子對抗系統',
+        aircraft: airVal || '直-9C / 直-20F 反潛直升機 1 架'
       });
 
-      // 3. 解析艦隻列表表格
       const foundShips: ParsedShipItem[] = [];
       const tables = Array.from(doc.querySelectorAll('table'));
 
@@ -554,6 +549,13 @@ export default function App() {
     if (!supabase || !newClass.code) return;
     const cid = `c-${newClass.code.toLowerCase().trim()}`;
 
+    let visualFeaturesArray: string[] = [];
+    if (Array.isArray(newClass.visual_features)) {
+      visualFeaturesArray = newClass.visual_features;
+    } else if (typeof newClass.visual_features === 'string') {
+      visualFeaturesArray = (newClass.visual_features as string).split(/[,，]/).map(s => s.trim()).filter(Boolean);
+    }
+
     await supabase.from('ship_classes').insert([{
       id: cid,
       code: newClass.code.trim(),
@@ -561,7 +563,7 @@ export default function App() {
       category: newClass.category?.trim() || '',
       nato_code: newClass.nato_code?.trim() || '',
       image_url: newClass.image_url?.trim() || '',
-      visual_features: Array.isArray(newClass.visual_features) ? newClass.visual_features : (newClass.visual_features as string || '').split(/[,，]/).map(s => s.trim()).filter(Boolean),
+      visual_features: visualFeaturesArray,
       weapons_summary: newClass.weapons_summary?.trim() || '',
       displacement: newClass.displacement?.trim() || '',
       dimensions: newClass.dimensions?.trim() || '',
@@ -1005,7 +1007,7 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* ⚙️ 第二層詳細規格收合抽屜 */}
+                          {/* 第二層詳細規格收合抽屜 */}
                           <div className="pt-1">
                             <button
                               type="button"
@@ -1195,118 +1197,573 @@ export default function App() {
         </div>
       </nav>
 
-      {/* 雙艦比對視窗 */}
-      {showCompareModal && compareShipA && compareShipB && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className={`w-full max-w-lg ${nightMode ? 'bg-[#0a0203] border-red-900/60' : 'bg-slate-900 border-slate-800'} border-t sm:border rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl`}>
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center shrink-0">
+      {/* 指南彈窗 */}
+      {showGuideModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <svg className={`w-4 h-4 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
                 </svg>
-                <h3 className="font-bold text-sm text-white tracking-wide">雙艦型同屏快速比對</h3>
+                <h3 className="font-bold text-sm text-white">安裝指南與離線注意事項</h3>
               </div>
+              <button type="button" onClick={() => setShowGuideModal(false)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
+              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1">
+                <div className={`font-bold ${theme.accentText} flex items-center gap-1.5`}>
+                  <span>1.</span> 加入主畫面（獨立 App）
+                </div>
+                <p className="text-slate-400 text-[11px]">
+                  • <b>iPhone (Safari)</b>：點擊底部分享按鈕 ➔ 選擇<b>「加入主畫面」</b>。<br/>
+                  • <b>Android (Chrome)</b>：點右上角選單 ➔ 點<b>「安裝應用程式」</b>。
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1">
+                <div className={`font-bold ${theme.accentText} flex items-center gap-1.5`}>
+                  <span>2.</span> 出海前離線預載
+                </div>
+                <p className="text-slate-400 text-[11px]">
+                  在基地有網路時，打開 App <b>滑動並展開各艦型一次</b>，系統會自動將資料庫與照片寫入手機硬碟（離線保護達 180 天）。
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1">
+                <div className="font-bold text-amber-400 flex items-center gap-1.5">
+                  <span>⚠️</span> 避免資料遺失
+                </div>
+                <p className="text-slate-400 text-[11px]">
+                  • 斷網執行任務期間，<b>切勿手動清除手機瀏覽紀錄與快取資料</b>。
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowGuideModal(false)}
+              className={`w-full py-2.5 ${theme.accentBg} ${theme.accentHover} rounded-xl text-xs font-bold text-white shadow-lg active:scale-95 transition`}
+            >
+              我知道了
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 授權密碼彈窗 */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="text-center space-y-1">
+              <div className={`w-12 h-12 rounded-2xl ${nightMode ? 'bg-red-950/80 border-red-500/30 text-red-400' : 'bg-cyan-950/80 border-cyan-500/30 text-cyan-400'} border flex items-center justify-center mx-auto`}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-base text-white tracking-wide pt-2">後台管理驗證</h3>
+              <p className="text-[11px] text-slate-400">請輸入管理通行密碼以存取資料庫</p>
+            </div>
+
+            <form onSubmit={handleVerifyPassword} className="space-y-3">
+              <input
+                type="password"
+                autoFocus
+                required
+                maxLength={10}
+                placeholder="請輸入 6 位授權碼"
+                value={adminPasswordInput}
+                onChange={e => setAdminPasswordInput(e.target.value)}
+                className={`w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-center text-lg tracking-widest font-mono text-white focus:outline-none ${nightMode ? 'focus:border-red-500' : 'focus:border-cyan-500'}`}
+              />
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-400"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className={`flex-1 py-2.5 ${theme.accentBg} ${theme.accentHover} rounded-xl text-xs font-bold text-white shadow-lg active:scale-95 transition`}
+                >
+                  確認驗證
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 艦型編輯彈窗 */}
+      {editingClass && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full max-w-sm bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2"></div>
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-base text-white flex items-center gap-2">
+                <span>編輯艦型</span> <span className={`font-mono ${theme.accentText} font-bold`}>{editingClass.code}</span>
+              </h3>
+              <button type="button" onClick={() => setEditingClass(null)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">艦型全名</label>
+                <input
+                  type="text"
+                  value={editingClass.name_zh}
+                  onChange={e => setEditingClass({ ...editingClass, name_zh: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div>
+                <label className={`text-[11px] font-bold ${theme.accentText} mb-1 block`}>官方照片網址</label>
+                <input
+                  type="url"
+                  placeholder="https://.../ship.jpg"
+                  value={editingClass.image_url || ''}
+                  onChange={e => setEditingClass({ ...editingClass, image_url: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">艦種分類</label>
+                  <input
+                    type="text"
+                    value={editingClass.category}
+                    onChange={e => setEditingClass({ ...editingClass, category: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">英文代號</label>
+                  <input
+                    type="text"
+                    value={editingClass.nato_code || ''}
+                    onChange={e => setEditingClass({ ...editingClass, nato_code: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">排水量</label>
+                  <input
+                    type="text"
+                    value={editingClass.displacement || ''}
+                    onChange={e => setEditingClass({ ...editingClass, displacement: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">最高航速</label>
+                  <input
+                    type="text"
+                    value={editingClass.max_speed || ''}
+                    onChange={e => setEditingClass({ ...editingClass, max_speed: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">雷達偵搜系統</label>
+                <input
+                  type="text"
+                  value={editingClass.radar_systems || ''}
+                  onChange={e => setEditingClass({ ...editingClass, radar_systems: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">武裝配置總結</label>
+                <input
+                  type="text"
+                  value={editingClass.weapons_summary || ''}
+                  onChange={e => setEditingClass({ ...editingClass, weapons_summary: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
+              <button type="button" onClick={saveClassEdit} className={`flex-1 py-2.5 ${theme.accentBg} ${theme.accentHover} rounded-xl text-xs font-bold text-white shadow-lg`}>發布修改至雲端</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 單艦修改彈窗 */}
+      {editingShip && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full max-w-sm bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4">
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2"></div>
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-base text-white flex items-center gap-2">
+                <span>修改單艦</span> <span className={`font-mono ${theme.accentText} font-bold`}>{editingShip.hull_number}</span>
+              </h3>
+              <button type="button" onClick={() => setEditingShip(null)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">艦名</label>
+                <input
+                  type="text"
+                  value={editingShip.name_zh}
+                  onChange={e => setEditingShip({ ...editingShip, name_zh: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">服役狀態</label>
+                  <input
+                    type="text"
+                    value={editingShip.status}
+                    onChange={e => setEditingShip({ ...editingShip, status: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">隸屬艦隊/支隊</label>
+                  <input
+                    type="text"
+                    placeholder="例: 東部戰區海軍"
+                    value={editingShip.fleet || ''}
+                    onChange={e => setEditingShip({ ...editingShip, fleet: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 mb-1 block">服役年份 / 週期</label>
+                <input
+                  type="text"
+                  placeholder="例: 2014年"
+                  value={editingShip.commissioned_year || ''}
+                  onChange={e => setEditingShip({ ...editingShip, commissioned_year: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button type="button" onClick={() => setEditingShip(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
+              <button type="button" onClick={saveShipEdit} className={`flex-1 py-2.5 ${theme.accentBg} ${theme.accentHover} rounded-xl text-xs font-bold text-white shadow-lg`}>儲存更新</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 後台管理抽屜 */}
+      {showAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
+          <div className="w-full max-w-md bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl">
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mt-3 mb-1"></div>
+            
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+              <h2 className="font-bold text-base text-white flex items-center gap-2">
+                <svg className={`w-4 h-4 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>資料庫管理後台</span>
+              </h2>
+              <button type="button" onClick={() => setShowAdmin(false)} className="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-full bg-slate-800">✕ 關閉</button>
+            </div>
+
+            <div className="flex border-b border-slate-800 text-xs font-bold p-1 bg-slate-950/60 mx-4 mt-3 rounded-xl gap-1">
               <button 
-                type="button" 
-                onClick={() => setShowCompareModal(false)} 
-                className="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-full bg-slate-800"
+                type="button"
+                onClick={() => setActiveTab('classes')}
+                className={`flex-1 py-2 rounded-lg text-center transition ${activeTab === 'classes' ? `${theme.accentText} bg-slate-800 shadow-sm` : 'text-slate-400'}`}
               >
-                ✕ 關閉
+                ＋ 新增艦型
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('ships')}
+                className={`flex-1 py-2 rounded-lg text-center transition ${activeTab === 'ships' ? `${theme.accentText} bg-slate-800 shadow-sm` : 'text-slate-400'}`}
+              >
+                ＋ 新增舷號
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab('banner')}
+                className={`flex-1 py-2 rounded-lg text-center transition ${activeTab === 'banner' ? `${theme.accentText} bg-slate-800 shadow-sm` : 'text-slate-400'}`}
+              >
+                頂部橫幅
               </button>
             </div>
 
-            <div className="p-4 overflow-y-auto space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black h-32 flex items-center justify-center">
-                    {compareShipA.image_url ? (
-                      <img src={compareShipA.image_url} alt={compareShipA.name_zh} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[11px] text-slate-500">暫無照片</span>
+            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+              {activeTab === 'banner' && (
+                <form onSubmit={handleSaveBanner} className="space-y-3.5">
+                  <div>
+                    <label className="text-slate-300 font-bold mb-1.5 block">頂部戰術公告 / 廣告橫幅內容</label>
+                    <textarea 
+                      rows={3}
+                      placeholder="輸入欲廣播的文字（留空則自動隱藏橫幅）"
+                      value={adminBannerInput} 
+                      onChange={e => setAdminBannerInput(e.target.value)} 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:outline-none focus:border-cyan-500 leading-relaxed" 
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      提示：此橫幅顯示於主頁「TAIWAN NAVY」下方。文字清空儲存後自動隱藏。
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => setAdminBannerInput('')}
+                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold"
+                    >
+                      清空文字
+                    </button>
+                    <button 
+                      type="submit" 
+                      disabled={isSavingBanner}
+                      className={`flex-1 py-2.5 ${theme.accentBg} ${theme.accentHover} disabled:opacity-50 rounded-xl font-bold text-white shadow-lg active:scale-95 transition`}
+                    >
+                      {isSavingBanner ? '同步發布中...' : '發布通報至所有裝置'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {activeTab === 'classes' && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-gradient-to-r from-cyan-950/40 to-slate-950 border border-cyan-500/30 rounded-2xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-cyan-300 text-xs flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                        </svg>
+                        <span>維基百科深度自動擷取 (規格＋單艦)</span>
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">OPENSEARCH</span>
+                    </div>
+
+                    <div className="flex gap-1.5">
+                      <input 
+                        type="text"
+                        placeholder="輸入關鍵字 (例如: 052D 或 054A)"
+                        value={wikiQuery}
+                        onChange={e => setWikiQuery(e.target.value)}
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                      />
+                      <button
+                        type="button"
+                        disabled={isFetchingWiki}
+                        onClick={handleFetchWikipedia}
+                        className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition shrink-0 active:scale-95 shadow-md shadow-cyan-950"
+                      >
+                        {isFetchingWiki ? '解析中...' : '自動填表'}
+                      </button>
+                    </div>
+
+                    {parsedShips.length > 0 && (
+                      <div className="mt-2 p-2.5 bg-black/60 border border-cyan-500/40 rounded-xl space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 cursor-pointer">
+                            <input 
+                              type="checkbox"
+                              checked={includeParsedShips}
+                              onChange={e => setIncludeParsedShips(e.target.checked)}
+                              className="rounded border-slate-700 text-cyan-500 focus:ring-0"
+                            />
+                            <span>同時匯入維基單艦列表 ({parsedShips.length} 艘)</span>
+                          </label>
+                          <span className="text-[10px] text-emerald-400 font-mono">已抓取舷號</span>
+                        </div>
+
+                        {includeParsedShips && (
+                          <div className="max-h-28 overflow-y-auto space-y-1 pr-1 border-t border-slate-800/80 pt-1.5">
+                            {parsedShips.map((s, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-[11px] bg-slate-900/80 px-2 py-0.5 rounded">
+                                <span className="font-mono text-cyan-400 font-bold">{s.hull_number}</span>
+                                <span className="text-white font-medium">{s.name_zh}</span>
+                                <span className="text-slate-400 text-[10px]">{s.status} {s.fleet && `· ${s.fleet}`}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
-                    <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/70 text-[10px] font-mono font-bold text-cyan-300">
-                      {compareShipA.code}
-                    </span>
                   </div>
-                  <div className="font-bold text-white text-center text-sm">{compareShipA.name_zh}</div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black h-32 flex items-center justify-center">
-                    {compareShipB.image_url ? (
-                      <img src={compareShipB.image_url} alt={compareShipB.name_zh} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[11px] text-slate-500">暫無照片</span>
-                    )}
-                    <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/70 text-[10px] font-mono font-bold text-cyan-300">
-                      {compareShipB.code}
-                    </span>
-                  </div>
-                  <div className="font-bold text-white text-center text-sm">{compareShipB.name_zh}</div>
-                </div>
-              </div>
+                  <form onSubmit={handleCreateClass} className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-slate-400 font-bold mb-1 block">艦型代號 (例: 052D)</label>
+                        <input 
+                          required 
+                          placeholder="例: 052D"
+                          value={newClass.code || ''} 
+                          onChange={e => setNewClass({ ...newClass, code: e.target.value })} 
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 font-bold mb-1 block">英文代號</label>
+                        <input 
+                          placeholder="例: DDG、FFG"
+                          value={newClass.nato_code || ''} 
+                          onChange={e => setNewClass({ ...newClass, nato_code: e.target.value })} 
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                        />
+                      </div>
+                    </div>
 
-              <div className="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2 text-[11px]">
-                <div className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider text-center">
-                  SPECIFICATIONS & SENSORS
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-center divide-x divide-slate-800">
-                  <div className="space-y-1.5 text-left">
-                    <div><span className="text-slate-500">排水量:</span> <span className="text-white font-bold">{compareShipA.displacement || '-'}</span></div>
-                    <div><span className="text-slate-500">航速:</span> <span className={`font-mono font-bold ${theme.accentText}`}>{compareShipA.max_speed || '-'}</span></div>
-                    <div><span className="text-slate-500">雷達:</span> <span className="text-cyan-300 font-mono text-[10px] block">{compareShipA.radar_systems || '-'}</span></div>
-                  </div>
-                  <div className="space-y-1.5 pl-3 text-left">
-                    <div><span className="text-slate-500">排水量:</span> <span className="text-white font-bold">{compareShipB.displacement || '-'}</span></div>
-                    <div><span className="text-slate-500">航速:</span> <span className={`font-mono font-bold ${theme.accentText}`}>{compareShipB.max_speed || '-'}</span></div>
-                    <div><span className="text-slate-500">雷達:</span> <span className="text-cyan-300 font-mono text-[10px] block">{compareShipB.radar_systems || '-'}</span></div>
-                  </div>
-                </div>
-              </div>
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">艦型全名</label>
+                      <input 
+                        required 
+                        placeholder="例: 052D型飛彈驅逐艦"
+                        value={newClass.name_zh || ''} 
+                        onChange={e => setNewClass({ ...newClass, name_zh: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
+                    </div>
 
-              <div className="space-y-2">
-                <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
-                  <span>視覺辨識特徵對照</span>
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">艦艇照片網址</label>
+                      <input 
+                        type="url"
+                        placeholder="例: https://.../ship.jpg"
+                        value={newClass.image_url || ''} 
+                        onChange={e => setNewClass({ ...newClass, image_url: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-slate-400 font-bold mb-1 block">排水量</label>
+                        <input 
+                          placeholder="例: 7,500 噸"
+                          value={newClass.displacement || ''} 
+                          onChange={e => setNewClass({ ...newClass, displacement: e.target.value })} 
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-white" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 font-bold mb-1 block">最高航速</label>
+                        <input 
+                          placeholder="例: 30 節"
+                          value={newClass.max_speed || ''} 
+                          onChange={e => setNewClass({ ...newClass, max_speed: e.target.value })} 
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-white" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">雷達偵搜系統</label>
+                      <input 
+                        placeholder="例: 346A型 主動相位陣列雷達"
+                        value={newClass.radar_systems || ''} 
+                        onChange={e => setNewClass({ ...newClass, radar_systems: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-white" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">武裝概要</label>
+                      <input 
+                        placeholder="例: 64單元通用垂直發射系統、130mm艦砲"
+                        value={newClass.weapons_summary || ''} 
+                        onChange={e => setNewClass({ ...newClass, weapons_summary: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
+                    </div>
+
+                    <button type="submit" className={`w-full py-3 ${theme.accentBg} ${theme.accentHover} rounded-xl font-bold text-white shadow-lg active:scale-95 transition`}>
+                      {includeParsedShips && parsedShips.length > 0 ? `新增艦型 ＋ 同步批次建立 ${parsedShips.length} 艘單艦完整參數` : '新增艦型至雲端資料庫'}
+                    </button>
+                  </form>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
-                    <div className="font-mono text-[10px] text-cyan-400 font-bold">{compareShipA.code} 特徵:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {compareShipA.visual_features?.map((f, i) => (
-                        <span key={i} className={`text-[10px] ${theme.badgeBg} border px-1.5 py-0.5 rounded`}>{f}</span>
-                      )) || <span className="text-slate-500 text-[10px]">無紀錄</span>}
+              )}
+
+              {activeTab === 'ships' && (
+                <form onSubmit={handleCreateShip} className="space-y-3">
+                  <div>
+                    <label className="text-slate-400 font-bold mb-1 block">所屬艦型</label>
+                    <select 
+                      required 
+                      value={newShip.class_id} 
+                      onChange={e => setNewShip({ ...newShip, class_id: e.target.value })} 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                    >
+                      <option value="">-- 請選擇所屬艦型 --</option>
+                      {classes.map(c => (
+                        <option key={c.id} value={c.id}>{c.code} - {c.name_zh}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">舷號 (例: 175)</label>
+                      <input 
+                        required 
+                        placeholder="例: 175"
+                        value={newShip.hull_number} 
+                        onChange={e => setNewShip({ ...newShip, hull_number: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">艦名 (例: 銀川)</label>
+                      <input 
+                        required 
+                        placeholder="例: 銀川"
+                        value={newShip.name_zh} 
+                        onChange={e => setNewShip({ ...newShip, name_zh: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
                     </div>
                   </div>
-
-                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
-                    <div className="font-mono text-[10px] text-cyan-400 font-bold">{compareShipB.code} 特徵:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {compareShipB.visual_features?.map((f, i) => (
-                        <span key={i} className={`text-[10px] ${theme.badgeBg} border px-1.5 py-0.5 rounded`}>{f}</span>
-                      )) || <span className="text-slate-500 text-[10px]">無紀錄</span>}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">服役狀態</label>
+                      <input 
+                        required
+                        placeholder="例: 現役、海試、退役"
+                        value={newShip.status} 
+                        onChange={e => setNewShip({ ...newShip, status: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-400 font-bold mb-1 block">隸屬艦隊/支隊</label>
+                      <input 
+                        placeholder="例: 南部戰區海軍"
+                        value={newShip.fleet} 
+                        onChange={e => setNewShip({ ...newShip, fleet: e.target.value })} 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                      />
                     </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
-                  <span>武裝火力配置對照</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 leading-relaxed">
-                    <div className="font-mono text-[10px] text-cyan-400 font-bold mb-1">{compareShipA.code}:</div>
-                    {compareShipA.weapons_summary || '無武裝資料'}
+                  <div>
+                    <label className="text-slate-400 font-bold mb-1 block">服役年份 (選填)</label>
+                    <input 
+                      placeholder="例: 2016年"
+                      value={newShip.commissioned_year} 
+                      onChange={e => setNewShip({ ...newShip, commissioned_year: e.target.value })} 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" 
+                    />
                   </div>
-                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 leading-relaxed">
-                    <div className="font-mono text-[10px] text-cyan-400 font-bold mb-1">{compareShipB.code}:</div>
-                    {compareShipB.weapons_summary || '無武裝資料'}
-                  </div>
-                </div>
-              </div>
-
+                  <button type="submit" className={`w-full py-3 ${theme.accentBg} ${theme.accentHover} rounded-xl font-bold text-white shadow-lg active:scale-95 transition`}>
+                    新增單艦至雲端資料庫
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>

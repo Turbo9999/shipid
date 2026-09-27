@@ -392,17 +392,17 @@ export default function App() {
     }
     if (themeMode === 'high_contrast') {
       return {
-        bg: 'bg-black',
-        headerBg: 'bg-slate-900 border-2 border-white',
-        cardBg: 'bg-black border-2 border-slate-300 text-white',
-        modalBg: 'bg-slate-950 border-2 border-white text-white',
-        subPanelBg: 'bg-black border-2 border-slate-400 text-white',
-        accentText: 'text-cyan-300 font-black',
-        accentBg: 'bg-white hover:bg-slate-200 text-black font-black',
-        border: 'border-white',
-        badge: 'bg-slate-900 text-white border-2 border-white font-bold',
-        input: 'bg-black border-2 border-cyan-400 text-white placeholder-slate-400 font-bold',
-        btnSecondary: 'bg-slate-900 border-2 border-white text-white font-bold',
+        bg: 'bg-slate-950',
+        headerBg: 'bg-slate-900 border-slate-800',
+        cardBg: 'bg-slate-900/90 border-slate-800 text-white',
+        modalBg: 'bg-slate-950 border-slate-800 text-white',
+        subPanelBg: 'bg-slate-900 border-slate-800 text-white',
+        accentText: 'text-cyan-300 font-bold',
+        accentBg: 'bg-cyan-500 hover:bg-cyan-400 text-black font-bold',
+        border: 'border-slate-800',
+        badge: 'bg-slate-800 text-white border border-slate-700 font-medium',
+        input: 'bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:border-cyan-400',
+        btnSecondary: 'bg-slate-900 border border-slate-700 text-slate-200 hover:text-white',
         textMuted: 'text-slate-400'
       };
     }
@@ -567,7 +567,7 @@ export default function App() {
     <div className={`w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
       
       {/* 戰術抬頭列 */}
-      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-12 pb-4 flex flex-col items-center shadow-lg transition-all`}>
+      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-16 pb-4 flex flex-col items-center shadow-lg transition-all`}>
         <div className="w-full max-w-md flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">

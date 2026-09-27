@@ -52,7 +52,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [expandedSpecsId, setExpandedSpecsId] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.2');
+  const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27 v3.3');
 
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
@@ -549,7 +549,8 @@ export default function App() {
       return;
     }
     setEditingClass(null);
-    fetchData();
+    await fetchData();
+    alert('已成功儲存並同步至前台！');
   };
 
   const saveShipEdit = async () => {
@@ -570,13 +571,18 @@ export default function App() {
     fetchData();
   };
 
-  const handleCreateClass = async (e: React.FormEvent) => {
+  // 關鍵更新：智慧覆蓋已有艦型或新增新艦型
+  const handleCreateOrUpdateClass = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !newClass.code) return;
     const cid = `c-${newClass.code.toLowerCase().trim()}`;
 
+    // 檢查資料庫是否已存在此艦型
+    const existing = classes.find(c => c.id === cid || c.code.toLowerCase() === newClass.code?.toLowerCase().trim());
+    const targetId = existing ? existing.id : cid;
+
     const { error: cErr } = await supabase.from('ship_classes').upsert([{
-      id: cid,
+      id: targetId,
       code: newClass.code.trim(),
       name_zh: newClass.name_zh?.trim() || '',
       category: newClass.category?.trim() || '',
@@ -593,18 +599,19 @@ export default function App() {
       radar_systems: newClass.radar_systems?.trim() || '',
       weapons_summary: newClass.weapons_summary?.trim() || '',
       electronic_warfare: newClass.electronic_warfare?.trim() || '',
-      aircraft: newClass.aircraft?.trim() || ''
+      aircraft: newClass.aircraft?.trim() || '',
+      visual_features: []
     }]);
 
     if (cErr) {
-      alert(`艦型寫入失敗: ${cErr.message}\n請確認 Supabase SQL 欄位是否已新增完整！`);
+      alert(`艦型更新失敗: ${cErr.message}`);
       return;
     }
 
     if (includeParsedShips && parsedShips.length > 0) {
       const shipPayload = parsedShips.map(s => ({
         id: `s-${s.hull_number.trim()}`,
-        class_id: cid,
+        class_id: targetId,
         hull_number: s.hull_number.trim(),
         name_zh: s.name_zh.trim(),
         status: s.status.trim(),
@@ -620,8 +627,10 @@ export default function App() {
     setWikiQuery('');
     setParsedShips([]);
     setShowAdmin(false);
+
+    // 強制立即重新自 Supabase 讀取並覆蓋前台畫面
     await fetchData();
-    alert(`🎉 艦型【${newClass.code}】與 ${includeParsedShips ? parsedShips.length : 0} 艘單艦完整參數已寫入雲端！`);
+    alert(`🎉 已成功將【${newClass.code}】的概述、11項技術數據與單艦全面同步至前台！`);
   };
 
   const handleCreateShip = async (e: React.FormEvent) => {
@@ -1036,6 +1045,7 @@ export default function App() {
         </footer>
       </main>
 
+      {/* 雙艦比對懸浮列 */}
       {comparePool.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 z-30 flex justify-center px-4 pointer-events-none">
           <div className={`pointer-events-auto w-full max-w-sm ${nightMode ? 'bg-[#150406]/95 border-red-500/50' : 'bg-slate-900/95 border-cyan-500/50'} border backdrop-blur-xl p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2`}>
@@ -1061,6 +1071,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 雙艦比對視窗 */}
       {showCompareModal && compareShipA && compareShipB && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className={`w-full max-w-lg ${nightMode ? 'bg-[#0a0203] border-red-900/60' : 'bg-slate-900 border-slate-800'} border-t sm:border rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl`}>
@@ -1094,6 +1105,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 底部導航列 */}
       <nav className={`fixed bottom-0 left-0 right-0 z-40 ${nightMode ? 'bg-[#080203]/95 border-red-900/50' : 'bg-[#0b0f17]/95 border-slate-800'} backdrop-blur-xl border-t flex justify-center shadow-2xl`} style={{ paddingBottom: "env(safe-area-inset-bottom, 0.5rem)" }}>
         <div className="w-full max-w-md flex justify-around items-center px-3 py-1.5 text-[11px] font-medium">
           <button type="button" onClick={() => setActiveBottomTab('all')} className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl ${activeBottomTab === 'all' ? `${theme.accentText} font-bold` : 'text-slate-400'}`}>全部艦型</button>
@@ -1103,6 +1115,7 @@ export default function App() {
         </div>
       </nav>
 
+      {/* 指南彈窗 */}
       {showGuideModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
@@ -1116,6 +1129,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 授權密碼彈窗 */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 text-center">
@@ -1132,6 +1146,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 艦型編輯彈窗 */}
       {editingClass && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto text-xs">
@@ -1153,6 +1168,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 單艦修改彈窗 */}
       {editingShip && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 text-xs">
@@ -1175,6 +1191,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 後台管理抽屜 */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-end sm:items-center p-0 sm:p-4">
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl">
@@ -1184,7 +1201,7 @@ export default function App() {
             </div>
 
             <div className="flex border-b border-slate-800 text-xs font-bold p-1 bg-slate-950 mx-4 mt-3 rounded-xl gap-1">
-              <button type="button" onClick={() => setActiveTab('classes')} className={`flex-1 py-2 rounded-lg ${activeTab === 'classes' ? 'bg-slate-800 text-cyan-400' : 'text-slate-400'}`}>＋ 新增艦型</button>
+              <button type="button" onClick={() => setActiveTab('classes')} className={`flex-1 py-2 rounded-lg ${activeTab === 'classes' ? 'bg-slate-800 text-cyan-400' : 'text-slate-400'}`}>＋ 新增/更新艦型</button>
               <button type="button" onClick={() => setActiveTab('ships')} className={`flex-1 py-2 rounded-lg ${activeTab === 'ships' ? 'bg-slate-800 text-cyan-400' : 'text-slate-400'}`}>＋ 新增舷號</button>
               <button type="button" onClick={() => setActiveTab('banner')} className={`flex-1 py-2 rounded-lg ${activeTab === 'banner' ? 'bg-slate-800 text-cyan-400' : 'text-slate-400'}`}>頂部橫幅</button>
             </div>
@@ -1212,7 +1229,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <form onSubmit={handleCreateClass} className="space-y-3">
+                  <form onSubmit={handleCreateOrUpdateClass} className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <input required placeholder="艦型代號 (例: 052D)" value={newClass.code || ''} onChange={e => setNewClass({ ...newClass, code: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" />
                       <input placeholder="英文代號 (例: DDG)" value={newClass.nato_code || ''} onChange={e => setNewClass({ ...newClass, nato_code: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" />
@@ -1247,7 +1264,7 @@ export default function App() {
                     </div>
 
                     <button type="submit" className={`w-full py-3 ${theme.accentBg} rounded-xl font-bold text-white shadow-lg`}>
-                      {includeParsedShips && parsedShips.length > 0 ? `新增艦型 ＋ 同步批次建立 ${parsedShips.length} 艘單艦完整參數` : '新增艦型至雲端資料庫'}
+                      儲存並立即覆蓋刷新至前台
                     </button>
                   </form>
                 </div>

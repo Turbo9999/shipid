@@ -26,6 +26,7 @@ type BottomTab = 'all' | 'favorites' | 'rankings' | 'stats';
 export default function App() {
   const [classes, setClasses] = useState<ShipClass[]>([]);
   const [ships, setShips] = useState<Ship[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27');
@@ -109,12 +110,17 @@ export default function App() {
 
   // 雙重離線備援資料抓取
   const fetchData = async () => {
+    setIsLoading(true);
     const cachedClasses = localStorage.getItem('tn_cache_classes');
     const cachedShips = localStorage.getItem('tn_cache_ships');
     if (cachedClasses && classes.length === 0) setClasses(JSON.parse(cachedClasses));
     if (cachedShips && ships.length === 0) setShips(JSON.parse(cachedShips));
 
-    if (!supabase) return;
+    if (!supabase) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const { data: cData } = await supabase.from('ship_classes').select('*').order('code');
       const { data: sData } = await supabase.from('ships').select('*').order('hull_number');
@@ -129,6 +135,8 @@ export default function App() {
       setLastUpdated(new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }));
     } catch (e) {
       console.warn('離線環境：自動啟用本機長效快照資料庫', e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -280,6 +288,10 @@ export default function App() {
     fetchData();
   };
 
+  // 每月統計計算最大值
+  const sortedMonths = Object.keys(monthlyUsage).sort().reverse();
+  const maxUsageCount = Math.max(...Object.values(monthlyUsage), 1);
+
   return (
     <div className={`w-full min-h-screen bg-[#0b0f17] text-slate-100 flex flex-col items-center overflow-x-hidden antialiased selection:bg-cyan-500/30 ${getFontSizeClass()}`}>
       <main className="w-full max-w-md px-4 pt-12 pb-32 flex flex-col flex-1" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.2rem)" }}>
@@ -288,7 +300,9 @@ export default function App() {
         {!isStandalone && (
           <div className="mb-3 bg-cyan-950/70 border border-cyan-500/40 rounded-2xl p-3 flex items-center justify-between shadow-lg backdrop-blur">
             <div className="flex items-center gap-2.5 text-xs">
-              <span className="text-base">📲</span>
+              <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+              </svg>
               <div>
                 <div className="font-bold text-cyan-300">安裝為桌面 App</div>
                 <div className="text-[10px] text-slate-400">加入主畫面可啟用 180 天長效離線資料庫</div>
@@ -333,7 +347,10 @@ export default function App() {
               className="p-1.5 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-full text-slate-300 hover:text-cyan-400 shadow-sm active:scale-95 transition-all backdrop-blur"
               title="管理後台"
             >
-              ⚙️
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
             </button>
           </div>
         </header>
@@ -342,7 +359,9 @@ export default function App() {
         {activeBottomTab !== 'stats' && (
           <div className="sticky top-2 z-20 mt-1 mb-4">
             <div className="relative flex items-center">
-              <span className="absolute left-3.5 text-slate-400 text-sm">🔍</span>
+              <svg className="w-4 h-4 absolute left-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
               <input
                 type="text"
                 placeholder="搜尋舷號、艦名或代號 (例: 172、052D)..."
@@ -362,226 +381,281 @@ export default function App() {
           </div>
         )}
 
-        {/* 主內容區切換 */}
-        {activeBottomTab === 'stats' ? (
-          /* 每月統計頁面 */
-          <div className="space-y-4 pt-1">
-            <div className="text-xs font-mono tracking-wider text-slate-400 font-bold uppercase flex items-center gap-1.5">
-              <span>📊</span> 每月使用與查詢統計報表
-            </div>
-
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3">
-              <div className="text-xs font-bold text-white flex justify-between">
-                <span>📅 活躍月份</span>
-                <span>系統開啟次數</span>
-              </div>
-              <div className="space-y-2">
-                {Object.keys(monthlyUsage).sort().reverse().map(month => (
-                  <div key={month} className="flex justify-between items-center bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
-                    <span className="font-mono text-cyan-300 font-bold">{month}</span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400 font-mono font-bold text-xs">
-                      {monthlyUsage[month]} 次
-                    </span>
-                  </div>
-                ))}
+        {/* 載入動畫 (掃描中 HUD 風格) */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <div className="relative w-12 h-12">
+              <div className="w-12 h-12 rounded-full border-2 border-cyan-500/20 border-t-cyan-400 animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
               </div>
             </div>
-
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3">
-              <div className="text-xs font-bold text-white flex justify-between">
-                <span>🏆 總累計查詢點閱數</span>
-                <span>{Object.values(queryCounts).reduce((a, b) => a + b, 0)} 次</span>
-              </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                每次於艦型清單點開檢視或搜尋該艦，系統將自動寫入本地統計數據，供艦艇出勤與辨識頻率分析使用。
-              </p>
+            <div className="flex items-center gap-1 text-xs font-mono text-cyan-300 tracking-wider">
+              <span>資料載入中</span>
+              <span className="animate-pulse">.</span>
+              <span className="animate-pulse delay-100">.</span>
+              <span className="animate-pulse delay-200">.</span>
             </div>
           </div>
         ) : (
-          /* 艦型列表 / 我的最愛 / 排行榜 */
-          <section className="space-y-3">
-            {searchTerm && filteredShips.length > 0 && (
-              <div className="bg-gradient-to-b from-cyan-950/30 to-slate-900/80 border border-cyan-500/30 rounded-2xl p-3.5 shadow-lg">
-                <div className="flex justify-between items-center mb-2.5">
-                  <span className="text-[11px] font-mono tracking-wider text-cyan-400 font-bold uppercase">舷號比對結果 ({filteredShips.length})</span>
-                </div>
-                <div className="space-y-2">
-                  {filteredShips.map(s => (
-                    <div key={s.id} className="bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 rounded-xl p-2.5 flex justify-between items-center transition shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono text-lg font-black text-cyan-400 tracking-tight">{s.hull_number}</span>
-                        <div>
-                          <div className="font-bold text-white text-xs">{s.name_zh}</div>
-                          <div className="text-[10px] text-slate-400 font-medium">{s.status}</div>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => setEditingShip(s)}
-                        className="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition active:scale-95"
-                      >
-                        ✏️ 修改
-                      </button>
-                    </div>
-                  ))}
-                </div>
+          /* 主內容區切換 */
+          activeBottomTab === 'stats' ? (
+            /* --- 每月統計頁面 (長條圖視覺化升級) --- */
+            <div className="space-y-4 pt-1">
+              <div className="text-xs font-mono tracking-wider text-slate-400 font-bold uppercase flex items-center gap-2">
+                <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                </svg>
+                <span>每月使用頻率統計圖</span>
               </div>
-            )}
 
-            <div className="flex justify-between items-center px-1">
-              <div className="text-[11px] font-mono tracking-wider text-slate-400 font-bold uppercase">
-                {activeBottomTab === 'favorites' ? `⭐ 我的最愛收藏 (${displayedClasses.length})` : activeBottomTab === 'rankings' ? `🏆 查詢熱門排行榜 (${displayedClasses.length})` : `艦型清單 INDEX (${displayedClasses.length})`}
+              {/* 長條圖視覺化容器 */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-4">
+                <div className="space-y-3.5">
+                  {sortedMonths.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-slate-500">尚無活躍數據記錄</div>
+                  ) : (
+                    sortedMonths.map(month => {
+                      const count = monthlyUsage[month] || 0;
+                      const percentage = Math.max(Math.round((count / maxUsageCount) * 100), 6);
+
+                      return (
+                        <div key={month} className="space-y-1.5">
+                          <div className="flex justify-between text-xs">
+                            <span className="font-mono text-slate-300 font-bold tracking-wide">{month}</span>
+                            <span className="font-mono text-cyan-400 font-bold">{count} 次</span>
+                          </div>
+                          {/* 長條圖 Track & Bar */}
+                          <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                            <div 
+                              className="h-full rounded-full bg-gradient-to-r from-cyan-600 to-cyan-400 transition-all duration-500 shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+                              style={{ width: `${percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
-              {isStandalone && (
-                <button
-                  onClick={() => setShowGuideModal(true)}
-                  className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 bg-slate-900/60 px-2 py-0.5 rounded-full border border-slate-800"
-                >
-                  <span>ℹ️</span> 離線須知
-                </button>
-              )}
+
+              {/* 總累計點閱面板 */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex justify-between items-center shadow-sm">
+                <div>
+                  <div className="text-xs font-bold text-white tracking-wide">總累計查詢點閱次數</div>
+                  <div className="text-[11px] text-slate-400 pt-0.5">離線本機即時累加統計</div>
+                </div>
+                <div className="px-3.5 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 font-mono font-black text-cyan-400 text-sm shadow-inner">
+                  {Object.values(queryCounts).reduce((a, b) => a + b, 0)} 次
+                </div>
+              </div>
             </div>
-
-            {displayedClasses.length === 0 ? (
-              <div className="text-center py-10 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800 text-slate-500 text-xs">
-                {activeBottomTab === 'favorites' ? '尚未加入任何艦型至「我的最愛」⭐' : '查無符合條件的艦艇資料'}
-              </div>
-            ) : (
-              displayedClasses.map((c, index) => {
-                const isExpanded = expandedClassId === c.id;
-                const classShips = ships.filter(s => s.class_id === c.id);
-                const isFav = favorites.includes(c.id);
-                const count = queryCounts[c.id] || 0;
-
-                return (
-                  <div 
-                    key={c.id} 
-                    className={`bg-slate-900/80 border rounded-2xl transition-all duration-200 shadow-sm overflow-hidden ${isExpanded ? 'border-cyan-500/50 bg-slate-900 shadow-md' : 'border-slate-800 hover:border-slate-700'}`}
-                  >
-                    <div 
-                      onClick={() => handleToggleExpand(c.id)}
-                      className="p-3.5 flex justify-between items-center cursor-pointer select-none"
-                    >
-                      <div className="space-y-1 flex-1 pr-2">
-                        <div className="flex items-center gap-2">
-                          {activeBottomTab === 'rankings' && (
-                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black font-mono ${index === 0 ? 'bg-amber-400 text-black' : index === 1 ? 'bg-slate-300 text-black' : index === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                              {index + 1}
-                            </span>
-                          )}
-                          <span className="font-mono font-black text-base text-cyan-400">{c.code}</span>
-                          <span className="font-bold text-slate-100">{c.name_zh}</span>
+          ) : (
+            /* --- 艦型列表 / 我的最愛 / 排行榜 --- */
+            <section className="space-y-3">
+              {searchTerm && filteredShips.length > 0 && (
+                <div className="bg-gradient-to-b from-cyan-950/30 to-slate-900/80 border border-cyan-500/30 rounded-2xl p-3.5 shadow-lg">
+                  <div className="flex justify-between items-center mb-2.5">
+                    <span className="text-[11px] font-mono tracking-wider text-cyan-400 font-bold uppercase">舷號比對結果 ({filteredShips.length})</span>
+                  </div>
+                  <div className="space-y-2">
+                    {filteredShips.map(s => (
+                      <div key={s.id} className="bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 rounded-xl p-2.5 flex justify-between items-center transition shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono text-lg font-black text-cyan-400 tracking-tight">{s.hull_number}</span>
+                          <div>
+                            <div className="font-bold text-white text-xs">{s.name_zh}</div>
+                            <div className="text-[10px] text-slate-400 font-medium">{s.status}</div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                          {c.category && <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium">{c.category}</span>}
-                          {c.nato_code && <span className="font-mono text-slate-400">代號: {c.nato_code}</span>}
-                          {count > 0 && <span className="text-[10px] font-mono text-cyan-400/80">👀 {count} 次</span>}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => toggleFavorite(c.id, e)}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition active:scale-75 ${isFav ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-500 hover:text-amber-400'}`}
+                        <button 
+                          onClick={() => setEditingShip(s)}
+                          className="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition active:scale-95"
                         >
-                          {isFav ? '★' : '☆'}
+                          修改
                         </button>
-                        <div className={`w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 bg-cyan-950 text-cyan-400' : ''}`}>
-                          ▼
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 頁面頂部標題（向量圖標全面替換 Emoji） */}
+              <div className="flex justify-between items-center px-1">
+                <div className="text-[11px] font-mono tracking-wider text-slate-400 font-bold uppercase flex items-center gap-1.5">
+                  {activeBottomTab === 'favorites' && (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-amber-400 fill-current" viewBox="0 0 24 24">
+                        <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                      </svg>
+                      <span>我的最愛收藏 ({displayedClasses.length})</span>
+                    </>
+                  )}
+                  {activeBottomTab === 'rankings' && (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.004 0V9.75m-6 0V6.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V9.75" />
+                      </svg>
+                      <span>查詢熱門排行榜 ({displayedClasses.length})</span>
+                    </>
+                  )}
+                  {activeBottomTab === 'all' && (
+                    <span>艦型清單 INDEX ({displayedClasses.length})</span>
+                  )}
+                </div>
+                {isStandalone && (
+                  <button
+                    onClick={() => setShowGuideModal(true)}
+                    className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 bg-slate-900/60 px-2 py-0.5 rounded-full border border-slate-800"
+                  >
+                    <span>離線須知</span>
+                  </button>
+                )}
+              </div>
+
+              {displayedClasses.length === 0 ? (
+                <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800 text-slate-500 text-xs">
+                  {activeBottomTab === 'favorites' ? '尚未加入任何艦型至「我的最愛」' : '查無符合條件的艦艇資料'}
+                </div>
+              ) : (
+                displayedClasses.map((c, index) => {
+                  const isExpanded = expandedClassId === c.id;
+                  const classShips = ships.filter(s => s.class_id === c.id);
+                  const isFav = favorites.includes(c.id);
+                  const count = queryCounts[c.id] || 0;
+
+                  return (
+                    <div 
+                      key={c.id} 
+                      className={`bg-slate-900/80 border rounded-2xl transition-all duration-200 shadow-sm overflow-hidden ${isExpanded ? 'border-cyan-500/50 bg-slate-900 shadow-md' : 'border-slate-800 hover:border-slate-700'}`}
+                    >
+                      <div 
+                        onClick={() => handleToggleExpand(c.id)}
+                        className="p-3.5 flex justify-between items-center cursor-pointer select-none"
+                      >
+                        <div className="space-y-1 flex-1 pr-2">
+                          <div className="flex items-center gap-2">
+                            {activeBottomTab === 'rankings' && (
+                              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black font-mono ${index === 0 ? 'bg-amber-400 text-black' : index === 1 ? 'bg-slate-300 text-black' : index === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                                {index + 1}
+                              </span>
+                            )}
+                            <span className="font-mono font-black text-base text-cyan-400">{c.code}</span>
+                            <span className="font-bold text-slate-100">{c.name_zh}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                            {c.category && <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium">{c.category}</span>}
+                            {c.nato_code && <span className="font-mono text-slate-400">代號: {c.nato_code}</span>}
+                            {count > 0 && <span className="text-[10px] font-mono text-cyan-400/80">查閱 {count} 次</span>}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => toggleFavorite(c.id, e)}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition active:scale-75 ${isFav ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-500 hover:text-amber-400'}`}
+                          >
+                            <svg className="w-4 h-4" fill={isFav ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                            </svg>
+                          </button>
+                          <div className={`w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 bg-cyan-950 text-cyan-400' : ''}`}>
+                            ▼
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {isExpanded && (
-                      <div className="px-4 pb-4 pt-2 border-t border-slate-800/80 bg-slate-950/40 space-y-3.5">
-                        {/* 官方艦影 */}
-                        {c.image_url ? (
-                          <div className="relative rounded-xl overflow-hidden border border-slate-700/80 shadow-md">
-                            <img 
-                              src={c.image_url} 
-                              alt={c.name_zh} 
-                              loading="lazy"
-                              className="w-full h-44 object-cover object-center bg-slate-950" 
-                            />
-                            <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[10px] font-mono text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
-                              <span>⚓️</span> 官方艦影
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border border-dashed border-slate-800 p-3 bg-slate-900/40 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-                            <span>📷</span> <span>暫無艦影照片（可在下方編輯資料設定網址）</span>
-                          </div>
-                        )}
-
-                        {/* 視覺辨識特徵 */}
-                        {c.visual_features && c.visual_features.length > 0 && (
-                          <div>
-                            <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-1.5 flex items-center gap-1.5">
-                              <span>🔍</span> 視覺辨識特徵
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {c.visual_features.map((f, i) => (
-                                <span key={i} className="text-xs bg-slate-800/80 border border-slate-700/60 text-slate-200 px-2 py-0.5 rounded-lg">
-                                  {f}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 武裝配置 */}
-                        {c.weapons_summary && (
-                          <div>
-                            <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
-                              <span>⚔️</span> 武裝配置
-                            </div>
-                            <p className="text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 leading-relaxed">
-                              {c.weapons_summary}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* 單艦清單 */}
-                        <div>
-                          <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-1.5 flex items-center justify-between">
-                            <span className="flex items-center gap-1.5"><span>⚓️</span> 已建檔單艦 ({classShips.length})</span>
-                          </div>
-                          {classShips.length > 0 ? (
-                            <div className="grid grid-cols-2 gap-2">
-                              {classShips.map(s => (
-                                <div key={s.id} className="bg-slate-900/90 border border-slate-800/80 p-2 rounded-xl flex justify-between items-center">
-                                  <div>
-                                    <div className="font-mono font-bold text-cyan-300 text-xs">{s.hull_number}</div>
-                                    <div className="text-[11px] text-slate-300">{s.name_zh}</div>
-                                  </div>
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); setEditingShip(s); }}
-                                    className="text-[10px] text-slate-400 hover:text-cyan-300 px-2 py-1 rounded bg-slate-800"
-                                  >
-                                    修改
-                                  </button>
-                                </div>
-                              ))}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pt-2 border-t border-slate-800/80 bg-slate-950/40 space-y-3.5">
+                          {c.image_url ? (
+                            <div className="relative rounded-xl overflow-hidden border border-slate-700/80 shadow-md">
+                              <img 
+                                src={c.image_url} 
+                                alt={c.name_zh} 
+                                loading="lazy"
+                                className="w-full h-44 object-cover object-center bg-slate-950" 
+                              />
+                              <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[10px] font-mono text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                                <span>艦影記錄</span>
+                              </div>
                             </div>
                           ) : (
-                            <p className="text-xs text-slate-500 py-1">尚無登錄單艦舷號</p>
+                            <div className="rounded-xl border border-dashed border-slate-800 p-3 bg-slate-900/40 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                              <span>暫無艦影照片（可在下方編輯資料設定網址）</span>
+                            </div>
                           )}
-                        </div>
 
-                        <div className="pt-1 flex justify-end">
-                          <button 
-                            onClick={() => setEditingClass(c)}
-                            className="px-3 py-1.5 bg-cyan-950/50 hover:bg-cyan-900/50 border border-cyan-500/40 text-cyan-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
-                          >
-                            ✏️ 編輯艦型資料 / 照片
-                          </button>
+                          {c.visual_features && c.visual_features.length > 0 && (
+                            <div>
+                              <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-1.5 flex items-center gap-1.5">
+                                <span>視覺辨識特徵</span>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {c.visual_features.map((f, i) => (
+                                  <span key={i} className="text-xs bg-slate-800/80 border border-slate-700/60 text-slate-200 px-2 py-0.5 rounded-lg">
+                                    {f}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {c.weapons_summary && (
+                            <div>
+                              <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
+                                <span>武裝配置</span>
+                              </div>
+                              <p className="text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 leading-relaxed">
+                                {c.weapons_summary}
+                              </p>
+                            </div>
+                          )}
+
+                          <div>
+                            <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-1.5 flex items-center justify-between">
+                              <span>已建檔單艦 ({classShips.length})</span>
+                            </div>
+                            {classShips.length > 0 ? (
+                              <div className="grid grid-cols-2 gap-2">
+                                {classShips.map(s => (
+                                  <div key={s.id} className="bg-slate-900/90 border border-slate-800/80 p-2 rounded-xl flex justify-between items-center">
+                                    <div>
+                                      <div className="font-mono font-bold text-cyan-300 text-xs">{s.hull_number}</div>
+                                      <div className="text-[11px] text-slate-300">{s.name_zh}</div>
+                                    </div>
+                                    <button 
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setEditingShip(s); }}
+                                      className="text-[10px] text-slate-400 hover:text-cyan-300 px-2 py-1 rounded bg-slate-800"
+                                    >
+                                      修改
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-500 py-1">尚無登錄單艦舷號</p>
+                            )}
+                          </div>
+
+                          <div className="pt-1 flex justify-end">
+                            <button 
+                              type="button"
+                              onClick={() => setEditingClass(c)}
+                              className="px-3 py-1.5 bg-cyan-950/50 hover:bg-cyan-900/50 border border-cyan-500/40 text-cyan-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
+                            >
+                              編輯艦型資料 / 照片
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </section>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </section>
+          )
         )}
 
         <footer className="mt-8 text-center text-xs text-slate-500 space-y-1">
@@ -590,11 +664,10 @@ export default function App() {
         </footer>
       </main>
 
-      {/* --- 底部常駐橫向功能導航列 (標準極簡戰術向量圖標) --- */}
+      {/* 底部導航列：完全乾淨的向量線條圖標 */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0b0f17]/95 backdrop-blur-xl border-t border-slate-800 flex justify-center shadow-2xl" style={{ paddingBottom: "env(safe-area-inset-bottom, 0.5rem)" }}>
         <div className="w-full max-w-md flex justify-around items-center px-3 py-1.5 text-[11px] font-medium">
           
-          {/* 全部艦型 */}
           <button
             type="button"
             onClick={() => setActiveBottomTab('all')}
@@ -609,7 +682,6 @@ export default function App() {
             <span className="tracking-wider">全部艦型</span>
           </button>
 
-          {/* 我的最愛 */}
           <button
             type="button"
             onClick={() => setActiveBottomTab('favorites')}
@@ -624,7 +696,6 @@ export default function App() {
             <span className="tracking-wider">我的最愛</span>
           </button>
 
-          {/* 查詢排行 */}
           <button
             type="button"
             onClick={() => setActiveBottomTab('rankings')}
@@ -639,7 +710,6 @@ export default function App() {
             <span className="tracking-wider">查詢排行</span>
           </button>
 
-          {/* 每月統計 */}
           <button
             type="button"
             onClick={() => setActiveBottomTab('stats')}
@@ -657,13 +727,15 @@ export default function App() {
         </div>
       </nav>
 
-      {/* 注意事項說明彈窗 */}
+      {/* 指南彈窗 */}
       {showGuideModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <span className="text-lg">📱</span>
+                <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+                </svg>
                 <h3 className="font-bold text-sm text-white">安裝指南與離線注意事項</h3>
               </div>
               <button onClick={() => setShowGuideModal(false)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
@@ -700,6 +772,7 @@ export default function App() {
             </div>
 
             <button
+              type="button"
               onClick={() => setShowGuideModal(false)}
               className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950 active:scale-95 transition"
             >
@@ -714,8 +787,10 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="text-center space-y-1">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-950/80 border border-cyan-500/30 flex items-center justify-center mx-auto text-xl text-cyan-400">
-                🔒
+              <div className="w-12 h-12 rounded-2xl bg-cyan-950/80 border border-cyan-500/30 flex items-center justify-center mx-auto text-cyan-400">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
               </div>
               <h3 className="font-bold text-base text-white tracking-wide pt-2">後台管理驗證</h3>
               <p className="text-[11px] text-slate-400">請輸入管理通行密碼以存取資料庫</p>
@@ -759,9 +834,9 @@ export default function App() {
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2"></div>
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-base text-white flex items-center gap-2">
-                ✏️ 編輯艦型 <span className="font-mono text-cyan-400 font-bold">{editingClass.code}</span>
+                <span>編輯艦型</span> <span className="font-mono text-cyan-400 font-bold">{editingClass.code}</span>
               </h3>
-              <button onClick={() => setEditingClass(null)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
+              <button type="button" onClick={() => setEditingClass(null)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
             </div>
 
             <div className="space-y-3">
@@ -775,7 +850,7 @@ export default function App() {
                 />
               </div>
               <div>
-                <label className="text-[11px] font-bold text-cyan-300 mb-1 block">🔗 官方照片網址 (全體同步 + 自動離線快取)</label>
+                <label className="text-[11px] font-bold text-cyan-300 mb-1 block">官方照片網址 (全體同步 + 自動離線快取)</label>
                 <input
                   type="url"
                   placeholder="https://.../ship.jpg"
@@ -827,8 +902,8 @@ export default function App() {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <button onClick={() => setEditingClass(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
-              <button onClick={saveClassEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">發布修改至雲端</button>
+              <button type="button" onClick={() => setEditingClass(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
+              <button type="button" onClick={saveClassEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">發布修改至雲端</button>
             </div>
           </div>
         </div>
@@ -841,9 +916,9 @@ export default function App() {
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2"></div>
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-base text-white flex items-center gap-2">
-                ✏️ 修改單艦 <span className="font-mono text-cyan-400 font-bold">{editingShip.hull_number}</span>
+                <span>修改單艦</span> <span className="font-mono text-cyan-400 font-bold">{editingShip.hull_number}</span>
               </h3>
-              <button onClick={() => setEditingShip(null)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
+              <button type="button" onClick={() => setEditingShip(null)} className="text-slate-400 hover:text-white text-xs px-2 py-1">✕</button>
             </div>
             
             <div className="space-y-3">
@@ -868,9 +943,9 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => setEditingShip(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
-              <button onClick={saveShipEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">儲存更新</button>
+            <div className="flex gap-2.5 pt-2">
+              <button type="button" onClick={() => setEditingShip(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-300">取消</button>
+              <button type="button" onClick={saveShipEdit} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-xs font-bold text-white shadow-lg shadow-cyan-950">儲存更新</button>
             </div>
           </div>
         </div>
@@ -884,19 +959,25 @@ export default function App() {
             
             <div className="p-4 border-b border-slate-800 flex justify-between items-center">
               <h2 className="font-bold text-base text-white flex items-center gap-2">
-                <span>⚙️</span> 資料庫管理後台
+                <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>資料庫管理後台</span>
               </h2>
-              <button onClick={() => setShowAdmin(false)} className="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-full bg-slate-800">✕ 關閉</button>
+              <button type="button" onClick={() => setShowAdmin(false)} className="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-full bg-slate-800">✕ 關閉</button>
             </div>
 
             <div className="flex border-b border-slate-800 text-xs font-bold p-1 bg-slate-950/60 mx-4 mt-3 rounded-xl">
               <button 
+                type="button"
                 onClick={() => setActiveTab('classes')}
                 className={`flex-1 py-2 rounded-lg text-center transition ${activeTab === 'classes' ? 'text-cyan-400 bg-slate-800 shadow-sm' : 'text-slate-400'}`}
               >
                 ＋ 新增艦型
               </button>
               <button 
+                type="button"
                 onClick={() => setActiveTab('ships')}
                 className={`flex-1 py-2 rounded-lg text-center transition ${activeTab === 'ships' ? 'text-cyan-400 bg-slate-800 shadow-sm' : 'text-slate-400'}`}
               >

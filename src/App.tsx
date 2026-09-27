@@ -43,16 +43,6 @@ interface Ship {
   status_code?: 'active' | 'sea_trial' | 'fitting_out' | 'under_construction' | 'retired' | 'unknown';
 }
 
-interface ParsedShipItem {
-  hull_number: string;
-  name_zh: string;
-  commissioned_year: string;
-  fleet: string;
-  squadron: string;
-  status: string;
-  status_code: 'active' | 'sea_trial' | 'fitting_out' | 'under_construction' | 'retired' | 'unknown';
-}
-
 type FontSizeOption = 'sm' | 'default' | 'md' | 'lg';
 type ThemeMode = 'dark' | 'red' | 'high_contrast';
 type BottomTab = 'classes' | 'favorites' | 'compare' | 'more';
@@ -135,8 +125,6 @@ export default function App() {
   const [wikiQuery, setWikiQuery] = useState('');
   const [isFetchingWiki, setIsFetchingWiki] = useState(false);
   const [wikiPreviewClass, setWikiPreviewClass] = useState<Partial<ShipClass> | null>(null);
-  const [parsedShips, setParsedShips] = useState<ParsedShipItem[]>([]);
-  const [includeParsedShips, setIncludeParsedShips] = useState(true);
 
   // 單艦新增表單
   const [newShipForm, setNewShipForm] = useState<{
@@ -297,7 +285,6 @@ export default function App() {
   const handleOpenDetail = (shipClass: ShipClass) => {
     setSelectedClassDetail(shipClass);
     setExpandedShipList(false);
-    // 計數器累加
     const updated = { ...queryCounts, [shipClass.id]: (queryCounts[shipClass.id] || 0) + 1 };
     setQueryCounts(updated);
     localStorage.setItem('tn_query_counts', JSON.stringify(updated));
@@ -322,7 +309,7 @@ export default function App() {
     );
   };
 
-  // 智慧搜尋比對（艦型、代號、舷號、艦名，支援模糊離線即時過濾）
+  // 智慧搜尋比對
   const lowerSearch = searchTerm.toLowerCase().trim();
 
   const matchingShipClassIds = new Set<string>();
@@ -346,7 +333,7 @@ export default function App() {
     displayedClasses = displayedClasses.filter(c => favorites.includes(c.id));
   }
 
-  // 視覺樣式規範（保留作戰風格，杜絕科幻 HUD 與無意義特效）
+  // 視覺樣式規範
   const getThemeStyles = () => {
     if (themeMode === 'red') {
       return {
@@ -372,7 +359,6 @@ export default function App() {
         input: 'bg-black border-2 border-cyan-400 text-white placeholder-slate-400 font-bold'
       };
     }
-    // 常規海軍深藍黑模式
     return {
       bg: 'bg-[#070b12]',
       headerBg: 'bg-[#0c121e]/95 border-slate-800',
@@ -387,7 +373,7 @@ export default function App() {
 
   const currentTheme = getThemeStyles();
 
-  // 字體階層（明顯放階層，大字模式真正適合晃動閱覽）
+  // 字體階層
   const getFontSizeStyles = () => {
     switch (fontSize) {
       case 'sm':
@@ -408,7 +394,6 @@ export default function App() {
     if (!wikiQuery.trim()) return alert('請輸入艦型關鍵字（例: 052D）');
     setIsFetchingWiki(true);
     setWikiPreviewClass(null);
-    setParsedShips([]);
 
     try {
       let input = wikiQuery.trim();
@@ -489,7 +474,7 @@ export default function App() {
     }
   };
 
-  // 儲存艦型（嚴格確認，可選擇覆蓋）
+  // 儲存艦型
   const handleConfirmSaveClass = async () => {
     if (!supabase || !editingClassForm.code) return;
     const cid = `c-${editingClassForm.code.toLowerCase().trim()}`;
@@ -534,7 +519,6 @@ export default function App() {
               <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
               <h1 className="font-black tracking-widest text-base font-mono">TAIWAN NAVY</h1>
             </div>
-            {/* 離線狀態清晰指示 */}
             <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5 pt-0.5">
               {isOnline ? (
                 <span className="text-emerald-400 font-bold">✓ 離線資料已就緒</span>
@@ -545,9 +529,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* 控制按鈕群組：主題切換、字體切換、管理後台 */}
           <div className="flex items-center gap-1.5">
-            {/* 主題切換 (常規暗藍 -> 紅光 -> 高對比) */}
             <button
               type="button"
               onClick={() => {
@@ -561,7 +543,6 @@ export default function App() {
               {themeMode === 'red' ? '🔴' : themeMode === 'high_contrast' ? '☀️' : '🌙'}
             </button>
 
-            {/* 字體切換 */}
             <button
               type="button"
               onClick={() => {
@@ -576,7 +557,6 @@ export default function App() {
               {fontSize === 'sm' ? '小字' : fontSize === 'default' ? '預設' : fontSize === 'md' ? '中字' : '大字'}
             </button>
 
-            {/* 管理員認證入口 */}
             <button
               type="button"
               onClick={() => {
@@ -594,7 +574,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* 廣播戰術公告橫幅 */}
         {bannerText && (
           <div className="w-full max-w-md mt-2.5 px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 text-xs font-semibold flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
@@ -630,7 +609,6 @@ export default function App() {
             )}
           </div>
 
-          {/* 最近搜尋紀錄標籤 */}
           {!searchTerm && recentSearches.length > 0 && (
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
               <span className="text-[11px] text-slate-500 font-mono shrink-0">最近查詢:</span>
@@ -679,7 +657,7 @@ export default function App() {
                       <span className="font-bold text-white text-base">{s.name_zh}</span>
                       {parentClass && <span className="text-xs text-slate-400 font-mono">({parentClass.code})</span>}
                     </div>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
                       {statusMeta.label}
                     </span>
                   </div>
@@ -689,7 +667,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 艦型清單 Card（徹底回歸極簡：第一層只呈現必要代號、全名、艦種、收藏與進入詳細頁） */}
+        {/* 艦型清單 Card */}
         <section className="space-y-2.5">
           <div className="flex justify-between items-center px-1">
             <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
@@ -716,7 +694,6 @@ export default function App() {
                   onClick={() => handleOpenDetail(c)}
                   className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm flex items-center justify-between gap-3 ${currentTheme.cardBg}`}
                 >
-                  {/* 左側：大字代號、艦型全名、次級資訊 */}
                   <div className="space-y-1 flex-1">
                     <div className="flex items-baseline gap-2.5">
                       <span className={`font-mono font-black ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
@@ -738,7 +715,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 右側：收藏按鈕與進入箭頭（符合 44x44px 大觸控面積） */}
                   <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                     <button
                       type="button"
@@ -763,12 +739,11 @@ export default function App() {
         </section>
       </main>
 
-      {/* 艦型詳細頁 Modal (全功能覆蓋 6 大區塊，大字排版) */}
+      {/* 艦型詳細頁 Modal */}
       {selectedClassDetail && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4">
           <div className={`w-full max-w-lg h-[92vh] sm:h-[88vh] ${currentTheme.bg} border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden`}>
             
-            {/* 詳細頁頂部導航列 */}
             <div className="px-5 py-3.5 border-b border-slate-800 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <span className={`font-mono text-2xl font-black ${currentTheme.accentText}`}>
@@ -787,7 +762,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* 詳細頁捲動內容區塊（6 大核心區塊依序呈現） */}
             <div className="p-5 overflow-y-auto space-y-5 text-sm">
               
               {/* 第一區：最重要辨識資訊 */}
@@ -839,7 +813,7 @@ export default function App() {
                 )}
               </div>
 
-              {/* 第二區：外觀辨識（嚴禁 AI 腦補，無人工查證資料時明確提示） */}
+              {/* 第二區：外觀辨識 */}
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5">
                 <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
                   <span className="font-bold text-base text-cyan-300 flex items-center gap-2">
@@ -871,7 +845,7 @@ export default function App() {
                 )}
               </div>
 
-              {/* 第三區：容易混淆艦型（點擊直接帶入雙艦比對） */}
+              {/* 第三區：容易混淆艦型 */}
               {selectedClassDetail.similar_classes && selectedClassDetail.similar_classes.length > 0 && (
                 <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
                   <span className="font-bold text-sm text-amber-300">⚠️ 容易混淆艦型 (點擊啟動比對)</span>
@@ -902,7 +876,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* 第四區：技術資料卡 (11 項指標全數白色文字、嚴格換行) */}
+              {/* 第四區：技術資料卡 */}
               <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3">
                 <span className="font-bold text-base text-white block border-b border-slate-800 pb-2">
                   技術規格與裝備參數
@@ -979,7 +953,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 雙艦並排比對畫面 (Phase 5) */}
+      {/* 雙艦並排比對畫面 */}
       {activeBottomTab === 'compare' && (
         <div className="fixed inset-0 z-40 bg-[#070b12] text-slate-100 flex flex-col pt-12 pb-24 px-3 overflow-y-auto">
           <div className="max-w-md w-full mx-auto space-y-4">
@@ -1009,7 +983,6 @@ export default function App() {
 
               return (
                 <div className="space-y-4 text-xs">
-                  {/* 最上方優先顯示：主要外觀辨識特徵差異（僅當資料庫有人工資料才顯示） */}
                   {(shipA.identification_features?.length || shipB.identification_features?.length) ? (
                     <div className="p-3.5 rounded-2xl bg-cyan-950/40 border border-cyan-500/50 space-y-2">
                       <span className="font-bold text-sm text-cyan-300 block">主要外觀辨識特徵對照</span>
@@ -1030,7 +1003,6 @@ export default function App() {
                     </div>
                   ) : null}
 
-                  {/* 逐項並排比對表格 */}
                   <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
                     <div className="grid grid-cols-2 gap-3 text-center border-b border-slate-800 pb-2">
                       <div>
@@ -1080,11 +1052,10 @@ export default function App() {
         </div>
       )}
 
-      {/* 底部 Navigation (艦型 / 收藏 / 比對 / 更多) */}
+      {/* 底部導航列 */}
       <nav className={`fixed bottom-0 left-0 right-0 z-30 ${currentTheme.headerBg} border-t backdrop-blur-xl flex justify-center shadow-2xl`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)' }}>
         <div className="w-full max-w-md flex justify-around items-center px-3 py-1 text-xs font-bold">
           
-          {/* 艦型 */}
           <button
             type="button"
             onClick={() => setActiveBottomTab('classes')}
@@ -1096,7 +1067,6 @@ export default function App() {
             <span>艦型</span>
           </button>
 
-          {/* 收藏 */}
           <button
             type="button"
             onClick={() => setActiveBottomTab('favorites')}
@@ -1108,7 +1078,6 @@ export default function App() {
             <span>收藏</span>
           </button>
 
-          {/* 比對 */}
           <button
             type="button"
             onClick={() => setActiveBottomTab('compare')}
@@ -1120,7 +1089,6 @@ export default function App() {
             <span>比對 ({comparePool.length})</span>
           </button>
 
-          {/* 更多 (收納排行、統計、使用說明、資料來源) */}
           <button
             type="button"
             onClick={() => setShowMoreModal('rankings')}
@@ -1223,7 +1191,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 資料庫管理後台 Modal (Phase 4 & Phase 11 & Phase 12) */}
+      {/* 資料庫管理後台 Modal */}
       {showAdmin && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="w-full max-w-lg h-[92vh] sm:h-[88vh] bg-slate-900 border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden">
@@ -1245,7 +1213,7 @@ export default function App() {
               {adminActiveTab === 'class_edit' && (
                 <div className="space-y-4">
                   
-                  {/* 維基抓取對照預覽區 (Phase 12) */}
+                  {/* 維基抓取對照預覽區 */}
                   <div className="p-3.5 rounded-2xl bg-slate-950 border border-cyan-500/40 space-y-2.5">
                     <span className="font-bold text-cyan-300 block">Wikipedia 資料比對與安全擷取</span>
                     <div className="flex gap-2">
@@ -1289,7 +1257,7 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* 人工外觀辨識特徵動態列表 (Phase 4) */}
+                  {/* 人工外觀辨識特徵動態列表 */}
                   <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
                     <span className="font-bold text-sm text-white block">👁 外觀辨識特徵人工管理</span>
                     
@@ -1405,7 +1373,6 @@ export default function App() {
                       />
                     </div>
 
-                    {/* 11 項技術數據 (嚴格依據手動換行) */}
                     <div className="space-y-2 pt-2 border-t border-slate-800">
                       <span className="font-bold text-slate-300 block">技術指標 (以 Shift+Enter 分項)</span>
                       <div className="grid grid-cols-2 gap-2">
@@ -1431,7 +1398,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* 單艦資料標準化新增 (Phase 11) */}
+              {/* 單艦資料標準化新增 */}
               {adminActiveTab === 'ship_add' && (
                 <form
                   onSubmit={async e => {

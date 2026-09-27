@@ -569,7 +569,7 @@ export default function App() {
     <div className={`w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
       
       {/* 戰術抬頭列 */}
-      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-[58px] pb-4 flex flex-col items-center shadow-lg transition-all`}>
+      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-[64px] pb-4 flex flex-col items-center shadow-lg transition-all`}>
         <div className="w-full max-w-md flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">

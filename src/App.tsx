@@ -1135,6 +1135,174 @@ export default function App() {
         </footer>
       </main>
 
+      {/* 雙艦比對懸浮列 */}
+      {comparePool.length > 0 && (
+        <div className="fixed bottom-16 left-0 right-0 z-30 flex justify-center px-4 pointer-events-none">
+          <div className={`pointer-events-auto w-full max-w-sm ${nightMode ? 'bg-[#150406]/95 border-red-500/50' : 'bg-slate-900/95 border-cyan-500/50'} border backdrop-blur-xl p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2`}>
+            <div className="flex items-center gap-2 overflow-hidden pl-1">
+              <span className={`text-[10px] font-mono uppercase font-black ${theme.accentText}`}>比對池:</span>
+              <div className="flex gap-1.5">
+                {comparePool.map(id => {
+                  const item = classes.find(c => c.id === id);
+                  return (
+                    <span key={id} className={`text-xs font-mono font-bold px-2 py-0.5 rounded-lg ${theme.badgeBg} border flex items-center gap-1`}>
+                      <span>{item?.code || id}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setComparePool(comparePool.filter(x => x !== id))}
+                        className="text-[10px] text-slate-400 hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  );
+                })}
+                {comparePool.length === 1 && (
+                  <span className="text-[11px] text-slate-500 italic pl-1">請再選 1 艘...</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setComparePool([])}
+                className="text-[10px] text-slate-400 hover:text-white px-2 py-1"
+              >
+                重置
+              </button>
+              <button
+                type="button"
+                disabled={comparePool.length < 2}
+                onClick={() => setShowCompareModal(true)}
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs text-white transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none ${theme.accentBg} ${theme.accentHover} shadow-md`}
+              >
+                啟動比對
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 雙艦比對視窗 (包含工程參數深度對抗) */}
+      {showCompareModal && compareShipA && compareShipB && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className={`w-full max-w-lg ${nightMode ? 'bg-[#0a0203] border-red-900/60' : 'bg-slate-900 border-slate-800'} border-t sm:border rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl`}>
+            
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2">
+                <svg className={`w-4 h-4 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                </svg>
+                <h3 className="font-bold text-sm text-white tracking-wide">雙艦型同屏快速比對</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowCompareModal(false)} 
+                className="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-full bg-slate-800"
+              >
+                ✕ 關閉
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black h-32 flex items-center justify-center">
+                    {compareShipA.image_url ? (
+                      <img src={compareShipA.image_url} alt={compareShipA.name_zh} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[11px] text-slate-500">暫無照片</span>
+                    )}
+                    <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/70 text-[10px] font-mono font-bold text-cyan-300">
+                      {compareShipA.code}
+                    </span>
+                  </div>
+                  <div className="font-bold text-white text-center text-sm">{compareShipA.name_zh}</div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black h-32 flex items-center justify-center">
+                    {compareShipB.image_url ? (
+                      <img src={compareShipB.image_url} alt={compareShipB.name_zh} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[11px] text-slate-500">暫無照片</span>
+                    )}
+                    <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/70 text-[10px] font-mono font-bold text-cyan-300">
+                      {compareShipB.code}
+                    </span>
+                  </div>
+                  <div className="font-bold text-white text-center text-sm">{compareShipB.name_zh}</div>
+                </div>
+              </div>
+
+              <div className="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2 text-[11px]">
+                <div className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider text-center">
+                  SPECIFICATIONS & SENSORS
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-center divide-x divide-slate-800">
+                  <div className="space-y-1.5 text-left">
+                    <div><span className="text-slate-500">排水量:</span> <span className="text-white font-bold">{compareShipA.displacement || '-'}</span></div>
+                    <div><span className="text-slate-500">航速:</span> <span className={`font-mono font-bold ${theme.accentText}`}>{compareShipA.max_speed || '-'}</span></div>
+                    <div><span className="text-slate-500">雷達:</span> <span className="text-cyan-300 font-mono text-[10px] block">{compareShipA.radar_systems || '-'}</span></div>
+                  </div>
+                  <div className="space-y-1.5 pl-3 text-left">
+                    <div><span className="text-slate-500">排水量:</span> <span className="text-white font-bold">{compareShipB.displacement || '-'}</span></div>
+                    <div><span className="text-slate-500">航速:</span> <span className={`font-mono font-bold ${theme.accentText}`}>{compareShipB.max_speed || '-'}</span></div>
+                    <div><span className="text-slate-500">雷達:</span> <span className="text-cyan-300 font-mono text-[10px] block">{compareShipB.radar_systems || '-'}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
+                  <span>視覺辨識特徵對照</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
+                    <div className="font-mono text-[10px] text-cyan-400 font-bold">{compareShipA.code} 特徵:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {compareShipA.visual_features?.map((f, i) => (
+                        <span key={i} className={`text-[10px] ${theme.badgeBg} border px-1.5 py-0.5 rounded`}>{f}</span>
+                      )) || <span className="text-slate-500 text-[10px]">無紀錄</span>}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
+                    <div className="font-mono text-[10px] text-cyan-400 font-bold">{compareShipB.code} 特徵:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {compareShipB.visual_features?.map((f, i) => (
+                        <span key={i} className={`text-[10px] ${theme.badgeBg} border px-1.5 py-0.5 rounded`}>{f}</span>
+                      )) || <span className="text-slate-500 text-[10px]">無紀錄</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
+                  <span>武裝火力配置對照</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 leading-relaxed">
+                    <div className="font-mono text-[10px] text-cyan-400 font-bold mb-1">{compareShipA.code}:</div>
+                    {compareShipA.weapons_summary || '無武裝資料'}
+                  </div>
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 leading-relaxed">
+                    <div className="font-mono text-[10px] text-cyan-400 font-bold mb-1">{compareShipB.code}:</div>
+                    {compareShipB.weapons_summary || '無武裝資料'}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 底部導航列 */}
       <nav className={`fixed bottom-0 left-0 right-0 z-40 ${nightMode ? 'bg-[#080203]/95 border-red-900/50' : 'bg-[#0b0f17]/95 border-slate-800'} backdrop-blur-xl border-t flex justify-center shadow-2xl`} style={{ paddingBottom: "env(safe-area-inset-bottom, 0.5rem)" }}>
         <div className="w-full max-w-md flex justify-around items-center px-3 py-1.5 text-[11px] font-medium">
           

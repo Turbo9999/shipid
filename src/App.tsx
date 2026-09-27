@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.3';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.4';
 
 interface ShipClass {
   id: string;
@@ -769,8 +769,16 @@ export default function App() {
         .shipid-app nav span { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; }
 
         @media (max-width: 767px) {
+          .shipid-app .shipid-top-header {
+            padding-top: calc(env(safe-area-inset-top, 0px) + 18px) !important;
+          }
+          @media (display-mode: browser) {
+            .shipid-app .shipid-top-header {
+              padding-top: max(14px, env(safe-area-inset-top, 0px)) !important;
+            }
+          }
           .shipid-app .shipid-brand-title {
-            transform: scaleY(1.16);
+            transform: scaleY(1.12);
             transform-origin: left center;
             line-height: 1;
             margin-top: 3px;
@@ -819,7 +827,7 @@ export default function App() {
       `}</style>
       
       {/* 戰術抬頭列 */}
-      <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-6 md:pt-8 pb-5 flex flex-col items-center shadow-lg transition-all`}>
+      <header className={`shipid-top-header w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-6 md:pt-8 pb-5 flex flex-col items-center shadow-lg transition-all`}>
         <div className="w-full max-w-md md:max-w-[1480px] grid grid-cols-[minmax(0,1fr)_auto] md:flex md:justify-between md:items-center gap-x-3 gap-y-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2 whitespace-nowrap">

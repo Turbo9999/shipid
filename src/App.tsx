@@ -333,7 +333,7 @@ export default function App() {
   };
 
   const renderFormattedList = (text?: string) => {
-    const textColor = themeMode === 'red' ? 'text-red-200' : 'text-white';
+    const textColor = themeMode === 'red' ? 'text-red-200' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-white';
     if (!text) return <span className={`${textColor} font-medium`}>-</span>;
     const items = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     if (items.length <= 1) {
@@ -343,7 +343,7 @@ export default function App() {
       <div className="space-y-1.5 pt-0.5">
         {items.map((item, idx) => (
           <div key={idx} className={`flex items-start gap-2 ${textColor} leading-relaxed`}>
-            <span className={themeMode === 'red' ? 'text-red-700' : 'text-slate-500'}>•</span>
+            <span className={themeMode === 'red' ? 'text-red-700' : themeMode === 'high_contrast' ? 'text-slate-600' : 'text-slate-500'}>•</span>
             <span className="font-medium break-words">{item}</span>
           </div>
         ))}
@@ -392,18 +392,18 @@ export default function App() {
     }
     if (themeMode === 'high_contrast') {
       return {
-        bg: 'bg-slate-950',
-        headerBg: 'bg-slate-900 border-slate-800',
-        cardBg: 'bg-slate-900/90 border-slate-800 text-white',
-        modalBg: 'bg-slate-950 border-slate-800 text-white',
-        subPanelBg: 'bg-slate-900 border-slate-800 text-white',
-        accentText: 'text-cyan-300 font-bold',
-        accentBg: 'bg-cyan-500 hover:bg-cyan-400 text-black font-bold',
-        border: 'border-slate-800',
-        badge: 'bg-slate-800 text-white border border-slate-700 font-medium',
-        input: 'bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:border-cyan-400',
-        btnSecondary: 'bg-slate-900 border border-slate-700 text-slate-200 hover:text-white',
-        textMuted: 'text-slate-400'
+        bg: 'bg-white',
+        headerBg: 'bg-white/95 border-slate-200',
+        cardBg: 'bg-white border-slate-200 text-slate-950 hover:border-cyan-500/60',
+        modalBg: 'bg-white border-slate-200 text-slate-950',
+        subPanelBg: 'bg-white border-slate-200 text-slate-950',
+        accentText: 'text-cyan-700 font-bold',
+        accentBg: 'bg-cyan-600 hover:bg-cyan-500 text-white font-bold',
+        border: 'border-slate-200',
+        badge: 'bg-slate-100 text-slate-900 border border-slate-200 font-medium',
+        input: 'bg-white border border-slate-300 text-slate-950 placeholder-slate-400 focus:border-cyan-600',
+        btnSecondary: 'bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 hover:text-slate-950',
+        textMuted: 'text-slate-600'
       };
     }
     return {
@@ -423,6 +423,8 @@ export default function App() {
   };
 
   const currentTheme = getThemeStyles();
+  const primaryText = themeMode === 'red' ? 'text-red-200' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-white';
+  const hoverText = themeMode === 'high_contrast' ? 'hover:text-slate-950' : 'hover:text-white';
 
   const getFontSizeStyles = () => {
     switch (fontSize) {
@@ -564,7 +566,7 @@ export default function App() {
   };
 
   return (
-    <div className={`w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
+    <div className={`w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
       
       {/* 戰術抬頭列 */}
       <header className={`w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-16 pb-4 flex flex-col items-center shadow-lg transition-all`}>
@@ -656,7 +658,7 @@ export default function App() {
         </div>
 
         {bannerText && (
-          <div className={`w-full max-w-md mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
+          <div className={`w-full max-w-md mt-3 px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${themeMode === 'red' ? 'bg-[#1e0508] border-red-800 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-sky-800' : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'}`}>
             <span className={`w-2 h-2 rounded-full ${themeMode === 'red' ? 'bg-red-500' : 'bg-cyan-400'} animate-ping`}></span>
             <span className="flex-1">{bannerText}</span>
           </div>
@@ -668,7 +670,7 @@ export default function App() {
         {(activeBottomTab === 'classes' || activeBottomTab === 'favorites') && (
           <>
             {searchTerm && matchingShips.length > 0 && (
-              <div className={`p-3.5 rounded-2xl border space-y-2 ${themeMode === 'red' ? 'bg-[#180407] border-red-950 text-red-200' : 'bg-cyan-950/40 border-cyan-500/40'}`}>
+              <div className={`p-3.5 rounded-2xl border space-y-2 ${themeMode === 'red' ? 'bg-[#180407] border-red-950 text-red-200' : themeMode === 'high_contrast' ? 'bg-white border-sky-200 text-slate-950' : 'bg-cyan-950/40 border-cyan-500/40'}`}>
                 <div className={`text-xs font-mono font-bold uppercase ${currentTheme.accentText}`}>
                   配對舷號與單艦 ({matchingShips.length})
                 </div>
@@ -684,7 +686,7 @@ export default function App() {
                       >
                         <div className="flex items-baseline gap-2.5">
                           <span className={`font-mono text-xl font-black ${currentTheme.accentText}`}>{s.hull_number}</span>
-                          <span className="font-bold text-white text-base">{s.name_zh}</span>
+                          <span className={`font-bold text-base ${primaryText}`}>{s.name_zh}</span>
                           {parentClass && <span className={`text-xs font-mono ${currentTheme.textMuted}`}>({parentClass.code})</span>}
                         </div>
                         <span className={`text-xs px-2.5 py-0.5 rounded-md font-bold border ${statusMeta.color}`}>
@@ -728,7 +730,7 @@ export default function App() {
                           <span className={`font-mono font-black ${fontStyle.cardTitle} ${currentTheme.accentText}`}>
                             {c.code}
                           </span>
-                          <span className={`font-bold ${themeMode === 'red' ? 'text-red-200' : 'text-white'} ${fontStyle.cardSub}`}>
+                          <span className={`font-bold ${primaryText} ${fontStyle.cardSub}`}>
                             {c.name_zh}
                           </span>
                         </div>
@@ -788,7 +790,7 @@ export default function App() {
                       setComparePool([]);
                       localStorage.removeItem('tn_compare_pool');
                     }}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition ${themeMode === 'red' ? 'bg-[#25070d] border-red-900 text-red-300' : 'bg-red-950/40 border-red-900/60 text-red-400'}`}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition ${themeMode === 'red' ? 'bg-[#25070d] border-red-900 text-red-300' : themeMode === 'high_contrast' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-red-950/40 border-red-900/60 text-red-400'}`}
                   >
                     重置比對池
                   </button>
@@ -801,7 +803,7 @@ export default function App() {
                     {comparePool.length}/2
                   </div>
                   <div className="space-y-1">
-                    <p className={`font-bold text-sm ${themeMode === 'red' ? 'text-red-200' : 'text-white'}`}>比對池尚未選滿 2 艘艦艇</p>
+                    <p className={`font-bold text-sm ${primaryText}`}>比對池尚未選滿 2 艘艦艇</p>
                     <p className={`text-xs leading-relaxed ${currentTheme.textMuted}`}>請回「艦型清單」點選艦艇卡片進入詳細頁，按下「＋加入比對」即可啟動雙艦同屏比對！</p>
                   </div>
                   <button
@@ -815,7 +817,7 @@ export default function App() {
               ) : shipA && shipB ? (
                 <div className="space-y-3 text-xs">
                   {(shipA.identification_features?.length || shipB.identification_features?.length) ? (
-                    <div className={`p-4 rounded-2xl border space-y-2.5 ${themeMode === 'red' ? 'bg-[#180407] border-red-950' : 'bg-cyan-950/30 border-cyan-500/40'}`}>
+                    <div className={`p-4 rounded-2xl border space-y-2.5 ${themeMode === 'red' ? 'bg-[#180407] border-red-950' : themeMode === 'high_contrast' ? 'bg-white border-sky-200' : 'bg-cyan-950/30 border-cyan-500/40'}`}>
                       <span className={`font-bold text-sm flex items-center gap-2 border-b pb-1.5 ${currentTheme.accentText} ${currentTheme.border}`}>
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -827,13 +829,13 @@ export default function App() {
                         <div className="space-y-1">
                           <span className={`font-mono font-bold block ${currentTheme.accentText}`}>{shipA.code}:</span>
                           {shipA.identification_features?.map((f, i) => (
-                            <div key={i} className={`text-xs leading-snug ${themeMode === 'red' ? 'text-red-200' : 'text-white'}`}>• {f}</div>
+                            <div key={i} className={`text-xs leading-snug ${primaryText}`}>• {f}</div>
                           )) || <span className={`${currentTheme.textMuted} italic`}>無人工辨識資料</span>}
                         </div>
                         <div className={`space-y-1 border-l pl-3 ${currentTheme.border}`}>
                           <span className={`font-mono font-bold block ${currentTheme.accentText}`}>{shipB.code}:</span>
                           {shipB.identification_features?.map((f, i) => (
-                            <div key={i} className={`text-xs leading-snug ${themeMode === 'red' ? 'text-red-200' : 'text-white'}`}>• {f}</div>
+                            <div key={i} className={`text-xs leading-snug ${primaryText}`}>• {f}</div>
                           )) || <span className={`${currentTheme.textMuted} italic`}>無人工辨識資料</span>}
                         </div>
                       </div>
@@ -844,11 +846,11 @@ export default function App() {
                     <div className={`grid grid-cols-2 gap-3 text-center border-b pb-3 ${currentTheme.border}`}>
                       <div>
                         <span className={`font-mono text-2xl font-black block ${currentTheme.accentText}`}>{shipA.code}</span>
-                        <span className={`font-bold text-sm ${themeMode === 'red' ? 'text-red-200' : 'text-white'}`}>{shipA.name_zh}</span>
+                        <span className={`font-bold text-sm ${primaryText}`}>{shipA.name_zh}</span>
                       </div>
                       <div className={`border-l pl-3 ${currentTheme.border}`}>
                         <span className={`font-mono text-2xl font-black block ${currentTheme.accentText}`}>{shipB.code}</span>
-                        <span className={`font-bold text-sm ${themeMode === 'red' ? 'text-red-200' : 'text-white'}`}>{shipB.name_zh}</span>
+                        <span className={`font-bold text-sm ${primaryText}`}>{shipB.name_zh}</span>
                       </div>
                     </div>
 
@@ -908,7 +910,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setSearchTerm('')}
-                  className={`absolute right-2 min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} hover:text-white`}
+                  className={`absolute right-2 min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}
                 >
                   ✕
                 </button>
@@ -971,7 +973,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setShowMoreModal('update')}
-              className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition relative ${currentTheme.textMuted} hover:text-white`}
+              className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition relative ${currentTheme.textMuted} ${hoverText}`}
             >
               {hasUpdateAvailable && (
                 <span className="absolute top-1 right-5 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
@@ -991,7 +993,7 @@ export default function App() {
           <div className={`w-full max-w-md border-t sm:border rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto ${currentTheme.modalBg}`}>
             <div className={`flex justify-between items-center border-b pb-3 ${currentTheme.border}`}>
               <h3 className="font-bold text-base">次級資訊與系統設定</h3>
-              <button type="button" onClick={() => setShowMoreModal(null)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} hover:text-white`}>✕</button>
+              <button type="button" onClick={() => setShowMoreModal(null)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>
             </div>
 
             <div className={`flex gap-1 p-1 rounded-xl text-xs font-bold overflow-x-auto no-scrollbar ${currentTheme.subPanelBg}`}>
@@ -1059,7 +1061,7 @@ export default function App() {
 
             {showMoreModal === 'stats' && (
               <div className="space-y-2 text-xs">
-                {Object.keys(monthlyUsage).sort().reverse().map(m => (
+                {Object.keys(monthlyUsage).sort().reverse().slice(0, 10).map(m => (
                   <div key={m} className={`p-2.5 rounded-xl border flex justify-between items-center ${currentTheme.subPanelBg}`}>
                     <span className="font-mono">{m}</span>
                     <span className={`font-mono font-bold ${currentTheme.accentText}`}>{monthlyUsage[m]} 次查詢</span>
@@ -1070,10 +1072,9 @@ export default function App() {
 
             {showMoreModal === 'guide' && (
               <div className={`space-y-2 text-xs leading-relaxed p-3.5 rounded-2xl border ${currentTheme.subPanelBg}`}>
-                <p>1. iPhone點選分享按鈕➔「加入主畫面」即可安裝為獨立App。</p>
-                <p>2. 安卓手機操作亦跟iPhone相似。</p>
-                <p>3. 滑動瀏覽各級艦艇一次，即可啟動180天持久離線。</p>
-                <p>4. 任務斷網期間，切勿手動清除Safari/Chrome快取與瀏覽紀錄。</p>
+                <p>1. iPhone 點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝為獨立 App。</p>
+                <p>2. 出港前在基地有網路時，滑動瀏覽各級艦艇一次，即可啟動 180 天長效持久離線庫。</p>
+                <p>3. 任務斷網期間，切勿手動清除 Safari / Chrome 快取與瀏覽紀錄。</p>
               </div>
             )}
 
@@ -1220,7 +1221,7 @@ export default function App() {
 
               {selectedClassDetail.similar_classes && selectedClassDetail.similar_classes.length > 0 && (
                 <div className={`p-4 rounded-2xl border space-y-2 ${currentTheme.subPanelBg}`}>
-                  <span className={`font-bold text-sm flex items-center gap-1.5 ${themeMode === 'red' ? 'text-red-400' : 'text-amber-300'}`}>
+                  <span className={`font-bold text-sm flex items-center gap-1.5 ${themeMode === 'red' ? 'text-red-400' : themeMode === 'high_contrast' ? 'text-amber-700' : 'text-amber-300'}`}>
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
@@ -1332,7 +1333,7 @@ export default function App() {
           <div className={`w-full max-w-lg h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
             <div className={`px-5 py-4 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
               <h2 className="font-bold text-base">資料庫管理與外觀特徵維護</h2>
-              <button type="button" onClick={() => setShowAdmin(false)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} hover:text-white`}>✕</button>
+              <button type="button" onClick={() => setShowAdmin(false)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>
             </div>
 
             <div className={`flex border-b text-xs font-bold p-1 mx-4 mt-3 rounded-xl gap-1 ${currentTheme.subPanelBg} ${currentTheme.border}`}>

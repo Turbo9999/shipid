@@ -32,10 +32,14 @@ export default function App() {
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('2026.09.27');
 
-  // 夜戰暗紅光模式切換 (持久儲存)
+  // 夜戰暗紅光模式切換
   const [nightMode, setNightMode] = useState<boolean>(() => {
     return localStorage.getItem('tn_night_mode') === 'true';
   });
+
+  // 雙艦快速比對池 (儲存選取的 class id 陣列，最多 2 艘)
+  const [comparePool, setComparePool] = useState<string[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   // 後台通行碼授權狀態 (750120)
   const [showAdmin, setShowAdmin] = useState(false);
@@ -116,14 +120,12 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [showAdmin, editingClass, editingShip]);
 
-  // 切換夜戰模式
   const toggleNightMode = () => {
     const next = !nightMode;
     setNightMode(next);
     localStorage.setItem('tn_night_mode', String(next));
   };
 
-  // 雙重離線備援資料抓取
   const fetchData = async () => {
     setIsLoading(true);
     const cachedClasses = localStorage.getItem('tn_cache_classes');
@@ -169,7 +171,6 @@ export default function App() {
     fetchData();
   }, []);
 
-  // 提取所有不重複的視覺特徵標籤
   const allVisualFeatures = useMemo(() => {
     const set = new Set<string>();
     classes.forEach(c => {
@@ -180,6 +181,21 @@ export default function App() {
     });
     return Array.from(set);
   }, [classes]);
+
+  // 切換選入比對池
+  const toggleCompare = (classId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (comparePool.includes(classId)) {
+      setComparePool(comparePool.filter(id => id !== classId));
+    } else {
+      if (comparePool.length >= 2) {
+        // 若已滿 2 艘，替換掉第一艘
+        setComparePool([comparePool[1], classId]);
+      } else {
+        setComparePool([...comparePool, classId]);
+      }
+    }
+  };
 
   const toggleFavorite = (classId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -352,7 +368,10 @@ export default function App() {
   const sortedMonths = Object.keys(monthlyUsage).sort().reverse();
   const maxUsageCount = Math.max(...Object.values(monthlyUsage), 1);
 
-  // 主題樣式動態變數 (夜戰暗紅光 vs 常規電氣藍)
+  // 比對雙艦實體
+  const compareShipA = classes.find(c => c.id === comparePool[0]);
+  const compareShipB = classes.find(c => c.id === comparePool[1]);
+
   const theme = {
     bg: nightMode ? 'bg-[#080203]' : 'bg-[#0b0f17]',
     cardBg: nightMode ? 'bg-red-950/20' : 'bg-slate-900/80',
@@ -368,7 +387,7 @@ export default function App() {
 
   return (
     <div className={`w-full min-h-screen ${theme.bg} ${nightMode ? 'text-red-100' : 'text-slate-100'} flex flex-col items-center overflow-x-hidden antialiased transition-colors duration-300 ${getFontSizeClass()}`}>
-      <main className="w-full max-w-md px-4 pt-12 pb-32 flex flex-col flex-1" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.2rem)" }}>
+      <main className="w-full max-w-md px-4 pt-12 pb-36 flex flex-col flex-1" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.2rem)" }}>
         
         {/* 頂部安裝與離線提醒橫幅 */}
         {!isStandalone && (
@@ -438,7 +457,7 @@ export default function App() {
               title="管理後台"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </button>
@@ -480,7 +499,7 @@ export default function App() {
               )}
             </div>
 
-            {/* 🎯 特徵快速過濾標籤盤 (橫向滑動) */}
+            {/* 特徵快速過濾標籤盤 */}
             {allVisualFeatures.length > 0 && (
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
                 <button
@@ -643,6 +662,7 @@ export default function App() {
                   const isExpanded = expandedClassId === c.id;
                   const classShips = ships.filter(s => s.class_id === c.id);
                   const isFav = favorites.includes(c.id);
+                  const isCompared = comparePool.includes(c.id);
                   const count = queryCounts[c.id] || 0;
 
                   return (
@@ -671,16 +691,31 @@ export default function App() {
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          {/* ⚔️ 加入雙艦比對按鈕 */}
+                          <button
+                            type="button"
+                            onClick={(e) => toggleCompare(c.id, e)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition flex items-center gap-1 active:scale-90 ${isCompared ? (nightMode ? 'bg-red-600 text-white shadow-sm' : 'bg-cyan-500 text-black shadow-sm') : 'bg-slate-800/80 text-slate-400 hover:text-white border border-slate-700/60'}`}
+                            title="加入雙艦比對"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                            </svg>
+                            <span>{isCompared ? '已選取' : '比對'}</span>
+                          </button>
+
+                          {/* 星號收藏 */}
                           <button
                             type="button"
                             onClick={(e) => toggleFavorite(c.id, e)}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition active:scale-75 ${isFav ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-500 hover:text-amber-400'}`}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition active:scale-75 ${isFav ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-500 hover:text-amber-400'}`}
                           >
-                            <svg className="w-4 h-4" fill={isFav ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <svg className="w-3.5 h-3.5" fill={isFav ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
                             </svg>
                           </button>
+
                           <div className={`w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-white' : ''}`}>
                             ▼
                           </div>
@@ -784,6 +819,182 @@ export default function App() {
           <p className="text-[11px]">全端同步 · 180天長效離線架構</p>
         </footer>
       </main>
+
+      {/* ⚔️ 雙艦快速比對懸浮戰術工具列 (當選中 1 艘以上時浮現) */}
+      {comparePool.length > 0 && (
+        <div className="fixed bottom-16 left-0 right-0 z-30 flex justify-center px-4 pointer-events-none">
+          <div className={`pointer-events-auto w-full max-w-sm ${nightMode ? 'bg-[#150406]/95 border-red-500/50' : 'bg-slate-900/95 border-cyan-500/50'} border backdrop-blur-xl p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2`}>
+            <div className="flex items-center gap-2 overflow-hidden pl-1">
+              <span className={`text-[10px] font-mono uppercase font-black ${theme.accentText}`}>比對池:</span>
+              <div className="flex gap-1.5">
+                {comparePool.map(id => {
+                  const item = classes.find(c => c.id === id);
+                  return (
+                    <span key={id} className={`text-xs font-mono font-bold px-2 py-0.5 rounded-lg ${theme.badgeBg} border flex items-center gap-1`}>
+                      <span>{item?.code || id}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setComparePool(comparePool.filter(x => x !== id))}
+                        className="text-[10px] text-slate-400 hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  );
+                })}
+                {comparePool.length === 1 && (
+                  <span className="text-[11px] text-slate-500 italic pl-1">請再選 1 艘...</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setComparePool([])}
+                className="text-[10px] text-slate-400 hover:text-white px-2 py-1"
+              >
+                重置
+              </button>
+              <button
+                type="button"
+                disabled={comparePool.length < 2}
+                onClick={() => setShowCompareModal(true)}
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs text-white transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none ${theme.accentBg} ${theme.accentHover} shadow-md`}
+              >
+                啟動比對
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⚔️ 雙艦快速比對同屏視窗 (HUD Split Modal) */}
+      {showCompareModal && compareShipA && compareShipB && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className={`w-full max-w-lg ${nightMode ? 'bg-[#0a0203] border-red-900/60' : 'bg-slate-900 border-slate-800'} border-t sm:border rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl`}>
+            
+            {/* 比對視窗頂部 Header */}
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2">
+                <svg className={`w-4 h-4 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                </svg>
+                <h3 className="font-bold text-sm text-white tracking-wide">雙艦型同屏快速比對</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowCompareModal(false)} 
+                className="text-slate-400 hover:text-white text-xs px-2.5 py-1 rounded-full bg-slate-800"
+              >
+                ✕ 關閉
+              </button>
+            </div>
+
+            {/* 比對主要內容滾動區 */}
+            <div className="p-4 overflow-y-auto space-y-4 text-xs">
+              
+              {/* 雙艦照片左右對稱並排 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black h-32 flex items-center justify-center">
+                    {compareShipA.image_url ? (
+                      <img src={compareShipA.image_url} alt={compareShipA.name_zh} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[11px] text-slate-500">暫無照片</span>
+                    )}
+                    <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/70 text-[10px] font-mono font-bold text-cyan-300">
+                      {compareShipA.code}
+                    </span>
+                  </div>
+                  <div className="font-bold text-white text-center text-sm">{compareShipA.name_zh}</div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black h-32 flex items-center justify-center">
+                    {compareShipB.image_url ? (
+                      <img src={compareShipB.image_url} alt={compareShipB.name_zh} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[11px] text-slate-500">暫無照片</span>
+                    )}
+                    <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/70 text-[10px] font-mono font-bold text-cyan-300">
+                      {compareShipB.code}
+                    </span>
+                  </div>
+                  <div className="font-bold text-white text-center text-sm">{compareShipB.name_zh}</div>
+                </div>
+              </div>
+
+              {/* 基本規格橫向對稱條 */}
+              <div className="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2.5">
+                <div className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider text-center">
+                  CLASSIFICATION & NATO CODE
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-center divide-x divide-slate-800">
+                  <div className="space-y-1">
+                    <div className="text-slate-400 text-[11px]">艦種分類</div>
+                    <div className="font-bold text-white">{compareShipA.category || '-'}</div>
+                    <div className="text-slate-400 text-[11px] pt-1">英文代號</div>
+                    <div className={`font-mono font-bold ${theme.accentText}`}>{compareShipA.nato_code || '-'}</div>
+                  </div>
+                  <div className="space-y-1 pl-3">
+                    <div className="text-slate-400 text-[11px]">艦種分類</div>
+                    <div className="font-bold text-white">{compareShipB.category || '-'}</div>
+                    <div className="text-slate-400 text-[11px] pt-1">英文代號</div>
+                    <div className={`font-mono font-bold ${theme.accentText}`}>{compareShipB.nato_code || '-'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 視覺特徵交叉對抗 */}
+              <div className="space-y-2">
+                <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
+                  <span>視覺辨識特徵對照</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
+                    <div className="font-mono text-[10px] text-cyan-400 font-bold">{compareShipA.code} 特徵:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {compareShipA.visual_features?.map((f, i) => (
+                        <span key={i} className={`text-[10px] ${theme.badgeBg} border px-1.5 py-0.5 rounded`}>{f}</span>
+                      )) || <span className="text-slate-500 text-[10px]">無紀錄</span>}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
+                    <div className="font-mono text-[10px] text-cyan-400 font-bold">{compareShipB.code} 特徵:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {compareShipB.visual_features?.map((f, i) => (
+                        <span key={i} className={`text-[10px] ${theme.badgeBg} border px-1.5 py-0.5 rounded`}>{f}</span>
+                      )) || <span className="text-slate-500 text-[10px]">無紀錄</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 武裝配置對抗 */}
+              <div className="space-y-2">
+                <div className="text-[11px] font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${theme.accentBg}`}></span>
+                  <span>武裝火力配置對照</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 leading-relaxed">
+                    <div className="font-mono text-[10px] text-cyan-400 font-bold mb-1">{compareShipA.code}:</div>
+                    {compareShipA.weapons_summary || '無武裝資料'}
+                  </div>
+                  <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 leading-relaxed">
+                    <div className="font-mono text-[10px] text-cyan-400 font-bold mb-1">{compareShipB.code}:</div>
+                    {compareShipB.weapons_summary || '無武裝資料'}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 底部導航列 */}
       <nav className={`fixed bottom-0 left-0 right-0 z-40 ${nightMode ? 'bg-[#080203]/95 border-red-900/50' : 'bg-[#0b0f17]/95 border-slate-800'} backdrop-blur-xl border-t flex justify-center shadow-2xl`} style={{ paddingBottom: "env(safe-area-inset-bottom, 0.5rem)" }}>
@@ -988,7 +1199,7 @@ export default function App() {
                     placeholder="例如：驅逐艦"
                     value={editingClass.category}
                     onChange={e => setEditingClass({ ...editingClass, category: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
                   />
                 </div>
                 <div>
@@ -998,7 +1209,7 @@ export default function App() {
                     placeholder="例: LHA、DDG、FFG"
                     value={editingClass.nato_code || ''}
                     onChange={e => setEditingClass({ ...editingClass, nato_code: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
                   />
                 </div>
               </div>
@@ -1081,7 +1292,7 @@ export default function App() {
             <div className="p-4 border-b border-slate-800 flex justify-between items-center">
               <h2 className="font-bold text-base text-white flex items-center gap-2">
                 <svg className={`w-4 h-4 ${theme.accentText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <span>資料庫管理後台</span>

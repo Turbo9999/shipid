@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.11.1';
+const CURRENT_APP_VERSION = '2026.09.28 v5.12.0';
 
 interface ShipClass {
   id: string;
@@ -47,7 +47,16 @@ interface Ship {
 
 type FontSizeOption = 'sm' | 'default' | 'md' | 'lg';
 type ThemeMode = 'dark' | 'red' | 'high_contrast';
-type BottomTab = 'classes' | 'favorites' | 'compare' | 'more';
+type BottomTab = 'classes' | 'learn' | 'favorites' | 'compare' | 'more';
+
+type QuizQuestion = {
+  id: string;
+  prompt: string;
+  options: string[];
+  answer: string;
+  classId: string;
+  explanation: string;
+};
 
 function StarIcon({ isFilled, isRedMode }: { isFilled: boolean; isRedMode: boolean }) {
   if (isFilled) {
@@ -118,6 +127,16 @@ export default function App() {
   });
   const [globalQueryCounts, setGlobalQueryCounts] = useState<Record<string, number>>({});
   const [globalMonthlyUsage, setGlobalMonthlyUsage] = useState<Record<string, number>>({});
+
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizSelected, setQuizSelected] = useState<string | null>(null);
+  const [quizFinished, setQuizFinished] = useState(false);
+  const [learningStats, setLearningStats] = useState<Record<string, { correct: number; wrong: number }>>(() => {
+    const saved = localStorage.getItem('tn_learning_stats');
+    return saved ? JSON.parse(saved) : {};
+  });
 
   const moreTabsRef = useRef<HTMLDivElement | null>(null);
   const moreTabSwipeStartX = useRef<number | null>(null);
@@ -444,6 +463,94 @@ export default function App() {
         setGlobalMonthlyUsage(prev => ({ ...prev, [monthKey]: (prev[monthKey] || 0) + 1 }));
       });
     }
+  };
+
+  const shuffle = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
+
+  const buildQuizQuestions = (): QuizQuestion[] => {
+    const candidates: QuizQuestion[] = [];
+    const classById = new Map(classes.map(c => [c.id, c]));
+
+    classes.forEach(c => {
+      const distractors = classes.filter(x => x.id !== c.id);
+      if (distractors.length < 3) return;
+
+      candidates.push({
+        id: `class-${c.id}`,
+        prompt: `「${c.name_zh}」的艦型代號是？`,
+        options: shuffle([c.code, ...shuffle(distractors).slice(0, 3).map(x => x.code)]),
+        answer: c.code,
+        classId: c.id,
+        explanation: `${c.name_zh}的艦型代號為 ${c.code}。`
+      });
+
+      const features = c.identification_features ?? [];
+      if (features.length > 0) {
+        const feature = features[Math.floor(Math.random() * features.length)];
+        candidates.push({
+          id: `feature-${c.id}-${feature}`,
+          prompt: `下列哪一型符合這項外觀辨識特徵？\n「${feature}」`,
+          options: shuffle([c.code, ...shuffle(distractors).slice(0, 3).map(x => x.code)]),
+          answer: c.code,
+          classId: c.id,
+          explanation: `這是 ${c.code} ${c.name_zh} 的外觀辨識特徵之一。`
+        });
+      }
+    });
+
+    ships.forEach(ship => {
+      const owner = classById.get(ship.class_id);
+      if (!owner || !ship.hull_number) return;
+      const distractors = classes.filter(x => x.id !== owner.id);
+      if (distractors.length < 3) return;
+      candidates.push({
+        id: `hull-${ship.id}`,
+        prompt: `舷號「${ship.hull_number}」屬於哪一型艦艇？`,
+        options: shuffle([owner.code, ...shuffle(distractors).slice(0, 3).map(x => x.code)]),
+        answer: owner.code,
+        classId: owner.id,
+        explanation: `${ship.hull_number} ${ship.name_zh} 屬於 ${owner.code} ${owner.name_zh}。`
+      });
+    });
+
+    return shuffle(candidates).slice(0, 10);
+  };
+
+  const startQuickQuiz = () => {
+    const questions = buildQuizQuestions();
+    if (questions.length < 4) return alert('目前資料不足，至少需要 4 個艦型才能開始測驗。');
+    setQuizQuestions(questions);
+    setQuizIndex(0);
+    setQuizScore(0);
+    setQuizSelected(null);
+    setQuizFinished(false);
+  };
+
+  const answerQuiz = (option: string) => {
+    if (quizSelected || quizFinished) return;
+    const q = quizQuestions[quizIndex];
+    if (!q) return;
+    setQuizSelected(option);
+    const correct = option === q.answer;
+    if (correct) setQuizScore(v => v + 1);
+    const nextStats = {
+      ...learningStats,
+      [q.classId]: {
+        correct: (learningStats[q.classId]?.correct || 0) + (correct ? 1 : 0),
+        wrong: (learningStats[q.classId]?.wrong || 0) + (correct ? 0 : 1)
+      }
+    };
+    setLearningStats(nextStats);
+    localStorage.setItem('tn_learning_stats', JSON.stringify(nextStats));
+  };
+
+  const nextQuizQuestion = () => {
+    if (quizIndex >= quizQuestions.length - 1) {
+      setQuizFinished(true);
+      return;
+    }
+    setQuizIndex(v => v + 1);
+    setQuizSelected(null);
   };
 
   const renderFormattedList = (text?: string) => {
@@ -1236,6 +1343,93 @@ export default function App() {
           </>
         )}
 
+        {/* 學習：離線快速測驗 */}
+        {activeBottomTab === 'learn' && (
+          <section className="space-y-4">
+            <div className={`rounded-3xl border p-5 md:p-7 ${currentTheme.cardBg}`}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className={`text-xs font-mono font-bold tracking-[0.16em] uppercase ${currentTheme.accentText}`}>IDENTIFICATION TRAINING</div>
+                  <h2 className={`mt-2 text-2xl md:text-3xl font-black ${primaryText}`}>艦艇識別訓練</h2>
+                  <p className={`mt-2 text-sm ${currentTheme.textMuted}`}>由目前離線艦艇資料自動出題。每回 10 題，包含艦型、舷號與外觀辨識特徵。</p>
+                </div>
+                <div className={`shrink-0 px-3 py-2 rounded-xl border text-center ${currentTheme.subPanelBg}`}>
+                  <div className={`text-xs font-mono ${currentTheme.textMuted}`}>LOCAL</div>
+                  <div className={`font-black ${currentTheme.accentText}`}>{Object.values(learningStats).reduce((n, v) => n + v.correct + v.wrong, 0)} 題</div>
+                </div>
+              </div>
+            </div>
+
+            {quizQuestions.length === 0 ? (
+              <div className={`rounded-3xl border p-6 space-y-5 ${currentTheme.subPanelBg}`}>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    ['10', '每回題數'],
+                    [String(classes.length), '艦型資料'],
+                    [String(ships.length), '單艦資料']
+                  ].map(([value, label]) => (
+                    <div key={label} className={`rounded-2xl border p-3 text-center ${currentTheme.cardBg}`}>
+                      <div className={`text-2xl font-black font-mono ${currentTheme.accentText}`}>{value}</div>
+                      <div className={`text-xs mt-1 ${currentTheme.textMuted}`}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={startQuickQuiz} className={`w-full min-h-[56px] rounded-2xl font-black text-lg ${currentTheme.accentBg}`}>
+                  開始 10 題快速測驗
+                </button>
+                <p className={`text-xs text-center ${currentTheme.textMuted}`}>目前成績保存在本機，可在斷網環境持續學習。雲端帳號與排行榜將於下一階段加入。</p>
+              </div>
+            ) : quizFinished ? (
+              <div className={`rounded-3xl border p-7 text-center space-y-5 ${currentTheme.cardBg}`}>
+                <div className={`text-xs font-mono font-bold tracking-widest ${currentTheme.accentText}`}>MISSION COMPLETE</div>
+                <div className={`text-6xl font-black font-mono ${primaryText}`}>{quizScore}<span className={`text-2xl ${currentTheme.textMuted}`}>/{quizQuestions.length}</span></div>
+                <div className={`text-lg font-bold ${primaryText}`}>本回正確率 {Math.round((quizScore / quizQuestions.length) * 100)}%</div>
+                <button type="button" onClick={startQuickQuiz} className={`w-full min-h-[54px] rounded-2xl font-black ${currentTheme.accentBg}`}>再來 10 題</button>
+                <button type="button" onClick={() => { setQuizQuestions([]); setQuizFinished(false); setQuizSelected(null); }} className={`w-full min-h-[50px] rounded-2xl border font-bold ${currentTheme.btnSecondary}`}>返回學習首頁</button>
+              </div>
+            ) : (() => {
+              const q = quizQuestions[quizIndex];
+              if (!q) return null;
+              return (
+                <div className={`rounded-3xl border p-5 md:p-7 space-y-5 ${currentTheme.cardBg}`}>
+                  <div className="flex justify-between items-center gap-3">
+                    <span className={`text-xs font-mono font-bold ${currentTheme.accentText}`}>QUESTION {quizIndex + 1} / {quizQuestions.length}</span>
+                    <span className={`text-xs font-bold ${currentTheme.textMuted}`}>目前 {quizScore} 分</span>
+                  </div>
+                  <div className={`h-2 rounded-full overflow-hidden ${themeMode === 'high_contrast' ? 'bg-slate-200' : 'bg-slate-800'}`}>
+                    <div className={`h-full ${themeMode === 'red' ? 'bg-red-600' : 'bg-cyan-500'} transition-all`} style={{ width: `${((quizIndex + (quizSelected ? 1 : 0)) / quizQuestions.length) * 100}%` }} />
+                  </div>
+                  <h3 className={`text-xl md:text-2xl font-black whitespace-pre-line leading-relaxed ${primaryText}`}>{q.prompt}</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {q.options.map((option, idx) => {
+                      const answered = Boolean(quizSelected);
+                      const isCorrect = option === q.answer;
+                      const isSelected = option === quizSelected;
+                      const stateClass = answered && isCorrect
+                        ? 'border-emerald-500 bg-emerald-950/40 text-emerald-200'
+                        : answered && isSelected
+                          ? 'border-red-500 bg-red-950/40 text-red-200'
+                          : currentTheme.btnSecondary;
+                      return (
+                        <button key={`${q.id}-${option}`} type="button" disabled={answered} onClick={() => answerQuiz(option)} className={`min-h-[64px] rounded-2xl border px-4 py-3 text-left font-bold transition ${stateClass}`}>
+                          <span className={`font-mono mr-3 ${currentTheme.accentText}`}>{String.fromCharCode(65 + idx)}</span>{option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {quizSelected && (
+                    <div className={`rounded-2xl border p-4 space-y-3 ${quizSelected === q.answer ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-red-500/50 bg-red-950/20'}`}>
+                      <div className={`font-black ${quizSelected === q.answer ? 'text-emerald-400' : 'text-red-400'}`}>{quizSelected === q.answer ? '✓ 答對' : `✕ 答錯，正確答案：${q.answer}`}</div>
+                      <p className={`text-sm ${primaryText}`}>{q.explanation}</p>
+                      <button type="button" onClick={nextQuizQuestion} className={`w-full min-h-[50px] rounded-xl font-black ${currentTheme.accentBg}`}>{quizIndex === quizQuestions.length - 1 ? '查看本回成績' : '下一題 →'}</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </section>
+        )}
+
         {/* TAB 3：比對分頁 */}
         {activeBottomTab === 'compare' && (() => {
           const shipA = classes.find(c => c.id === comparePool[0]);
@@ -1411,6 +1605,17 @@ export default function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
               </svg>
               <span>艦型</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveBottomTab('learn')}
+              className={`min-h-[48px] flex-1 flex flex-col items-center justify-center gap-1 transition ${activeBottomTab === 'learn' ? currentTheme.accentText : currentTheme.textMuted}`}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253" />
+              </svg>
+              <span>學習</span>
             </button>
 
             <button

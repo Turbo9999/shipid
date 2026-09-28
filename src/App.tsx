@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.1';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.2';
 
 interface ShipClass {
   id: string;
@@ -1102,7 +1102,7 @@ export default function App() {
                         </div>
                         {(c.identification_features?.length ?? 0) > 0 && (
                           <div
-                            className="mt-1.5 -mx-1 px-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            className="-mt-1 -mx-1 px-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {(c.identification_features ?? []).slice(0, 3).map((feature, index) => (

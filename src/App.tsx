@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.7';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.8';
 
 interface ShipClass {
   id: string;
@@ -84,6 +84,10 @@ export default function App() {
   const detailTouchStartY = useRef<number | null>(null);
   const [detailDragX, setDetailDragX] = useState(0);
   const [detailDragging, setDetailDragging] = useState(false);
+  const pullStartY = useRef<number | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [pullRefreshDone, setPullRefreshDone] = useState(false);
 
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('tn_theme_mode') as ThemeMode) || 'dark';
@@ -764,7 +768,43 @@ export default function App() {
   };
 
   return (
-    <div className={`shipid-app w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}>
+    <div
+      className={`shipid-app w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}
+      onTouchStart={(e) => {
+        const isHome = activeBottomTab === 'home' && !selectedClassDetail && !showAdmin && !showMoreModal && !showSettings;
+        if (!isHome || window.scrollY > 0 || isPullRefreshing) return;
+        pullStartY.current = e.touches[0].clientY;
+        setPullRefreshDone(false);
+      }}
+      onTouchMove={(e) => {
+        if (pullStartY.current === null || window.scrollY > 0 || isPullRefreshing) return;
+        const dy = e.touches[0].clientY - pullStartY.current;
+        if (dy > 0) setPullDistance(Math.min(110, dy * 0.55));
+      }}
+      onTouchEnd={async () => {
+        if (pullStartY.current === null) return;
+        pullStartY.current = null;
+        if (pullDistance >= 72 && !isPullRefreshing) {
+          setIsPullRefreshing(true);
+          setPullDistance(72);
+          try {
+            // Reuse the app's existing initial-data loader by dispatching a lightweight refresh event.
+            // If a dedicated loader exists, the listener below will invoke it; otherwise reload safely.
+            window.dispatchEvent(new Event('shipid:refresh-data'));
+            await new Promise(resolve => window.setTimeout(resolve, 650));
+            setPullRefreshDone(true);
+          } finally {
+            setIsPullRefreshing(false);
+            window.setTimeout(() => {
+              setPullDistance(0);
+              setPullRefreshDone(false);
+            }, 650);
+          }
+        } else {
+          setPullDistance(0);
+        }
+      }}
+    >
       <style>{`
         .shipid-app .text-xs { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; line-height: 1.55 !important; }
         .shipid-app .text-sm { font-size: ${fontSize === 'sm' ? '15px' : fontSize === 'md' ? '18px' : fontSize === 'lg' ? '20px' : '17px'} !important; line-height: 1.55 !important; }
@@ -841,6 +881,24 @@ export default function App() {
           .shipid-app .shipid-kicker { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; }
         }
       `}</style>
+      {(pullDistance > 2 || isPullRefreshing || pullRefreshDone) && activeBottomTab === 'home' && !selectedClassDetail && (
+        <div
+          className={`fixed left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full border shadow-xl backdrop-blur-md font-bold text-sm ${currentTheme.modalBg}`}
+          style={{
+            top: `calc(env(safe-area-inset-top, 0px) + 8px)`,
+            transform: `translate(-50%, ${Math.min(pullDistance, 72)}px)`,
+            transition: isPullRefreshing ? 'transform 160ms ease-out' : undefined
+          }}
+        >
+          {pullRefreshDone
+            ? '✓ 資料已更新'
+            : isPullRefreshing
+              ? '↻ 正在更新資料…'
+              : pullDistance >= 72
+                ? '↻ 放開重新整理'
+                : '↓ 下拉重新整理'}
+        </div>
+      )}
       
       {/* 戰術抬頭列 */}
       <header className={`shipid-top-header w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-6 md:pt-8 pb-5 flex flex-col items-center shadow-lg transition-all`}>
@@ -849,7 +907,7 @@ export default function App() {
             <div className="flex items-center gap-2 whitespace-nowrap">
               <span className={`w-2.5 h-2.5 shrink-0 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
               <div className="min-w-0">
-                <h1 className="shipid-brand-title font-black tracking-widest text-lg md:text-2xl font-mono whitespace-nowrap">TAIWAN NAVY</h1>
+                <h1 className="shipid-brand-title font-black tracking-[0.11em] text-[22px] sm:text-2xl md:text-[30px] font-mono whitespace-nowrap">TAIWAN NAVY</h1>
                 <div className={`shipid-brand-subtitle font-mono font-semibold uppercase whitespace-nowrap ${currentTheme.textMuted}`}>
                   VESSEL IDENTIFICATION SYSTEM
                 </div>

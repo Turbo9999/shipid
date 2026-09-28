@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.4.1';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.5';
 
 interface ShipClass {
   id: string;
@@ -117,6 +117,8 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
+  const moreTabSwipeStartX = useRef<number | null>(null);
+  const moreTabSwipeStartY = useRef<number | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
   const panelSwipeStartX = useRef<number | null>(null);
   const panelSwipeStartY = useRef<number | null>(null);
@@ -1365,27 +1367,8 @@ export default function App() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowMoreModal(null); }}
         >
           <div
-            className={`w-full max-w-md border rounded-[24px] sm:rounded-3xl p-5 space-y-4 max-h-[calc(100dvh-env(safe-area-inset-top,0px)-24px)] sm:max-h-[85vh] overflow-y-auto shadow-2xl ${currentTheme.modalBg} ${panelDragging ? '' : 'transition-transform duration-200 ease-out'}`}
-            style={{ transform: `translateX(${panelDragX}px)`, opacity: Math.max(0.72, 1 - panelDragX / 900) }}
+            className={`w-full max-w-md h-[72dvh] min-h-[520px] max-h-[680px] border rounded-[24px] sm:rounded-3xl p-5 flex flex-col gap-4 overflow-hidden shadow-2xl ${currentTheme.modalBg}`}
             onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => { panelSwipeStartX.current=e.touches[0].clientX; panelSwipeStartY.current=e.touches[0].clientY; setPanelDragging(false); }}
-            onTouchMove={(e) => {
-              if (panelSwipeStartX.current===null || panelSwipeStartY.current===null) return;
-              const dx=e.touches[0].clientX-panelSwipeStartX.current;
-              const dy=e.touches[0].clientY-panelSwipeStartY.current;
-              if (dx>8 && Math.abs(dx)>Math.abs(dy)*1.25) { setPanelDragging(true); setPanelDragX(Math.max(0,dx)); }
-            }}
-            onTouchEnd={(e) => {
-              if (panelSwipeStartX.current===null || panelSwipeStartY.current===null) return;
-              const dx=e.changedTouches[0].clientX-panelSwipeStartX.current;
-              const dy=e.changedTouches[0].clientY-panelSwipeStartY.current;
-              panelSwipeStartX.current=null; panelSwipeStartY.current=null;
-              if (dx>=100 && Math.abs(dx)>Math.abs(dy)*1.25) {
-                setPanelDragX(window.innerWidth);
-                window.setTimeout(()=>{ setShowMoreModal(null); setPanelDragX(0); setPanelDragging(false); },180);
-              } else { setPanelDragX(0); setPanelDragging(false); }
-            }}
-            onTouchCancel={()=>{ panelSwipeStartX.current=null; panelSwipeStartY.current=null; setPanelDragX(0); setPanelDragging(false); }}
           >
             <div className={`flex justify-between items-center border-b pb-3 ${currentTheme.border}`}>
               <div className="flex items-center gap-2 min-w-0">
@@ -1408,6 +1391,30 @@ export default function App() {
               <button type="button" onClick={() => setShowMoreModal('sources')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'sources' ? currentTheme.accentBg : currentTheme.textMuted}`}>資料來源</button>
             </div>
 
+            <div
+              className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-0.5"
+              onTouchStart={(e) => {
+                moreTabSwipeStartX.current = e.touches[0].clientX;
+                moreTabSwipeStartY.current = e.touches[0].clientY;
+              }}
+              onTouchEnd={(e) => {
+                if (moreTabSwipeStartX.current === null || moreTabSwipeStartY.current === null) return;
+                const dx = e.changedTouches[0].clientX - moreTabSwipeStartX.current;
+                const dy = e.changedTouches[0].clientY - moreTabSwipeStartY.current;
+                moreTabSwipeStartX.current = null;
+                moreTabSwipeStartY.current = null;
+                if (Math.abs(dx) < 55 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+                const tabs: Array<'update' | 'rankings' | 'stats' | 'guide' | 'sources'> = ['update', 'rankings', 'stats', 'guide', 'sources'];
+                const currentIndex = tabs.indexOf(showMoreModal as 'update' | 'rankings' | 'stats' | 'guide' | 'sources');
+                if (currentIndex < 0) return;
+                const nextIndex = dx < 0 ? Math.min(tabs.length - 1, currentIndex + 1) : Math.max(0, currentIndex - 1);
+                if (nextIndex !== currentIndex) setShowMoreModal(tabs[nextIndex]);
+              }}
+              onTouchCancel={() => {
+                moreTabSwipeStartX.current = null;
+                moreTabSwipeStartY.current = null;
+              }}
+            >
             {showMoreModal === 'update' && (
               <div className={`space-y-4 p-5 rounded-2xl border text-base ${currentTheme.subPanelBg}`}>
                 <div className={`flex justify-between items-center border-b pb-2 ${currentTheme.border}`}>
@@ -1488,6 +1495,7 @@ export default function App() {
                 <p>• 外觀辨識特徵一律由管理員人工輸入查證，未驗證者均清楚標註。</p>
               </div>
             )}
+            </div>
           </div>
         </div>
       )}

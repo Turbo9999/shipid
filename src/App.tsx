@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.12.0';
+const CURRENT_APP_VERSION = '2026.09.28 v5.12.2';
 
 interface ShipClass {
   id: string;
@@ -56,6 +56,17 @@ type QuizQuestion = {
   answer: string;
   classId: string;
   explanation: string;
+};
+
+type LearningPeriod = 'today' | 'week' | 'month';
+type LearningLeaderboardEntry = {
+  id: string;
+  nickname: string;
+  score: number;
+  total_questions: number;
+  duration_seconds: number;
+  xp: number;
+  created_at: string;
 };
 
 function StarIcon({ isFilled, isRedMode }: { isFilled: boolean; isRedMode: boolean }) {
@@ -133,10 +144,18 @@ export default function App() {
   const [quizScore, setQuizScore] = useState(0);
   const [quizSelected, setQuizSelected] = useState<string | null>(null);
   const [quizFinished, setQuizFinished] = useState(false);
-  const [learningStats, setLearningStats] = useState<Record<string, { correct: number; wrong: number }>>(() => {
-    const saved = localStorage.getItem('tn_learning_stats');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [quizStartedAt, setQuizStartedAt] = useState<number | null>(null);
+  const [quizDurationSeconds, setQuizDurationSeconds] = useState(0);
+  const [learningView, setLearningView] = useState<'training' | 'leaderboard'>('training');
+  const [learningPeriod, setLearningPeriod] = useState<LearningPeriod>('today');
+  const [learningNickname, setLearningNickname] = useState('');
+  const [learningLeaderboard, setLearningLeaderboard] = useState<LearningLeaderboardEntry[]>([]);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState('');
+  const [isSubmittingScore, setIsSubmittingScore] = useState(false);
+  const [scoreSubmitted, setScoreSubmitted] = useState(false);
+  const [adminLearningRows, setAdminLearningRows] = useState<LearningLeaderboardEntry[]>([]);
+  const [isAdminLearningLoading, setIsAdminLearningLoading] = useState(false);
 
   const moreTabsRef = useRef<HTMLDivElement | null>(null);
   const moreTabSwipeStartX = useRef<number | null>(null);
@@ -157,7 +176,7 @@ export default function App() {
   const [adminEmailInput, setAdminEmailInput] = useState('');
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [isAdminSigningIn, setIsAdminSigningIn] = useState(false);
-  const [adminActiveTab, setAdminActiveTab] = useState<'class_edit' | 'ship_add' | 'banner'>('class_edit');
+  const [adminActiveTab, setAdminActiveTab] = useState<'class_edit' | 'ship_add' | 'banner' | 'learning'>('class_edit');
 
   const [bannerText, setBannerText] = useState<string>(() => {
     return localStorage.getItem('tn_banner_text') || '';
@@ -516,14 +535,67 @@ export default function App() {
     return shuffle(candidates).slice(0, 10);
   };
 
+  const calculateQuizXp = (score: number, durationSeconds: number) => {
+    return score * 10 + (score === 10 ? 20 : 0) + (score === 10 && durationSeconds <= 120 ? 10 : 0);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const safe = Math.max(0, Math.floor(seconds));
+    const min = Math.floor(safe / 60);
+    const sec = safe % 60;
+    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  };
+
+  const fetchLearningLeaderboard = async (period: LearningPeriod = learningPeriod) => {
+    if (!supabase || !navigator.onLine) {
+      setLeaderboardError('排行榜需要網路連線。');
+      return;
+    }
+    setIsLoadingLeaderboard(true);
+    setLeaderboardError('');
+    try {
+      const { data, error } = await supabase.rpc('get_learning_leaderboard', { p_period: period });
+      if (error) throw error;
+      setLearningLeaderboard((data || []) as LearningLeaderboardEntry[]);
+    } catch (error: any) {
+      console.error('Learning leaderboard fetch failed:', error);
+      setLeaderboardError(error?.message || '排行榜讀取失敗');
+    } finally {
+      setIsLoadingLeaderboard(false);
+    }
+  };
+
+  const fetchAdminLearningRows = async () => {
+    if (!supabase || !navigator.onLine) return;
+    setIsAdminLearningLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('learning_challenge_results')
+        .select('id,nickname,score,total_questions,duration_seconds,xp,created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setAdminLearningRows((data || []) as LearningLeaderboardEntry[]);
+    } catch (error) {
+      console.error('Admin learning rows fetch failed:', error);
+    } finally {
+      setIsAdminLearningLoading(false);
+    }
+  };
+
   const startQuickQuiz = () => {
     const questions = buildQuizQuestions();
     if (questions.length < 4) return alert('目前資料不足，至少需要 4 個艦型才能開始測驗。');
+    setLearningView('training');
     setQuizQuestions(questions);
     setQuizIndex(0);
     setQuizScore(0);
     setQuizSelected(null);
     setQuizFinished(false);
+    setQuizDurationSeconds(0);
+    setQuizStartedAt(Date.now());
+    setLearningNickname('');
+    setScoreSubmitted(false);
   };
 
   const answerQuiz = (option: string) => {
@@ -531,26 +603,62 @@ export default function App() {
     const q = quizQuestions[quizIndex];
     if (!q) return;
     setQuizSelected(option);
-    const correct = option === q.answer;
-    if (correct) setQuizScore(v => v + 1);
-    const nextStats = {
-      ...learningStats,
-      [q.classId]: {
-        correct: (learningStats[q.classId]?.correct || 0) + (correct ? 1 : 0),
-        wrong: (learningStats[q.classId]?.wrong || 0) + (correct ? 0 : 1)
-      }
-    };
-    setLearningStats(nextStats);
-    localStorage.setItem('tn_learning_stats', JSON.stringify(nextStats));
+    if (option === q.answer) setQuizScore(v => v + 1);
   };
 
   const nextQuizQuestion = () => {
     if (quizIndex >= quizQuestions.length - 1) {
+      const duration = quizStartedAt ? Math.max(1, Math.round((Date.now() - quizStartedAt) / 1000)) : 1;
+      setQuizDurationSeconds(duration);
       setQuizFinished(true);
       return;
     }
     setQuizIndex(v => v + 1);
     setQuizSelected(null);
+  };
+
+  const submitChallengeScore = async () => {
+    const nickname = learningNickname.replace(/[<>]/g, '').trim().slice(0, 16);
+    if (!nickname) return alert('請先輸入排行榜暱稱。');
+    if (!supabase || !navigator.onLine) return alert('目前離線中，連線後再登錄排行榜。');
+    if (!quizFinished || quizQuestions.length !== 10) return;
+    setIsSubmittingScore(true);
+    try {
+      const { error } = await supabase.rpc('submit_learning_challenge', {
+        p_nickname: nickname,
+        p_score: quizScore,
+        p_total_questions: quizQuestions.length,
+        p_duration_seconds: quizDurationSeconds
+      });
+      if (error) throw error;
+      setLearningNickname(nickname);
+      setScoreSubmitted(true);
+      await fetchLearningLeaderboard(learningPeriod);
+    } catch (error: any) {
+      console.error('Challenge submit failed:', error);
+      alert(`排行榜登錄失敗：${error?.message || '未知錯誤'}`);
+    } finally {
+      setIsSubmittingScore(false);
+    }
+  };
+
+  const deleteLearningResult = async (id: string) => {
+    if (!supabase || !confirm('確定刪除這筆排行榜成績？')) return;
+    const { error } = await supabase.rpc('admin_delete_learning_result', { p_result_id: id });
+    if (error) return alert(`刪除失敗：${error.message}`);
+    await fetchAdminLearningRows();
+    await fetchLearningLeaderboard(learningPeriod);
+  };
+
+  const clearLearningResults = async (scope: 'today' | 'week' | 'all') => {
+    if (!supabase) return;
+    const label = scope === 'today' ? '今日排行榜' : scope === 'week' ? '本週排行榜' : '全部排行榜';
+    if (!confirm(`⚠️ 確定清除${label}？\n此操作無法復原。`)) return;
+    const { error } = await supabase.rpc('admin_clear_learning_results', { p_scope: scope });
+    if (error) return alert(`清除失敗：${error.message}`);
+    alert(`${label}已清除。`);
+    await fetchAdminLearningRows();
+    await fetchLearningLeaderboard(learningPeriod);
   };
 
   const renderFormattedList = (text?: string) => {
@@ -1343,7 +1451,7 @@ export default function App() {
           </>
         )}
 
-        {/* 學習：離線快速測驗 */}
+        {/* 學習：匿名 10 題挑戰 + 公開排行榜 */}
         {activeBottomTab === 'learn' && (
           <section className="space-y-4">
             <div className={`rounded-3xl border p-5 md:p-7 ${currentTheme.cardBg}`}>
@@ -1351,81 +1459,67 @@ export default function App() {
                 <div>
                   <div className={`text-xs font-mono font-bold tracking-[0.16em] uppercase ${currentTheme.accentText}`}>IDENTIFICATION TRAINING</div>
                   <h2 className={`mt-2 text-2xl md:text-3xl font-black ${primaryText}`}>艦艇識別訓練</h2>
-                  <p className={`mt-2 text-sm ${currentTheme.textMuted}`}>由目前離線艦艇資料自動出題。每回 10 題，包含艦型、舷號與外觀辨識特徵。</p>
+                  <p className={`mt-2 text-sm ${currentTheme.textMuted}`}>10 題隨機挑戰，測驗準確度與辨識速度。完成後可自願填暱稱登錄全站排行榜。</p>
                 </div>
                 <div className={`shrink-0 px-3 py-2 rounded-xl border text-center ${currentTheme.subPanelBg}`}>
-                  <div className={`text-xs font-mono ${currentTheme.textMuted}`}>LOCAL</div>
-                  <div className={`font-black ${currentTheme.accentText}`}>{Object.values(learningStats).reduce((n, v) => n + v.correct + v.wrong, 0)} 題</div>
+                  <div className={`text-xs font-mono ${currentTheme.textMuted}`}>{isOnline ? 'ONLINE' : 'OFFLINE'}</div>
+                  <div className={`font-black ${currentTheme.accentText}`}>10 題</div>
                 </div>
+              </div>
+              <div className={`mt-5 grid grid-cols-2 gap-2 p-1.5 rounded-2xl ${currentTheme.subPanelBg}`}>
+                <button type="button" onClick={() => setLearningView('training')} className={`min-h-[46px] rounded-xl font-black ${learningView === 'training' ? currentTheme.accentBg : currentTheme.textMuted}`}>訓練</button>
+                <button type="button" onClick={() => { setLearningView('leaderboard'); void fetchLearningLeaderboard(learningPeriod); }} className={`min-h-[46px] rounded-xl font-black ${learningView === 'leaderboard' ? currentTheme.accentBg : currentTheme.textMuted}`}>排行榜</button>
               </div>
             </div>
 
-            {quizQuestions.length === 0 ? (
-              <div className={`rounded-3xl border p-6 space-y-5 ${currentTheme.subPanelBg}`}>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    ['10', '每回題數'],
-                    [String(classes.length), '艦型資料'],
-                    [String(ships.length), '單艦資料']
-                  ].map(([value, label]) => (
-                    <div key={label} className={`rounded-2xl border p-3 text-center ${currentTheme.cardBg}`}>
-                      <div className={`text-2xl font-black font-mono ${currentTheme.accentText}`}>{value}</div>
-                      <div className={`text-xs mt-1 ${currentTheme.textMuted}`}>{label}</div>
-                    </div>
+            {learningView === 'leaderboard' ? (
+              <div className={`rounded-3xl border p-5 md:p-7 space-y-4 ${currentTheme.cardBg}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div><div className={`text-xs font-mono font-bold ${currentTheme.accentText}`}>GLOBAL CHALLENGE</div><h3 className={`text-xl font-black ${primaryText}`}>全站識別排行榜</h3></div>
+                  <button type="button" onClick={() => void fetchLearningLeaderboard(learningPeriod)} className={`min-h-[42px] px-4 rounded-xl text-sm font-bold ${currentTheme.btnSecondary}`}>重新整理</button>
+                </div>
+                <div className={`grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl ${currentTheme.subPanelBg}`}>
+                  {([['today','今日'],['week','本週'],['month','本月']] as [LearningPeriod,string][]).map(([period,label]) => (
+                    <button key={period} type="button" onClick={() => { setLearningPeriod(period); void fetchLearningLeaderboard(period); }} className={`min-h-[42px] rounded-xl font-bold ${learningPeriod === period ? currentTheme.accentBg : currentTheme.textMuted}`}>{label}</button>
                   ))}
                 </div>
-                <button type="button" onClick={startQuickQuiz} className={`w-full min-h-[56px] rounded-2xl font-black text-lg ${currentTheme.accentBg}`}>
-                  開始 10 題快速測驗
-                </button>
-                <p className={`text-xs text-center ${currentTheme.textMuted}`}>目前成績保存在本機，可在斷網環境持續學習。雲端帳號與排行榜將於下一階段加入。</p>
+                {leaderboardError && <div className="rounded-xl border border-amber-500/40 bg-amber-950/30 p-3 text-sm text-amber-200">{leaderboardError}</div>}
+                {isLoadingLeaderboard ? <div className={`py-10 text-center ${currentTheme.textMuted}`}>排行榜讀取中…</div> : learningLeaderboard.length === 0 ? <div className={`py-10 text-center ${currentTheme.textMuted}`}>{isOnline ? '目前還沒有挑戰成績。' : '離線時無法讀取全站排行榜。'}</div> : (
+                  <div className="space-y-2">
+                    {learningLeaderboard.slice(0, 50).map((entry, idx) => (
+                      <div key={entry.id} className={`grid grid-cols-[42px_1fr_auto] items-center gap-3 rounded-2xl border p-3 ${currentTheme.subPanelBg}`}>
+                        <div className={`text-center text-lg font-black font-mono ${idx < 3 ? currentTheme.accentText : currentTheme.textMuted}`}>{idx + 1}</div>
+                        <div className="min-w-0"><div className={`font-black truncate ${primaryText}`}>{entry.nickname}</div><div className={`text-xs mt-1 ${currentTheme.textMuted}`}>{entry.score}/{entry.total_questions} · {formatDuration(entry.duration_seconds)}</div></div>
+                        <div className="text-right"><div className={`font-black font-mono ${currentTheme.accentText}`}>{entry.xp} XP</div><div className={`text-[11px] ${currentTheme.textMuted}`}>{new Date(entry.created_at).toLocaleDateString('zh-TW')}</div></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : quizQuestions.length === 0 ? (
+              <div className={`rounded-3xl border p-6 space-y-5 ${currentTheme.subPanelBg}`}>
+                <div className="grid grid-cols-3 gap-3">
+                  {[["10", "每回題數"],[String(classes.length), "艦型資料"],[String(ships.length), "單艦資料"]].map(([value,label]) => <div key={label} className={`rounded-2xl border p-3 text-center ${currentTheme.cardBg}`}><div className={`text-2xl font-black font-mono ${currentTheme.accentText}`}>{value}</div><div className={`text-xs mt-1 ${currentTheme.textMuted}`}>{label}</div></div>)}
+                </div>
+                <div className={`rounded-2xl border p-4 text-sm space-y-1.5 ${currentTheme.cardBg}`}><div className="font-black">XP 規則</div><div className={currentTheme.textMuted}>答對 1 題 +10 XP · 10/10 +20 XP · 全對且 2 分鐘內再 +10 XP</div></div>
+                <button type="button" onClick={startQuickQuiz} className={`w-full min-h-[56px] rounded-2xl font-black text-lg ${currentTheme.accentBg}`}>開始 10 題快速測驗</button>
+                <p className={`text-xs text-center ${currentTheme.textMuted}`}>測驗可離線進行；只有登錄與查看全站排行榜需要網路。一般使用者不需建立帳號。</p>
               </div>
             ) : quizFinished ? (
-              <div className={`rounded-3xl border p-7 text-center space-y-5 ${currentTheme.cardBg}`}>
+              <div className={`rounded-3xl border p-6 md:p-7 text-center space-y-5 ${currentTheme.cardBg}`}>
                 <div className={`text-xs font-mono font-bold tracking-widest ${currentTheme.accentText}`}>MISSION COMPLETE</div>
                 <div className={`text-6xl font-black font-mono ${primaryText}`}>{quizScore}<span className={`text-2xl ${currentTheme.textMuted}`}>/{quizQuestions.length}</span></div>
-                <div className={`text-lg font-bold ${primaryText}`}>本回正確率 {Math.round((quizScore / quizQuestions.length) * 100)}%</div>
-                <button type="button" onClick={startQuickQuiz} className={`w-full min-h-[54px] rounded-2xl font-black ${currentTheme.accentBg}`}>再來 10 題</button>
-                <button type="button" onClick={() => { setQuizQuestions([]); setQuizFinished(false); setQuizSelected(null); }} className={`w-full min-h-[50px] rounded-2xl border font-bold ${currentTheme.btnSecondary}`}>返回學習首頁</button>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className={`rounded-2xl border p-3 ${currentTheme.subPanelBg}`}><div className={`text-xl font-black ${primaryText}`}>{Math.round((quizScore / quizQuestions.length) * 100)}%</div><div className={`text-xs ${currentTheme.textMuted}`}>正確率</div></div>
+                  <div className={`rounded-2xl border p-3 ${currentTheme.subPanelBg}`}><div className={`text-xl font-black font-mono ${primaryText}`}>{formatDuration(quizDurationSeconds)}</div><div className={`text-xs ${currentTheme.textMuted}`}>完成時間</div></div>
+                  <div className={`rounded-2xl border p-3 ${currentTheme.subPanelBg}`}><div className={`text-xl font-black font-mono ${currentTheme.accentText}`}>+{calculateQuizXp(quizScore, quizDurationSeconds)}</div><div className={`text-xs ${currentTheme.textMuted}`}>XP</div></div>
+                </div>
+                {!scoreSubmitted ? <div className={`rounded-2xl border p-4 space-y-3 text-left ${currentTheme.subPanelBg}`}><label className={`text-sm font-bold ${primaryText}`}>想上排行榜？填一個暱稱即可</label><div className="flex gap-2"><input maxLength={16} value={learningNickname} onChange={e => setLearningNickname(e.target.value.replace(/[<>]/g,''))} placeholder="輸入暱稱（最多 16 字）" className={`flex-1 min-w-0 min-h-[48px] rounded-xl px-3 ${currentTheme.input}`} /><button type="button" disabled={isSubmittingScore || !learningNickname.trim()} onClick={submitChallengeScore} className={`min-h-[48px] px-4 rounded-xl font-black disabled:opacity-40 ${currentTheme.accentBg}`}>{isSubmittingScore ? '登錄中…' : '登錄排行榜'}</button></div>{!isOnline && <div className="text-xs text-amber-300">目前離線。成績仍可查看，但需要恢復網路後才能登錄排行榜。</div>}</div> : <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/25 p-4 font-black text-emerald-300">✓ 已登錄全站排行榜</div>}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2"><button type="button" onClick={startQuickQuiz} className={`min-h-[50px] rounded-xl font-black ${currentTheme.accentBg}`}>再來 10 題</button><button type="button" onClick={() => { setLearningView('leaderboard'); void fetchLearningLeaderboard(learningPeriod); }} className={`min-h-[50px] rounded-xl border font-bold ${currentTheme.btnSecondary}`}>查看排行榜</button><button type="button" onClick={() => { setQuizQuestions([]); setQuizFinished(false); setQuizSelected(null); }} className={`min-h-[50px] rounded-xl border font-bold ${currentTheme.btnSecondary}`}>返回</button></div>
               </div>
             ) : (() => {
-              const q = quizQuestions[quizIndex];
-              if (!q) return null;
-              return (
-                <div className={`rounded-3xl border p-5 md:p-7 space-y-5 ${currentTheme.cardBg}`}>
-                  <div className="flex justify-between items-center gap-3">
-                    <span className={`text-xs font-mono font-bold ${currentTheme.accentText}`}>QUESTION {quizIndex + 1} / {quizQuestions.length}</span>
-                    <span className={`text-xs font-bold ${currentTheme.textMuted}`}>目前 {quizScore} 分</span>
-                  </div>
-                  <div className={`h-2 rounded-full overflow-hidden ${themeMode === 'high_contrast' ? 'bg-slate-200' : 'bg-slate-800'}`}>
-                    <div className={`h-full ${themeMode === 'red' ? 'bg-red-600' : 'bg-cyan-500'} transition-all`} style={{ width: `${((quizIndex + (quizSelected ? 1 : 0)) / quizQuestions.length) * 100}%` }} />
-                  </div>
-                  <h3 className={`text-xl md:text-2xl font-black whitespace-pre-line leading-relaxed ${primaryText}`}>{q.prompt}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {q.options.map((option, idx) => {
-                      const answered = Boolean(quizSelected);
-                      const isCorrect = option === q.answer;
-                      const isSelected = option === quizSelected;
-                      const stateClass = answered && isCorrect
-                        ? 'border-emerald-500 bg-emerald-950/40 text-emerald-200'
-                        : answered && isSelected
-                          ? 'border-red-500 bg-red-950/40 text-red-200'
-                          : currentTheme.btnSecondary;
-                      return (
-                        <button key={`${q.id}-${option}`} type="button" disabled={answered} onClick={() => answerQuiz(option)} className={`min-h-[64px] rounded-2xl border px-4 py-3 text-left font-bold transition ${stateClass}`}>
-                          <span className={`font-mono mr-3 ${currentTheme.accentText}`}>{String.fromCharCode(65 + idx)}</span>{option}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {quizSelected && (
-                    <div className={`rounded-2xl border p-4 space-y-3 ${quizSelected === q.answer ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-red-500/50 bg-red-950/20'}`}>
-                      <div className={`font-black ${quizSelected === q.answer ? 'text-emerald-400' : 'text-red-400'}`}>{quizSelected === q.answer ? '✓ 答對' : `✕ 答錯，正確答案：${q.answer}`}</div>
-                      <p className={`text-sm ${primaryText}`}>{q.explanation}</p>
-                      <button type="button" onClick={nextQuizQuestion} className={`w-full min-h-[50px] rounded-xl font-black ${currentTheme.accentBg}`}>{quizIndex === quizQuestions.length - 1 ? '查看本回成績' : '下一題 →'}</button>
-                    </div>
-                  )}
-                </div>
-              );
+              const q = quizQuestions[quizIndex]; if (!q) return null;
+              return <div className={`rounded-3xl border p-5 md:p-7 space-y-5 ${currentTheme.cardBg}`}><div className="flex justify-between items-center gap-3"><span className={`text-xs font-mono font-bold ${currentTheme.accentText}`}>QUESTION {quizIndex + 1} / {quizQuestions.length}</span><span className={`text-xs font-bold ${currentTheme.textMuted}`}>目前 {quizScore} 分</span></div><div className={`h-2 rounded-full overflow-hidden ${themeMode === 'high_contrast' ? 'bg-slate-200' : 'bg-slate-800'}`}><div className={`h-full ${themeMode === 'red' ? 'bg-red-600' : 'bg-cyan-500'} transition-all`} style={{width:`${((quizIndex + (quizSelected ? 1 : 0))/quizQuestions.length)*100}%`}} /></div><h3 className={`text-xl md:text-2xl font-black whitespace-pre-line leading-relaxed ${primaryText}`}>{q.prompt}</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{q.options.map(option => { const answered=Boolean(quizSelected); const isCorrect=option===q.answer; const isChosen=option===quizSelected; let cls=currentTheme.btnSecondary; if(answered&&isCorrect) cls='border-emerald-500 bg-emerald-950/50 text-emerald-200'; else if(answered&&isChosen&&!isCorrect) cls='border-red-500 bg-red-950/50 text-red-200'; return <button key={option} type="button" disabled={answered} onClick={()=>answerQuiz(option)} className={`min-h-[58px] rounded-2xl border px-4 text-left font-black transition ${cls}`}>{option}</button>; })}</div>{quizSelected && <div className={`rounded-2xl border p-4 space-y-3 ${currentTheme.subPanelBg}`}><div className={`font-black ${quizSelected===q.answer?'text-emerald-400':'text-red-400'}`}>{quizSelected===q.answer?'✓ 正確':'✕ 答錯了'}</div><div className={`text-sm leading-relaxed ${currentTheme.textMuted}`}>{q.explanation}</div><button type="button" onClick={nextQuizQuestion} className={`w-full min-h-[50px] rounded-xl font-black ${currentTheme.accentBg}`}>{quizIndex>=quizQuestions.length-1?'查看本回成績':'下一題'}</button></div>}</div>;
             })()}
           </section>
         )}
@@ -2034,6 +2128,7 @@ export default function App() {
               <button type="button" onClick={() => setAdminActiveTab('class_edit')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'class_edit' ? currentTheme.accentBg : currentTheme.textMuted}`}>艦型外觀</button>
               <button type="button" onClick={() => { setEditingShipId(null); setAdminActiveTab('ship_add'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'ship_add' ? currentTheme.accentBg : currentTheme.textMuted}`}>單艦管理</button>
               <button type="button" onClick={() => { setAdminBannerInput(bannerText); setAdminActiveTab('banner'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'banner' ? currentTheme.accentBg : currentTheme.textMuted}`}>廣播通報</button>
+              <button type="button" onClick={() => { setAdminActiveTab('learning'); void fetchAdminLearningRows(); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'learning' ? currentTheme.accentBg : currentTheme.textMuted}`}>學習管理</button>
             </div>
 
             <div className="p-5 md:p-6 overflow-y-auto space-y-5 text-base">
@@ -2575,6 +2670,15 @@ export default function App() {
                     </button>
                   </div>
                 </form>
+              )}
+
+              {adminActiveTab === 'learning' && (
+                <div className="space-y-4">
+                  <div className={`rounded-2xl border p-4 ${currentTheme.subPanelBg}`}><div className={`font-black ${currentTheme.accentText}`}>排行榜管理</div><div className={`mt-1 text-sm ${currentTheme.textMuted}`}>最近 100 筆：{adminLearningRows.length} 筆。可刪除單筆，或清除指定期間資料。</div></div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2"><button type="button" onClick={() => void clearLearningResults('today')} className="min-h-[48px] rounded-xl border border-amber-500/50 bg-amber-950/30 text-amber-200 font-black">清除今日</button><button type="button" onClick={() => void clearLearningResults('week')} className="min-h-[48px] rounded-xl border border-orange-500/50 bg-orange-950/30 text-orange-200 font-black">清除本週</button><button type="button" onClick={() => void clearLearningResults('all')} className="min-h-[48px] rounded-xl border border-red-500/60 bg-red-950/40 text-red-200 font-black">清除全部</button></div>
+                  <button type="button" onClick={() => void fetchAdminLearningRows()} className={`w-full min-h-[44px] rounded-xl font-bold ${currentTheme.btnSecondary}`}>{isAdminLearningLoading?'讀取中…':'重新整理成績'}</button>
+                  <div className="space-y-2">{adminLearningRows.map(row => <div key={row.id} className={`rounded-xl border p-3 flex items-center gap-3 ${currentTheme.cardBg}`}><div className="min-w-0 flex-1"><div className={`font-black truncate ${primaryText}`}>{row.nickname}</div><div className={`text-xs mt-1 ${currentTheme.textMuted}`}>{row.score}/{row.total_questions} · {formatDuration(row.duration_seconds)} · {row.xp} XP · {new Date(row.created_at).toLocaleString('zh-TW')}</div></div><button type="button" onClick={() => void deleteLearningResult(row.id)} className="min-h-[40px] px-3 rounded-lg border border-red-500/50 text-red-300 font-bold text-sm">刪除</button></div>)}</div>
+                </div>
               )}
 
               {adminActiveTab === 'banner' && (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.7.1';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.7.2';
 
 interface ShipClass {
   id: string;
@@ -2318,7 +2318,8 @@ export default function App() {
                         const nextBanner = adminBannerInput.trim();
                         const { error } = await supabase
                           .from('app_settings')
-                          .upsert({ id: 'global', banner_text: nextBanner }, { onConflict: 'id' });
+                          .update({ banner_text: nextBanner })
+                          .eq('id', 'global');
                         if (error) {
                           console.error('Global banner publish failed:', error);
                           return alert(`全域通報發布失敗：${error.message}`);

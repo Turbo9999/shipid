@@ -1447,10 +1447,9 @@ export default function App() {
 
             {showMoreModal === 'guide' && (
               <div className={`space-y-2 text-xs leading-relaxed p-3.5 rounded-2xl border ${currentTheme.subPanelBg}`}>
-                <p>1. iPhone 點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝。</p>
-                <p>2. Android 手機操作亦同 iPhone。</p>
-                <p>2. 滑動瀏覽各級艦艇一次，即可啟動 180 天離線庫。</p>
-                <p>3. 任務斷網期間，切勿手動清除瀏覽器快取與瀏覽紀錄。</p>
+                <p>1. iOS Safrai點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝獨立app；Android 手機操作亦同 iOS 手機。</p>
+                <p>2. 本系統設計核心是給離線使用，故滑動瀏覽各級艦艇一次，即可啟動 180 天離線庫。</p>
+                <p>3. 任務斷網期間，切勿手動清除瀏覽器快取與瀏覽紀錄，否則系統將會移除所有資訊。</p>
               </div>
             )}
 

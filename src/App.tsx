@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.6';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.7';
 
 interface ShipClass {
   id: string;
@@ -781,6 +781,13 @@ export default function App() {
               padding-top: max(14px, env(safe-area-inset-top, 0px)) !important;
             }
           }
+          .shipid-app .shipid-brand-subtitle {
+            margin-top: 7px;
+            font-size: 10px !important;
+            line-height: 1 !important;
+            letter-spacing: 0.18em;
+            opacity: 0.72;
+          }
           .shipid-app .shipid-brand-title {
             transform: scaleY(1.12);
             transform-origin: left center;
@@ -826,6 +833,11 @@ export default function App() {
         }
 
         @media (min-width: 768px) {
+          .shipid-app .shipid-brand-subtitle {
+            margin-top: 6px;
+            font-size: 11px !important;
+            letter-spacing: 0.2em;
+          }
           .shipid-app .shipid-kicker { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; }
         }
       `}</style>
@@ -836,7 +848,12 @@ export default function App() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 whitespace-nowrap">
               <span className={`w-2.5 h-2.5 shrink-0 rounded-full ${themeMode === 'red' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
-              <h1 className="shipid-brand-title font-black tracking-widest text-lg md:text-2xl font-mono whitespace-nowrap">TAIWAN NAVY</h1>
+              <div className="min-w-0">
+                <h1 className="shipid-brand-title font-black tracking-widest text-lg md:text-2xl font-mono whitespace-nowrap">TAIWAN NAVY</h1>
+                <div className={`shipid-brand-subtitle font-mono font-semibold uppercase whitespace-nowrap ${currentTheme.textMuted}`}>
+                  VESSEL IDENTIFICATION SYSTEM
+                </div>
+              </div>
             </div>
 
             {/* Desktop 狀態列：維持原本位置 */}

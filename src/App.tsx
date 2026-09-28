@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.0';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.1';
 
 interface ShipClass {
   id: string;
@@ -140,6 +140,9 @@ export default function App() {
     identification_status: 'unverified', identification_source: ''
   });
   const [tempFeatureInput, setTempFeatureInput] = useState('');
+  const [draggingFeatureIndex, setDraggingFeatureIndex] = useState<number | null>(null);
+  const featureDragStartY = useRef<number | null>(null);
+  const featureDragCurrentIndex = useRef<number | null>(null);
 
   const [wikiQuery, setWikiQuery] = useState('');
   const [isFetchingWiki, setIsFetchingWiki] = useState(false);
@@ -1738,62 +1741,111 @@ export default function App() {
 
                     <div className="space-y-1.5">
                       {(editingClassForm.identification_features ?? []).map((feat, idx) => (
-                        <div key={`${feat}-${idx}`} className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs ${currentTheme.cardBg}`}>
-                          <span className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-mono font-black ${
-                            idx < 3
-                              ? (themeMode === 'red' ? 'bg-red-950 text-red-300 border border-red-700' : 'bg-cyan-950 text-cyan-300 border border-cyan-700')
-                              : currentTheme.badge
-                          }`}>
-                            {idx + 1}
-                          </span>
-                          <span className="min-w-0 flex-1 break-words">{feat}</span>
+                        <React.Fragment key={`${feat}-${idx}`}>
+                          {idx === 3 && (
+                            <div className={`flex items-center gap-2 py-1.5 text-[11px] font-bold ${currentTheme.textMuted}`}>
+                              <span className={`h-px flex-1 ${themeMode === 'high_contrast' ? 'bg-sky-300' : 'bg-slate-700'}`} />
+                              <span>↑ 首頁顯示前三項</span>
+                              <span className={`h-px flex-1 ${themeMode === 'high_contrast' ? 'bg-sky-300' : 'bg-slate-700'}`} />
+                            </div>
+                          )}
+                          <div
+                            data-feature-index={idx}
+                            className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs transition ${
+                              draggingFeatureIndex === idx ? 'opacity-55 scale-[0.99]' : ''
+                            } ${currentTheme.cardBg}`}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              if (draggingFeatureIndex === null || draggingFeatureIndex === idx) return;
+                              const features = [...(editingClassForm.identification_features ?? [])];
+                              const [moved] = features.splice(draggingFeatureIndex, 1);
+                              features.splice(idx, 0, moved);
+                              setEditingClassForm({ ...editingClassForm, identification_features: features });
+                              setDraggingFeatureIndex(idx);
+                              featureDragCurrentIndex.current = idx;
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setDraggingFeatureIndex(null);
+                              featureDragStartY.current = null;
+                              featureDragCurrentIndex.current = null;
+                            }}
+                          >
+                            <button
+                              type="button"
+                              draggable
+                              aria-label={`拖曳調整 ${feat} 的優先順序`}
+                              title="按住拖曳調整順序"
+                              onDragStart={(e) => {
+                                setDraggingFeatureIndex(idx);
+                                featureDragCurrentIndex.current = idx;
+                                e.dataTransfer.effectAllowed = 'move';
+                              }}
+                              onDragEnd={() => {
+                                setDraggingFeatureIndex(null);
+                                featureDragStartY.current = null;
+                                featureDragCurrentIndex.current = null;
+                              }}
+                              onTouchStart={(e) => {
+                                featureDragStartY.current = e.touches[0].clientY;
+                                featureDragCurrentIndex.current = idx;
+                                setDraggingFeatureIndex(idx);
+                              }}
+                              onTouchMove={(e) => {
+                                if (featureDragStartY.current === null || featureDragCurrentIndex.current === null) return;
+                                const touchY = e.touches[0].clientY;
+                                const element = document.elementFromPoint(e.touches[0].clientX, touchY);
+                                const row = element?.closest('[data-feature-index]') as HTMLElement | null;
+                                if (!row) return;
+                                const targetIndex = Number(row.dataset.featureIndex);
+                                const currentIndex = featureDragCurrentIndex.current;
+                                if (!Number.isFinite(targetIndex) || targetIndex === currentIndex) return;
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              aria-label="提高優先順序"
-                              disabled={idx === 0}
-                              onClick={() => {
-                                if (idx === 0) return;
-                                const updated = [...(editingClassForm.identification_features ?? [])];
-                                [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
-                                setEditingClassForm({ ...editingClassForm, identification_features: updated });
+                                const features = [...(editingClassForm.identification_features ?? [])];
+                                const [moved] = features.splice(currentIndex, 1);
+                                features.splice(targetIndex, 0, moved);
+                                featureDragCurrentIndex.current = targetIndex;
+                                setDraggingFeatureIndex(targetIndex);
+                                setEditingClassForm(prev => ({ ...prev, identification_features: features }));
                               }}
-                              className={`min-w-[38px] min-h-[38px] rounded-lg border font-black disabled:opacity-25 disabled:cursor-not-allowed ${currentTheme.btnSecondary}`}
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              aria-label="降低優先順序"
-                              disabled={idx === (editingClassForm.identification_features?.length ?? 0) - 1}
-                              onClick={() => {
-                                const features = editingClassForm.identification_features ?? [];
-                                if (idx >= features.length - 1) return;
-                                const updated = [...features];
-                                [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];
-                                setEditingClassForm({ ...editingClassForm, identification_features: updated });
+                              onTouchEnd={() => {
+                                setDraggingFeatureIndex(null);
+                                featureDragStartY.current = null;
+                                featureDragCurrentIndex.current = null;
                               }}
-                              className={`min-w-[38px] min-h-[38px] rounded-lg border font-black disabled:opacity-25 disabled:cursor-not-allowed ${currentTheme.btnSecondary}`}
+                              className={`shrink-0 min-w-[38px] min-h-[42px] rounded-lg border flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none text-lg tracking-[-0.15em] ${currentTheme.btnSecondary}`}
                             >
-                              ↓
+                              ≡
                             </button>
+
+                            <span
+                              data-feature-index={idx}
+                              className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-mono font-black ${
+                                idx < 3
+                                  ? (themeMode === 'red' ? 'bg-red-950 text-red-300 border border-red-700' : 'bg-cyan-950 text-cyan-300 border border-cyan-700')
+                                  : currentTheme.badge
+                              }`}
+                            >
+                              {idx + 1}
+                            </span>
+                            <span data-feature-index={idx} className="min-w-0 flex-1 break-words">{feat}</span>
+
                             <button
                               type="button"
                               onClick={() => {
                                 const updated = (editingClassForm.identification_features ?? []).filter((_, i) => i !== idx);
                                 setEditingClassForm({ ...editingClassForm, identification_features: updated });
                               }}
-                              className="text-red-400 hover:text-red-300 px-2.5 min-h-[38px] font-bold"
+                              className="text-red-400 hover:text-red-300 px-2.5 min-h-[38px] font-bold shrink-0"
                             >
                               刪除
                             </button>
                           </div>
-                        </div>
+                        </React.Fragment>
                       ))}
                       {(editingClassForm.identification_features?.length ?? 0) > 0 && (
                         <p className={`px-1 pt-1 text-[11px] ${currentTheme.textMuted}`}>
-                          前 3 項會依此順序顯示在首頁艦型小卡，可用 ↑ ↓ 調整優先順序。
+                          按住左側 ≡ 上下拖曳調整優先順序；前 3 項會顯示在首頁艦型小卡。
                         </p>
                       )}
                     </div>

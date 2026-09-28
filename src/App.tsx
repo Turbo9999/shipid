@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.2';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.4';
 
 interface ShipClass {
   id: string;
@@ -118,6 +118,10 @@ export default function App() {
   });
 
   const [showAdmin, setShowAdmin] = useState(false);
+  const panelSwipeStartX = useRef<number | null>(null);
+  const panelSwipeStartY = useRef<number | null>(null);
+  const [panelDragX, setPanelDragX] = useState(0);
+  const [panelDragging, setPanelDragging] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('tn_admin_auth') === 'true';
   });
@@ -896,7 +900,7 @@ export default function App() {
             : isPullRefreshing
               ? '↻ 正在更新資料…'
               : pullDistance >= 72
-                ? '↻ 把我放開啦'
+                ? '↻ 放開重新整理'
                 : '↓ 下拉重新整理'}
         </div>
       )}
@@ -1356,8 +1360,33 @@ export default function App() {
 
       {/* 「更多」抽屜視窗 */}
       {showMoreModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className={`w-full max-w-md border-t sm:border rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto ${currentTheme.modalBg}`}>
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-3 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] sm:p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowMoreModal(false); }}
+        >
+          <div
+            className={`w-full max-w-md border rounded-[24px] sm:rounded-3xl p-5 space-y-4 max-h-[calc(100dvh-env(safe-area-inset-top,0px)-24px)] sm:max-h-[85vh] overflow-y-auto shadow-2xl ${currentTheme.modalBg} ${panelDragging ? '' : 'transition-transform duration-200 ease-out'}`}
+            style={{ transform: `translateX(${panelDragX}px)`, opacity: Math.max(0.72, 1 - panelDragX / 900) }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => { panelSwipeStartX.current=e.touches[0].clientX; panelSwipeStartY.current=e.touches[0].clientY; setPanelDragging(false); }}
+            onTouchMove={(e) => {
+              if (panelSwipeStartX.current===null || panelSwipeStartY.current===null) return;
+              const dx=e.touches[0].clientX-panelSwipeStartX.current;
+              const dy=e.touches[0].clientY-panelSwipeStartY.current;
+              if (dx>8 && Math.abs(dx)>Math.abs(dy)*1.25) { setPanelDragging(true); setPanelDragX(Math.max(0,dx)); }
+            }}
+            onTouchEnd={(e) => {
+              if (panelSwipeStartX.current===null || panelSwipeStartY.current===null) return;
+              const dx=e.changedTouches[0].clientX-panelSwipeStartX.current;
+              const dy=e.changedTouches[0].clientY-panelSwipeStartY.current;
+              panelSwipeStartX.current=null; panelSwipeStartY.current=null;
+              if (dx>=100 && Math.abs(dx)>Math.abs(dy)*1.25) {
+                setPanelDragX(window.innerWidth);
+                window.setTimeout(()=>{ setShowMoreModal(false); setPanelDragX(0); setPanelDragging(false); },180);
+              } else { setPanelDragX(0); setPanelDragging(false); }
+            }}
+            onTouchCancel={()=>{ panelSwipeStartX.current=null; panelSwipeStartY.current=null; setPanelDragX(0); setPanelDragging(false); }}
+          >
             <div className={`flex justify-between items-center border-b pb-3 ${currentTheme.border}`}>
               <div className="flex items-center gap-2 min-w-0">
                 <h3 className="font-bold text-base whitespace-nowrap">資訊與系統設定</h3>
@@ -1387,7 +1416,7 @@ export default function App() {
                 </div>
                 <div className="space-y-2 leading-relaxed">
                   <p className="font-bold">為什麼有時候畫面沒有更新？</p>
-                  <p className={currentTheme.textMuted}>為了確保在斷網時能照常運作，手機會自動將畫面鎖存在本機快取中。若雲端發布了新版面但畫面卡住，可點擊下方按鈕強制清除本機快取並刷新。</p>
+                  <p className={currentTheme.textMuted}>為了確保在海上斷網時能照常運作，手機會自動將畫面鎖存在本機快取中。若雲端發布了新版面但畫面卡住，可點擊下方按鈕強制清除本機快取並刷新。</p>
                 </div>
                 
                 <button
@@ -1447,9 +1476,9 @@ export default function App() {
 
             {showMoreModal === 'guide' && (
               <div className={`space-y-2 text-xs leading-relaxed p-3.5 rounded-2xl border ${currentTheme.subPanelBg}`}>
-                <p>1. iOS Safrai點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝獨立app；Android 手機操作亦同 iOS 手機。</p>
-                <p>2. 本系統設計核心是給離線使用，故滑動瀏覽各級艦艇一次，即可啟動 180 天離線庫。</p>
-                <p>3. 任務斷網期間，切勿手動清除瀏覽器快取與瀏覽紀錄，否則系統將會移除所有資訊。</p>
+                <p>1. iOS Safari 點選「分享」按鈕 ➔ 選擇「加入主畫面」，即可安裝為獨立 App；Android 手機亦可透過瀏覽器選單「加入主畫面」安裝。</p>
+                <p>2. 本系統以離線使用為核心設計。首次連線時，請滑動瀏覽各級艦艇一次，即可建立 <strong>180 天離線資料庫</strong>，供後續斷網期間查詢使用。</p>
+                <p>3. 任務斷網期間，<strong>切勿手動清除瀏覽器快取、網站資料或瀏覽紀錄</strong>，否則可能導致已儲存的離線資料遭移除。</p>
               </div>
             )}
 
@@ -1647,8 +1676,33 @@ export default function App() {
 
       {/* 資料庫管理後台 Modal */}
       {showAdmin && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className={`w-full max-w-lg md:max-w-5xl h-[92vh] sm:h-[88vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center px-2.5 pb-2.5 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAdmin(false); }}
+        >
+          <div
+            className={`w-full max-w-lg md:max-w-5xl h-[calc(100dvh-env(safe-area-inset-top,0px)-22px)] sm:h-[88vh] border rounded-[24px] sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg} ${panelDragging ? '' : 'transition-transform duration-200 ease-out'}`}
+            style={{ transform: `translateX(${panelDragX}px)`, opacity: Math.max(0.72, 1 - panelDragX / 900) }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => { panelSwipeStartX.current=e.touches[0].clientX; panelSwipeStartY.current=e.touches[0].clientY; setPanelDragging(false); }}
+            onTouchMove={(e) => {
+              if (panelSwipeStartX.current===null || panelSwipeStartY.current===null) return;
+              const dx=e.touches[0].clientX-panelSwipeStartX.current;
+              const dy=e.touches[0].clientY-panelSwipeStartY.current;
+              if (dx>8 && Math.abs(dx)>Math.abs(dy)*1.25) { setPanelDragging(true); setPanelDragX(Math.max(0,dx)); }
+            }}
+            onTouchEnd={(e) => {
+              if (panelSwipeStartX.current===null || panelSwipeStartY.current===null) return;
+              const dx=e.changedTouches[0].clientX-panelSwipeStartX.current;
+              const dy=e.changedTouches[0].clientY-panelSwipeStartY.current;
+              panelSwipeStartX.current=null; panelSwipeStartY.current=null;
+              if (dx>=100 && Math.abs(dx)>Math.abs(dy)*1.25) {
+                setPanelDragX(window.innerWidth);
+                window.setTimeout(()=>{ setShowAdmin(false); setPanelDragX(0); setPanelDragging(false); },180);
+              } else { setPanelDragX(0); setPanelDragging(false); }
+            }}
+            onTouchCancel={()=>{ panelSwipeStartX.current=null; panelSwipeStartY.current=null; setPanelDragX(0); setPanelDragging(false); }}
+          >
             <div className={`px-5 py-4 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
               <h2 className="font-bold text-base">資料庫管理與外觀特徵維護</h2>
               <button type="button" onClick={() => setShowAdmin(false)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>

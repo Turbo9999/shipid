@@ -1449,12 +1449,12 @@ export default function App() {
             {showMoreModal === 'update' && (
               <div className={`space-y-4 p-5 rounded-2xl border text-base ${currentTheme.subPanelBg}`}>
                 <div className={`flex justify-between items-center border-b pb-2 ${currentTheme.border}`}>
-                  <span className={currentTheme.textMuted}>目前本機版本：</span>
+                  <span className={currentTheme.textMuted}>版本：</span>
                   <span className={`font-mono font-bold ${currentTheme.accentText}`}>{CURRENT_APP_VERSION}</span>
                 </div>
                 <div className="space-y-2 leading-relaxed">
                   <p className="font-bold">為什麼有時候畫面沒有更新？</p>
-                  <p className={currentTheme.textMuted}>為了確保在海上斷網時能照常運作，手機會自動將畫面鎖存在本機快取中。若雲端發布了新版面但畫面卡住，可點擊下方按鈕強制清除本機快取並刷新。</p>
+                  <p className={currentTheme.textMuted}>為了確保在斷網時能照常運作，手機會自動將畫面鎖存在本機快取中。若雲端發布了新版面但畫面卡住，可點擊下方按鈕強制清除本機快取並刷新。</p>
                 </div>
                 
                 <button
@@ -2298,7 +2298,7 @@ export default function App() {
                 <div className="space-y-3">
                   <textarea
                     rows={3}
-                    placeholder="輸入戰術通報廣播文字（清空儲存則自動隱藏）"
+                    placeholder="輸入訊息（清空儲存則自動隱藏）"
                     value={adminBannerInput}
                     onChange={e => setAdminBannerInput(e.target.value)}
                     className={`w-full rounded-xl p-3 ${currentTheme.input}`}
@@ -2322,11 +2322,11 @@ export default function App() {
                           .eq('id', 'global');
                         if (error) {
                           console.error('Global banner publish failed:', error);
-                          return alert(`全域通報發布失敗：${error.message}`);
+                          return alert(`訊息發布失敗：${error.message}`);
                         }
                         setBannerText(nextBanner);
                         localStorage.setItem('tn_banner_text', nextBanner);
-                        alert(nextBanner ? '全域戰術通報已發布！所有連線裝置將同步收到。' : '全域戰術通報已清除。');
+                        alert(nextBanner ? '訊息已發布！' : '訊息已清除。');
                       }}
                       className={`flex-1 min-h-[44px] rounded-xl font-bold ${currentTheme.accentBg}`}
                     >

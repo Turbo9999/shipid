@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.4';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.4.1';
 
 interface ShipClass {
   id: string;
@@ -1362,7 +1362,7 @@ export default function App() {
       {showMoreModal && (
         <div
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-3 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] sm:p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowMoreModal(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowMoreModal(null); }}
         >
           <div
             className={`w-full max-w-md border rounded-[24px] sm:rounded-3xl p-5 space-y-4 max-h-[calc(100dvh-env(safe-area-inset-top,0px)-24px)] sm:max-h-[85vh] overflow-y-auto shadow-2xl ${currentTheme.modalBg} ${panelDragging ? '' : 'transition-transform duration-200 ease-out'}`}
@@ -1382,7 +1382,7 @@ export default function App() {
               panelSwipeStartX.current=null; panelSwipeStartY.current=null;
               if (dx>=100 && Math.abs(dx)>Math.abs(dy)*1.25) {
                 setPanelDragX(window.innerWidth);
-                window.setTimeout(()=>{ setShowMoreModal(false); setPanelDragX(0); setPanelDragging(false); },180);
+                window.setTimeout(()=>{ setShowMoreModal(null); setPanelDragX(0); setPanelDragging(false); },180);
               } else { setPanelDragX(0); setPanelDragging(false); }
             }}
             onTouchCancel={()=>{ panelSwipeStartX.current=null; panelSwipeStartY.current=null; setPanelDragX(0); setPanelDragging(false); }}

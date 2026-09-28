@@ -896,7 +896,7 @@ export default function App() {
             : isPullRefreshing
               ? '↻ 正在更新資料…'
               : pullDistance >= 72
-                ? '↻ 放開重新整理'
+                ? '↻ 把我放開啦'
                 : '↓ 下拉重新整理'}
         </div>
       )}
@@ -1387,7 +1387,7 @@ export default function App() {
                 </div>
                 <div className="space-y-2 leading-relaxed">
                   <p className="font-bold">為什麼有時候畫面沒有更新？</p>
-                  <p className={currentTheme.textMuted}>為了確保在海上斷網時能照常運作，手機會自動將畫面鎖存在本機快取中。若雲端發布了新版面但畫面卡住，可點擊下方按鈕強制清除本機快取並刷新。</p>
+                  <p className={currentTheme.textMuted}>為了確保在斷網時能照常運作，手機會自動將畫面鎖存在本機快取中。若雲端發布了新版面但畫面卡住，可點擊下方按鈕強制清除本機快取並刷新。</p>
                 </div>
                 
                 <button
@@ -1447,9 +1447,10 @@ export default function App() {
 
             {showMoreModal === 'guide' && (
               <div className={`space-y-2 text-xs leading-relaxed p-3.5 rounded-2xl border ${currentTheme.subPanelBg}`}>
-                <p>1. iPhone 點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝為獨立 App。</p>
-                <p>2. 出港前在基地有網路時，滑動瀏覽各級艦艇一次，即可啟動 180 天長效持久離線庫。</p>
-                <p>3. 任務斷網期間，切勿手動清除 Safari / Chrome 快取與瀏覽紀錄。</p>
+                <p>1. iPhone 點選分享按鈕 ➔ 選擇「加入主畫面」即可安裝。</p>
+                <p>2. Android 手機操作亦同 iPhone。</p>
+                <p>2. 滑動瀏覽各級艦艇一次，即可啟動 180 天離線庫。</p>
+                <p>3. 任務斷網期間，切勿手動清除瀏覽器快取與瀏覽紀錄。</p>
               </div>
             )}
 

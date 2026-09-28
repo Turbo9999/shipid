@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.5';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.7';
 
 interface ShipClass {
   id: string;
@@ -117,8 +117,15 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
+  const moreTabsRef = useRef<HTMLDivElement | null>(null);
   const moreTabSwipeStartX = useRef<number | null>(null);
   const moreTabSwipeStartY = useRef<number | null>(null);
+  useEffect(() => {
+    if (!showMoreModal || !moreTabsRef.current) return;
+    const active = moreTabsRef.current.querySelector<HTMLElement>(`[data-more-tab="${showMoreModal}"]`);
+    active?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [showMoreModal]);
+
   const [showAdmin, setShowAdmin] = useState(false);
   const panelSwipeStartX = useRef<number | null>(null);
   const panelSwipeStartY = useRef<number | null>(null);
@@ -279,6 +286,28 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // 全域廣播即時同步：其他已連線裝置不需重新整理即可收到最新通報。
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel('shipid-global-banner')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_settings', filter: 'id=eq.global' },
+        (payload) => {
+          const next = (payload.new as { banner_text?: string } | null)?.banner_text ?? '';
+          setBannerText(next);
+          localStorage.setItem('tn_banner_text', next);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleSelectRecentSearch = (term: string) => {
@@ -1367,7 +1396,7 @@ export default function App() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowMoreModal(null); }}
         >
           <div
-            className={`w-full max-w-md h-[72dvh] min-h-[520px] max-h-[680px] border rounded-[24px] sm:rounded-3xl p-5 flex flex-col gap-4 overflow-hidden shadow-2xl ${currentTheme.modalBg}`}
+            className={`w-full max-w-md h-[64dvh] min-h-[500px] max-h-[640px] border rounded-[24px] sm:rounded-3xl p-5 flex flex-col gap-4 overflow-hidden shadow-2xl ${currentTheme.modalBg}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className={`flex justify-between items-center border-b pb-3 ${currentTheme.border}`}>
@@ -1383,12 +1412,12 @@ export default function App() {
               <button type="button" onClick={() => setShowMoreModal(null)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>
             </div>
 
-            <div className={`flex gap-1 p-1.5 rounded-xl text-base font-bold overflow-x-auto no-scrollbar ${currentTheme.subPanelBg}`}>
-              <button type="button" onClick={() => setShowMoreModal('update')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'update' ? currentTheme.accentBg : currentTheme.textMuted}`}>版面更新</button>
-              <button type="button" onClick={() => setShowMoreModal('rankings')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'rankings' ? currentTheme.accentBg : currentTheme.textMuted}`}>查詢排行</button>
-              <button type="button" onClick={() => setShowMoreModal('stats')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'stats' ? currentTheme.accentBg : currentTheme.textMuted}`}>每月統計</button>
-              <button type="button" onClick={() => setShowMoreModal('guide')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'guide' ? currentTheme.accentBg : currentTheme.textMuted}`}>離線說明</button>
-              <button type="button" onClick={() => setShowMoreModal('sources')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'sources' ? currentTheme.accentBg : currentTheme.textMuted}`}>資料來源</button>
+            <div ref={moreTabsRef} className={`flex gap-1 p-1.5 rounded-xl text-base font-bold overflow-x-auto no-scrollbar scroll-smooth ${currentTheme.subPanelBg}`}>
+              <button data-more-tab="update" type="button" onClick={() => setShowMoreModal('update')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'update' ? currentTheme.accentBg : currentTheme.textMuted}`}>版面更新</button>
+              <button data-more-tab="rankings" type="button" onClick={() => setShowMoreModal('rankings')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'rankings' ? currentTheme.accentBg : currentTheme.textMuted}`}>查詢排行</button>
+              <button data-more-tab="stats" type="button" onClick={() => setShowMoreModal('stats')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'stats' ? currentTheme.accentBg : currentTheme.textMuted}`}>每月統計</button>
+              <button data-more-tab="guide" type="button" onClick={() => setShowMoreModal('guide')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'guide' ? currentTheme.accentBg : currentTheme.textMuted}`}>離線說明</button>
+              <button data-more-tab="sources" type="button" onClick={() => setShowMoreModal('sources')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'sources' ? currentTheme.accentBg : currentTheme.textMuted}`}>資料來源</button>
             </div>
 
             <div
@@ -1407,8 +1436,9 @@ export default function App() {
                 const tabs: Array<'update' | 'rankings' | 'stats' | 'guide' | 'sources'> = ['update', 'rankings', 'stats', 'guide', 'sources'];
                 const currentIndex = tabs.indexOf(showMoreModal as 'update' | 'rankings' | 'stats' | 'guide' | 'sources');
                 if (currentIndex < 0) return;
-                const nextIndex = dx < 0 ? Math.min(tabs.length - 1, currentIndex + 1) : Math.max(0, currentIndex - 1);
-                if (nextIndex !== currentIndex) setShowMoreModal(tabs[nextIndex]);
+                const direction = dx < 0 ? 1 : -1;
+                const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
+                setShowMoreModal(tabs[nextIndex]);
               }}
               onTouchCancel={() => {
                 moreTabSwipeStartX.current = null;
@@ -1719,7 +1749,7 @@ export default function App() {
             <div className={`flex border-b text-base font-bold p-1.5 mx-4 mt-3 rounded-xl gap-1 ${currentTheme.subPanelBg} ${currentTheme.border}`}>
               <button type="button" onClick={() => setAdminActiveTab('class_edit')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'class_edit' ? currentTheme.accentBg : currentTheme.textMuted}`}>艦型與外觀特徵</button>
               <button type="button" onClick={() => { setEditingShipId(null); setAdminActiveTab('ship_add'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'ship_add' ? currentTheme.accentBg : currentTheme.textMuted}`}>單艦管理</button>
-              <button type="button" onClick={() => setAdminActiveTab('banner')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'banner' ? currentTheme.accentBg : currentTheme.textMuted}`}>廣播通報</button>
+              <button type="button" onClick={() => { setAdminBannerInput(bannerText); setAdminActiveTab('banner'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'banner' ? currentTheme.accentBg : currentTheme.textMuted}`}>廣播通報</button>
             </div>
 
             <div className="p-5 md:p-6 overflow-y-auto space-y-5 text-base">
@@ -2283,11 +2313,18 @@ export default function App() {
                     <button
                       type="button"
                       onClick={async () => {
-                        if (!supabase) return;
-                        await supabase.from('app_settings').upsert({ id: 'global', banner_text: adminBannerInput.trim() });
-                        setBannerText(adminBannerInput.trim());
-                        localStorage.setItem('tn_banner_text', adminBannerInput.trim());
-                        alert('戰術通報已廣播發布！');
+                        if (!supabase) return alert('Supabase 尚未連線，無法發布全域通報。');
+                        const nextBanner = adminBannerInput.trim();
+                        const { error } = await supabase
+                          .from('app_settings')
+                          .upsert({ id: 'global', banner_text: nextBanner }, { onConflict: 'id' });
+                        if (error) {
+                          console.error('Global banner publish failed:', error);
+                          return alert(`全域通報發布失敗：${error.message}`);
+                        }
+                        setBannerText(nextBanner);
+                        localStorage.setItem('tn_banner_text', nextBanner);
+                        alert(nextBanner ? '全域戰術通報已發布！所有連線裝置將同步收到。' : '全域戰術通報已清除。');
                       }}
                       className={`flex-1 min-h-[44px] rounded-xl font-bold ${currentTheme.accentBg}`}
                     >

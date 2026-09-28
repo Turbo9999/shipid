@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.9.1';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.0';
 
 interface ShipClass {
   id: string;
@@ -1099,7 +1099,7 @@ export default function App() {
                         </div>
                         {(c.identification_features?.length ?? 0) > 0 && (
                           <div
-                            className="mt-3 -mx-1 px-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            className="mt-1.5 -mx-1 px-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {(c.identification_features ?? []).slice(0, 3).map((feature, index) => (
@@ -1737,21 +1737,65 @@ export default function App() {
                     </div>
 
                     <div className="space-y-1.5">
-                      {editingClassForm.identification_features?.map((feat, idx) => (
-                        <div key={idx} className={`flex justify-between items-center p-2.5 rounded-lg border text-xs ${currentTheme.cardBg}`}>
-                          <span>{feat}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = editingClassForm.identification_features?.filter((_, i) => i !== idx);
-                              setEditingClassForm({ ...editingClassForm, identification_features: updated });
-                            }}
-                            className="text-red-400 hover:text-red-300 px-2.5 py-1 font-bold"
-                          >
-                            刪除
-                          </button>
+                      {(editingClassForm.identification_features ?? []).map((feat, idx) => (
+                        <div key={`${feat}-${idx}`} className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs ${currentTheme.cardBg}`}>
+                          <span className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-mono font-black ${
+                            idx < 3
+                              ? (themeMode === 'red' ? 'bg-red-950 text-red-300 border border-red-700' : 'bg-cyan-950 text-cyan-300 border border-cyan-700')
+                              : currentTheme.badge
+                          }`}>
+                            {idx + 1}
+                          </span>
+                          <span className="min-w-0 flex-1 break-words">{feat}</span>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              aria-label="提高優先順序"
+                              disabled={idx === 0}
+                              onClick={() => {
+                                if (idx === 0) return;
+                                const updated = [...(editingClassForm.identification_features ?? [])];
+                                [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
+                                setEditingClassForm({ ...editingClassForm, identification_features: updated });
+                              }}
+                              className={`min-w-[38px] min-h-[38px] rounded-lg border font-black disabled:opacity-25 disabled:cursor-not-allowed ${currentTheme.btnSecondary}`}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="降低優先順序"
+                              disabled={idx === (editingClassForm.identification_features?.length ?? 0) - 1}
+                              onClick={() => {
+                                const features = editingClassForm.identification_features ?? [];
+                                if (idx >= features.length - 1) return;
+                                const updated = [...features];
+                                [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];
+                                setEditingClassForm({ ...editingClassForm, identification_features: updated });
+                              }}
+                              className={`min-w-[38px] min-h-[38px] rounded-lg border font-black disabled:opacity-25 disabled:cursor-not-allowed ${currentTheme.btnSecondary}`}
+                            >
+                              ↓
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = (editingClassForm.identification_features ?? []).filter((_, i) => i !== idx);
+                                setEditingClassForm({ ...editingClassForm, identification_features: updated });
+                              }}
+                              className="text-red-400 hover:text-red-300 px-2.5 min-h-[38px] font-bold"
+                            >
+                              刪除
+                            </button>
+                          </div>
                         </div>
                       ))}
+                      {(editingClassForm.identification_features?.length ?? 0) > 0 && (
+                        <p className={`px-1 pt-1 text-[11px] ${currentTheme.textMuted}`}>
+                          前 3 項會依此順序顯示在首頁艦型小卡，可用 ↑ ↓ 調整優先順序。
+                        </p>
+                      )}
                     </div>
 
                     <div className={`grid grid-cols-2 gap-2 pt-2 border-t ${currentTheme.border}`}>

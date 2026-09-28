@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.9';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.9.1';
 
 interface ShipClass {
   id: string;
@@ -1097,12 +1097,12 @@ export default function App() {
                             <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
                           </button>
                         </div>
-                        {c.identification_features?.length > 0 && (
+                        {(c.identification_features?.length ?? 0) > 0 && (
                           <div
                             className="mt-3 -mx-1 px-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {c.identification_features.slice(0, 3).map((feature, index) => (
+                            {(c.identification_features ?? []).slice(0, 3).map((feature, index) => (
                               <span
                                 key={`${c.id}-feature-${index}`}
                                 title={feature}

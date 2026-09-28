@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.7.2';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.9';
 
 interface ShipClass {
   id: string;
@@ -97,7 +97,7 @@ export default function App() {
   });
 
   const [activeBottomTab, setActiveBottomTab] = useState<BottomTab>('classes');
-  const [showMoreModal, setShowMoreModal] = useState<null | 'rankings' | 'stats' | 'guide' | 'sources' | 'update'>(null);
+  const [showMoreModal, setShowMoreModal] = useState<null | 'rankings' | 'guide' | 'sources' | 'update'>(null);
 
   const [comparePool, setComparePool] = useState<string[]>(() => {
     const saved = localStorage.getItem('tn_compare_pool');
@@ -116,6 +116,8 @@ export default function App() {
     const saved = localStorage.getItem('tn_monthly_usage');
     return saved ? JSON.parse(saved) : {};
   });
+  const [globalQueryCounts, setGlobalQueryCounts] = useState<Record<string, number>>({});
+  const [globalMonthlyUsage, setGlobalMonthlyUsage] = useState<Record<string, number>>({});
 
   const moreTabsRef = useRef<HTMLDivElement | null>(null);
   const moreTabSwipeStartX = useRef<number | null>(null);
@@ -246,6 +248,20 @@ export default function App() {
     }
   }, []);
 
+  const fetchGlobalStats = async () => {
+    if (!supabase || !navigator.onLine) return;
+    const [{ data: classStats, error: classError }, { data: monthStats, error: monthError }] = await Promise.all([
+      supabase.from('ship_query_stats').select('class_id,query_count'),
+      supabase.from('monthly_query_stats').select('month_key,query_count').order('month_key', { ascending: false }).limit(10)
+    ]);
+    if (!classError && classStats) {
+      setGlobalQueryCounts(Object.fromEntries(classStats.map(row => [row.class_id, Number(row.query_count) || 0])));
+    }
+    if (!monthError && monthStats) {
+      setGlobalMonthlyUsage(Object.fromEntries(monthStats.map(row => [row.month_key, Number(row.query_count) || 0])));
+    }
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
     const cachedClasses = localStorage.getItem('tn_cache_classes');
@@ -264,6 +280,7 @@ export default function App() {
       const { data: cData } = await supabase.from('ship_classes').select('*').order('code');
       const { data: sData } = await supabase.from('ships').select('*').order('hull_number');
       const { data: bData } = await supabase.from('app_settings').select('banner_text').eq('id', 'global').maybeSingle();
+      await fetchGlobalStats();
 
       if (cData) {
         setClasses(cData as ShipClass[]);
@@ -390,9 +407,27 @@ export default function App() {
     setSelectedClassDetail(shipClass);
     setExpandedShipList(false);
     setDetailMenuOpen(false);
+
+    // 本機仍保留計數，斷網時可正常運作；在線時另外累加全站統計。
     const updated = { ...queryCounts, [shipClass.id]: (queryCounts[shipClass.id] || 0) + 1 };
     setQueryCounts(updated);
     localStorage.setItem('tn_query_counts', JSON.stringify(updated));
+
+    if (supabase && navigator.onLine) {
+      const now = new Date();
+      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      void supabase.rpc('increment_ship_query_stats', {
+        p_class_id: shipClass.id,
+        p_month_key: monthKey
+      }).then(({ error }) => {
+        if (error) {
+          console.warn('全站查詢統計同步失敗', error);
+          return;
+        }
+        setGlobalQueryCounts(prev => ({ ...prev, [shipClass.id]: (prev[shipClass.id] || 0) + 1 }));
+        setGlobalMonthlyUsage(prev => ({ ...prev, [monthKey]: (prev[monthKey] || 0) + 1 }));
+      });
+    }
   };
 
   const renderFormattedList = (text?: string) => {
@@ -1413,12 +1448,11 @@ export default function App() {
               <button type="button" onClick={() => setShowMoreModal(null)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>
             </div>
 
-            <div ref={moreTabsRef} className={`flex gap-1 p-1.5 rounded-xl text-base font-bold overflow-x-auto no-scrollbar scroll-smooth ${currentTheme.subPanelBg}`}>
-              <button data-more-tab="update" type="button" onClick={() => setShowMoreModal('update')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'update' ? currentTheme.accentBg : currentTheme.textMuted}`}>版面更新</button>
-              <button data-more-tab="rankings" type="button" onClick={() => setShowMoreModal('rankings')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'rankings' ? currentTheme.accentBg : currentTheme.textMuted}`}>查詢排行</button>
-              <button data-more-tab="stats" type="button" onClick={() => setShowMoreModal('stats')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'stats' ? currentTheme.accentBg : currentTheme.textMuted}`}>每月統計</button>
-              <button data-more-tab="guide" type="button" onClick={() => setShowMoreModal('guide')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'guide' ? currentTheme.accentBg : currentTheme.textMuted}`}>離線說明</button>
-              <button data-more-tab="sources" type="button" onClick={() => setShowMoreModal('sources')} className={`px-3 py-2 rounded-lg shrink-0 ${showMoreModal === 'sources' ? currentTheme.accentBg : currentTheme.textMuted}`}>資料來源</button>
+            <div ref={moreTabsRef} className={`grid grid-cols-4 gap-1 p-1.5 rounded-xl text-sm font-bold ${currentTheme.subPanelBg}`}>
+              <button data-more-tab="update" type="button" onClick={() => setShowMoreModal('update')} className={`px-2 py-2 rounded-lg min-w-0 whitespace-nowrap ${showMoreModal === 'update' ? currentTheme.accentBg : currentTheme.textMuted}`}>版面更新</button>
+              <button data-more-tab="rankings" type="button" onClick={() => setShowMoreModal('rankings')} className={`px-2 py-2 rounded-lg min-w-0 whitespace-nowrap ${showMoreModal === 'rankings' ? currentTheme.accentBg : currentTheme.textMuted}`}>查詢統計</button>
+              <button data-more-tab="guide" type="button" onClick={() => setShowMoreModal('guide')} className={`px-2 py-2 rounded-lg min-w-0 whitespace-nowrap ${showMoreModal === 'guide' ? currentTheme.accentBg : currentTheme.textMuted}`}>離線說明</button>
+              <button data-more-tab="sources" type="button" onClick={() => setShowMoreModal('sources')} className={`px-2 py-2 rounded-lg min-w-0 whitespace-nowrap ${showMoreModal === 'sources' ? currentTheme.accentBg : currentTheme.textMuted}`}>資料來源</button>
             </div>
 
             <div
@@ -1434,8 +1468,8 @@ export default function App() {
                 moreTabSwipeStartX.current = null;
                 moreTabSwipeStartY.current = null;
                 if (Math.abs(dx) < 55 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
-                const tabs: Array<'update' | 'rankings' | 'stats' | 'guide' | 'sources'> = ['update', 'rankings', 'stats', 'guide', 'sources'];
-                const currentIndex = tabs.indexOf(showMoreModal as 'update' | 'rankings' | 'stats' | 'guide' | 'sources');
+                const tabs: Array<'update' | 'rankings' | 'guide' | 'sources'> = ['update', 'rankings', 'guide', 'sources'];
+                const currentIndex = tabs.indexOf(showMoreModal as 'update' | 'rankings' | 'guide' | 'sources');
                 if (currentIndex < 0) return;
                 const direction = dx < 0 ? 1 : -1;
                 const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
@@ -1483,32 +1517,40 @@ export default function App() {
             )}
 
             {showMoreModal === 'rankings' && (
-              <div className="space-y-2 text-xs">
-                {classes
-                  .slice()
-                  .sort((a, b) => (queryCounts[b.id] || 0) - (queryCounts[a.id] || 0))
-                  .slice(0, 10)
-                  .map((c, idx) => (
-                    <div key={c.id} className={`p-2.5 rounded-xl border flex justify-between items-center ${currentTheme.subPanelBg}`}>
-                      <div className="flex items-center gap-2">
-                        <span className={`font-mono font-bold ${currentTheme.textMuted}`}>#{idx + 1}</span>
-                        <span className={`font-mono font-bold ${currentTheme.accentText}`}>{c.code}</span>
-                        <span>{c.name_zh}</span>
+              <div className="space-y-5 text-xs">
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <h4 className={`font-black text-sm ${currentTheme.accentText}`}>全站查詢排行</h4>
+                    <span className={currentTheme.textMuted}>{isOnline ? 'ALL DEVICES · TOP 10' : 'OFFLINE · 本機快取'}</span>
+                  </div>
+                  {classes
+                    .slice()
+                    .sort((a, b) => ((isOnline ? globalQueryCounts : queryCounts)[b.id] || 0) - ((isOnline ? globalQueryCounts : queryCounts)[a.id] || 0))
+                    .slice(0, 10)
+                    .map((c, idx) => (
+                      <div key={c.id} className={`p-2.5 rounded-xl border flex justify-between items-center ${currentTheme.subPanelBg}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`font-mono font-bold shrink-0 ${currentTheme.textMuted}`}>#{idx + 1}</span>
+                          <span className={`font-mono font-bold shrink-0 ${currentTheme.accentText}`}>{c.code}</span>
+                          <span className="truncate">{c.name_zh}</span>
+                        </div>
+                        <span className={`font-mono font-bold shrink-0 ml-2 ${currentTheme.textMuted}`}>{(isOnline ? globalQueryCounts : queryCounts)[c.id] || 0} 次</span>
                       </div>
-                      <span className={`font-mono font-bold ${currentTheme.textMuted}`}>{queryCounts[c.id] || 0} 次</span>
+                    ))}
+                </section>
+
+                <section className={`space-y-2 border-t pt-4 ${currentTheme.border}`}>
+                  <div className="flex items-center justify-between px-1">
+                    <h4 className={`font-black text-sm ${currentTheme.accentText}`}>全站每月統計</h4>
+                    <span className={currentTheme.textMuted}>{isOnline ? 'ALL DEVICES · 近 10 個月' : 'OFFLINE · 本機快取'}</span>
+                  </div>
+                  {Object.keys(isOnline ? globalMonthlyUsage : monthlyUsage).sort().reverse().slice(0, 10).map(m => (
+                    <div key={m} className={`p-2.5 rounded-xl border flex justify-between items-center ${currentTheme.subPanelBg}`}>
+                      <span className="font-mono">{m}</span>
+                      <span className={`font-mono font-bold ${currentTheme.accentText}`}>{(isOnline ? globalMonthlyUsage : monthlyUsage)[m]} 次查詢</span>
                     </div>
                   ))}
-              </div>
-            )}
-
-            {showMoreModal === 'stats' && (
-              <div className="space-y-2 text-xs">
-                {Object.keys(monthlyUsage).sort().reverse().slice(0, 10).map(m => (
-                  <div key={m} className={`p-2.5 rounded-xl border flex justify-between items-center ${currentTheme.subPanelBg}`}>
-                    <span className="font-mono">{m}</span>
-                    <span className={`font-mono font-bold ${currentTheme.accentText}`}>{monthlyUsage[m]} 次查詢</span>
-                  </div>
-                ))}
+                </section>
               </div>
             )}
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.7';
+const CURRENT_APP_VERSION = '2026.09.28 v5.10.7.1';
 
 interface ShipClass {
   id: string;
@@ -290,9 +290,10 @@ export default function App() {
 
   // 全域廣播即時同步：其他已連線裝置不需重新整理即可收到最新通報。
   useEffect(() => {
-    if (!supabase) return;
+    const client = supabase;
+    if (!client) return;
 
-    const channel = supabase
+    const channel = client
       .channel('shipid-global-banner')
       .on(
         'postgres_changes',
@@ -306,7 +307,7 @@ export default function App() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, []);
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.8.1';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.9';
 
 interface ShipClass {
   id: string;
@@ -1097,6 +1097,28 @@ export default function App() {
                             <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
                           </button>
                         </div>
+                        {c.identification_features?.length > 0 && (
+                          <div
+                            className="mt-3 -mx-1 px-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {c.identification_features.slice(0, 3).map((feature, index) => (
+                              <span
+                                key={`${c.id}-feature-${index}`}
+                                title={feature}
+                                className={`shrink-0 max-w-[72%] px-2.5 py-1 rounded-lg border text-[13px] sm:text-sm font-medium truncate ${
+                                  themeMode === 'red'
+                                    ? 'border-red-800/70 bg-red-950/35 text-red-200'
+                                    : themeMode === 'high_contrast'
+                                      ? 'border-sky-500 bg-sky-50 text-slate-950'
+                                      : 'border-cyan-700/60 bg-cyan-950/25 text-cyan-100'
+                                }`}
+                              >
+                                {feature}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         <div className={`mt-auto pt-3 border-t flex flex-wrap items-center gap-x-3 gap-y-2 ${currentTheme.border}`}>
                           {c.nato_code && <span className={`px-2.5 py-1 rounded-md font-mono text-base ${currentTheme.badge}`}>{c.nato_code}</span>}
                           <span className={`text-base font-medium ${primaryText}`}>登錄 {classShips.length} 艘</span>

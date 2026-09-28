@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.10.9';
+const CURRENT_APP_VERSION = '2026.09.28 v5.11.0';
 
 interface ShipClass {
   id: string;
@@ -133,11 +133,11 @@ export default function App() {
   const panelSwipeStartY = useRef<number | null>(null);
   const [panelDragX, setPanelDragX] = useState(0);
   const [panelDragging, setPanelDragging] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('tn_admin_auth') === 'true';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [adminEmailInput, setAdminEmailInput] = useState('pkddqq@gmail.com');
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [isAdminSigningIn, setIsAdminSigningIn] = useState(false);
   const [adminActiveTab, setAdminActiveTab] = useState<'class_edit' | 'ship_add' | 'banner'>('class_edit');
 
   const [bannerText, setBannerText] = useState<string>(() => {
@@ -179,6 +179,22 @@ export default function App() {
     class_id: '', hull_number: '', name_zh: '', commissioned_year: '',
     commission_precision: 'year', fleet: '', squadron: '', status_code: 'active'
   });
+
+  // Supabase Auth 是管理權限的唯一來源，不再以 localStorage 或前端明碼密碼判斷。
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    void client.auth.getSession().then(({ data }) => {
+      setIsAuthenticated(Boolean(data.session));
+    });
+    const { data: authListener } = client.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(Boolean(session));
+      if (!session) setShowAdmin(false);
+    });
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -828,16 +844,27 @@ export default function App() {
     await fetchData();
   };
 
-  const handleVerifyPassword = (e: React.FormEvent) => {
+  const handleVerifyPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPasswordInput.trim() === '750120') {
+    if (!supabase) return alert('Supabase 尚未連線，無法進行管理員驗證。');
+    if (!adminEmailInput.trim() || !adminPasswordInput) return;
+
+    setIsAdminSigningIn(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: adminEmailInput.trim(),
+        password: adminPasswordInput
+      });
+      if (error) {
+        setAdminPasswordInput('');
+        return alert('管理員登入失敗：帳號或密碼錯誤。');
+      }
       setIsAuthenticated(true);
-      localStorage.setItem('tn_admin_auth', 'true');
+      setAdminPasswordInput('');
       setShowPasswordModal(false);
       setShowAdmin(true);
-    } else {
-      alert('通行密碼錯誤！');
-      setAdminPasswordInput('');
+    } finally {
+      setIsAdminSigningIn(false);
     }
   };
 
@@ -1580,17 +1607,27 @@ export default function App() {
             <h3 className="font-bold text-base">後台管理通行驗證</h3>
             <form onSubmit={handleVerifyPassword} className="space-y-3">
               <input
+                type="email"
+                required
+                autoComplete="username"
+                placeholder="管理員 Email"
+                value={adminEmailInput}
+                onChange={e => setAdminEmailInput(e.target.value)}
+                className={`w-full min-h-[48px] rounded-xl px-3 text-center font-mono focus:outline-none ${currentTheme.input}`}
+              />
+              <input
                 type="password"
                 required
-                maxLength={10}
-                placeholder="請輸入 6 位授權碼"
+                autoComplete="current-password"
+                placeholder="管理員密碼"
                 value={adminPasswordInput}
                 onChange={e => setAdminPasswordInput(e.target.value)}
                 className={`w-full min-h-[48px] rounded-xl text-center text-xl font-mono tracking-widest focus:outline-none ${currentTheme.input}`}
               />
+              <p className={`text-xs ${currentTheme.textMuted}`}>帳號與密碼由 Supabase Auth 驗證，前端不保存管理員密碼。</p>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setShowPasswordModal(false)} className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold ${currentTheme.btnSecondary}`}>取消</button>
-                <button type="submit" className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold ${currentTheme.accentBg}`}>確認驗證</button>
+                <button type="button" disabled={isAdminSigningIn} onClick={() => setShowPasswordModal(false)} className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold ${currentTheme.btnSecondary}`}>取消</button>
+                <button type="submit" disabled={isAdminSigningIn} className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold disabled:opacity-50 ${currentTheme.accentBg}`}>{isAdminSigningIn ? '驗證中…' : '登入管理'}</button>
               </div>
             </form>
           </div>

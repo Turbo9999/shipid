@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.12.2';
+const CURRENT_APP_VERSION = '2026.09.28 v5.12.4';
 
 interface ShipClass {
   id: string;
@@ -775,10 +775,45 @@ export default function App() {
     return raw.replace(/\[\d+\]/g, '').replace(/\[註\s*\d+\]/g, '').trim();
   };
 
-  const toTraditional = (text: string) => text.replace(/[舰号现时间队装战计划态驱护导远标属区军萨连锡东无阳义庆济宁沈长门级国台湾产厂发后备录称试验编]/g, char => ({
-    舰: '艦', 号: '號', 现: '現', 时: '時', 间: '間', 队: '隊', 装: '裝', 战: '戰', 计: '計', 划: '畫', 态: '態', 驱: '驅', 护: '護', 导: '導', 远: '遠', 标: '標',
-    属: '屬', 区: '區', 军: '軍', 萨: '薩', 连: '連', 锡: '錫', 东: '東', 无: '無', 阳: '陽', 义: '義', 庆: '慶', 济: '濟', 宁: '寧', 沈: '瀋', 长: '長', 门: '門', 级: '級', 国: '國', 台: '臺', 湾: '灣', 产: '產', 厂: '廠', 发: '發', 后: '後', 备: '備', 录: '錄', 称: '稱', 试: '試', 验: '驗', 编: '編'
-  }[char] || char));
+  // Wikipedia 匯入用簡體 -> 臺灣繁體轉換。
+  // 先處理常見軍事詞彙，再做單字轉換，避免「计划」之類逐字轉換產生不自然結果。
+  const toTraditional = (text: string) => {
+    if (!text) return '';
+    const phraseMap: Record<string, string> = {
+      '航空母舰': '航空母艦', '驱逐舰': '驅逐艦', '护卫舰': '護衛艦', '巡洋舰': '巡洋艦',
+      '登陆舰': '登陸艦', '两栖': '兩棲', '潜艇': '潛艦', '导弹': '飛彈', '反舰': '反艦',
+      '防空导弹': '防空飛彈', '反舰导弹': '反艦飛彈', '巡航导弹': '巡弋飛彈',
+      '舰载机': '艦載機', '直升机': '直升機', '雷达': '雷達', '电子战': '電子戰',
+      '作战系统': '作戰系統', '武器系统': '武器系統', '搜索雷达': '搜索雷達',
+      '有源相控阵': '主動相位陣列', '相控阵': '相位陣列', '垂直发射系统': '垂直發射系統',
+      '中国人民解放军海军': '中國人民解放軍海軍', '北部战区': '北部戰區',
+      '东部战区': '東部戰區', '南部战区': '南部戰區', '海军': '海軍',
+      '现役': '現役', '退役': '退役', '服役': '服役', '海试': '海試', '试航': '試航',
+      '建造中': '建造中', '舾装中': '舾裝中', '改装中': '改裝中', '计划': '計畫',
+      '规划': '規劃', '状态': '狀態', '现状': '現狀', '舰名': '艦名', '舰号': '艦號',
+      '舷号': '舷號', '编号': '編號', '舰队': '艦隊', '支队': '支隊', '所属': '所屬',
+      '排水量': '排水量', '满载': '滿載', '标准': '標準', '长度': '長度', '宽度': '寬度',
+      '动力': '動力', '发动机': '發動機', '最高速度': '最高速度', '乘员': '乘員',
+      '建造厂': '建造廠', '造船厂': '造船廠', '下水': '下水', '入役': '入役',
+      '中华人民共和国': '中華人民共和國', '台湾': '臺灣'
+    };
+    let converted = text;
+    Object.entries(phraseMap)
+      .sort((a, b) => b[0].length - a[0].length)
+      .forEach(([from, to]) => { converted = converted.split(from).join(to); });
+
+    const charMap: Record<string, string> = {
+      舰:'艦',号:'號',现:'現',时:'時',间:'間',队:'隊',装:'裝',战:'戰',计:'計',划:'劃',态:'態',驱:'驅',护:'護',导:'導',远:'遠',标:'標',属:'屬',区:'區',
+      军:'軍',萨:'薩',连:'連',锡:'錫',东:'東',无:'無',阳:'陽',义:'義',庆:'慶',济:'濟',宁:'寧',沈:'瀋',长:'長',门:'門',级:'級',国:'國',台:'臺',湾:'灣',
+      产:'產',厂:'廠',发:'發',后:'後',备:'備',录:'錄',称:'稱',试:'試',验:'驗',编:'編',航:'航',潜:'潛',艇:'艇',两:'兩',栖:'棲',载:'載',机:'機',达:'達',
+      电:'電',统:'統',搜:'搜',阵:'陣',垂:'垂',满:'滿',宽:'寬',员:'員',动:'動',这:'這',为:'為',与:'與',从:'從',对:'對',于:'於',个:'個',开:'開',关:'關',
+      进:'進',过:'過',还:'還',并:'並',将:'將',当:'當',应:'應',设:'設',实:'實',体:'體',线:'線',网:'網',术:'術',数:'數',据:'據',资:'資',料:'料',维:'維',
+      总:'總',务:'務',舱:'艙',轮:'輪',轴:'軸',桨:'槳',钢:'鋼',铝:'鋁',铜:'銅',钛:'鈦',炮:'砲',弹:'彈',鱼:'魚',声:'聲',测:'測',侦:'偵',隐:'隱',频:'頻',
+      传:'傳',讯:'訊',锁:'鎖',击:'擊',损:'損',伤:'傷',补:'補',给:'給',仓:'倉',库:'庫',阅:'閱',页:'頁',风:'風',云:'雲',龙:'龍',凤:'鳳',广:'廣',岛:'島',
+      滨:'濱',汉:'漢',苏:'蘇',辽:'遼',贵:'貴',飞:'飛',极:'極',压:'壓',热:'熱',冷:'冷',净:'淨',层:'層',图:'圖',优:'優',质:'質'
+    };
+    return Array.from(converted).map(char => charMap[char] || char).join('');
+  };
 
   const fetchWikiDocument = async (query: string) => {
     const response = await fetch(`/api/wiki?title=${encodeURIComponent(query)}`);
@@ -821,7 +856,7 @@ export default function App() {
               const clone = td.cloneNode(true) as HTMLElement;
               clone.querySelectorAll('br').forEach(b => b.replaceWith('\n'));
               clone.querySelectorAll('li').forEach(l => l.append('\n'));
-              return cleanWikiText(clone.textContent || '').slice(0, 500);
+              return toTraditional(cleanWikiText(clone.textContent || '').slice(0, 500));
             }
           }
         }
@@ -831,7 +866,7 @@ export default function App() {
       let overviewP = '';
       for (const p of Array.from(doc.querySelectorAll('p'))) {
         const txt = cleanWikiText(p.textContent || '');
-        if (txt.length > 50) { overviewP = txt; break; }
+        if (txt.length > 50) { overviewP = toTraditional(txt); break; }
       }
 
       const codeMatch = resolvedTitle.match(/([0-9A-Za-z\-]+)(?:型|級)/);
@@ -839,7 +874,7 @@ export default function App() {
 
       const previewData: Partial<ShipClass> = {
         code: extractedCode.toUpperCase(),
-        name_zh: resolvedTitle,
+        name_zh: toTraditional(resolvedTitle),
         category: getVal(['艦種', '舰种']) || ((doc.body.textContent || '').includes('巡防艦') ? '巡防艦' : '驅逐艦'),
         current_status: getVal(['目前狀態', '目前状态', '服役狀態', '服役状态']),
         image_url: imgUrl,
@@ -900,7 +935,7 @@ export default function App() {
           const th = row.querySelector('th')?.textContent?.trim() || '';
           if (keywords.some(k => th.includes(k))) {
             const td = row.querySelector('td');
-            if (td) return cleanWikiText(td.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+            if (td) return toTraditional(cleanWikiText(td.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120));
           }
         }
         return '';
@@ -947,7 +982,7 @@ export default function App() {
       }
       setWikiShipBatch(extractedShips);
       const hull = getVal(['舷號', '舷号', '艦號', '舰号', '編號', '编号']) || (resolvedTitle.match(/\b\d{2,4}\b/)?.[0] || '');
-      const name = getVal(['艦名', '舰名']) || resolvedTitle;
+      const name = getVal(['艦名', '舰名']) || toTraditional(resolvedTitle);
       const commissioned = getVal(['服役日期', '服役時間', '服役时间', '入役', '服役']);
       const statusText = getVal(['目前狀態', '目前状态', '服役狀態', '服役状态', '艦況', '舰况']);
       const statusCode = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('海试') || statusText.includes('航行試驗') || statusText.includes('航行试验') || statusText.includes('試航') || statusText.includes('试航') ? 'sea_trial' : statusText.includes('計畫') || statusText.includes('计划') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') || statusText.includes('舾装') ? 'fitting_out' : statusText.includes('改裝') || statusText.includes('改装') ? 'refit' : statusText.includes('現役') || statusText.includes('现役') || statusText.includes('服役') ? 'active' : 'unknown';
@@ -968,27 +1003,30 @@ export default function App() {
     if (!supabase || wikiShipBatch.length === 0) return;
     const selectedClass = classes.find(item => item.id === newShipForm.class_id) || classes.find(item => newShipForm.class_id && item.code.toLowerCase() === newShipForm.class_id.toLowerCase());
     if (!selectedClass) return alert('請先選擇要匯入的所屬艦型');
-    const shiftedLegacyIds = ships
-      .filter(existing => existing.class_id === selectedClass.id && wikiShipBatch.some(imported => imported.name_zh === existing.hull_number))
-      .map(existing => existing.id);
-    if (shiftedLegacyIds.length > 0) {
-      const { error: cleanupError } = await supabase.from('ships').delete().in('id', shiftedLegacyIds);
-      if (cleanupError) return alert(`清理舊有錯位資料失敗: ${cleanupError.message}`);
-    }
-    const { error } = await supabase.from('ships').upsert(wikiShipBatch.map(ship => ({
-      id: `s-${ship.hull_number}`,
-      class_id: selectedClass.id,
-      hull_number: ship.hull_number,
-      name_zh: ship.name_zh,
-      commissioned_year: ship.commissioned_year,
-      commission_precision: ship.commission_precision,
-      fleet: ship.fleet,
-      squadron: ship.squadron,
-      status_code: ship.status_code,
-      status: getStatusLabel(ship.status_code).label
-    })));
+
+    // 安全匯入原則：不刪除資料庫中任何既有單艦。
+    // 同舷號才更新；Wikipedia 沒提供的空白欄位則保留原本人工維護資料。
+    const payload = wikiShipBatch.map(imported => {
+      const existing = ships.find(ship => ship.class_id === selectedClass.id && ship.hull_number === imported.hull_number);
+      const keep = (incoming: string, oldValue?: string | null) => incoming?.trim() ? toTraditional(incoming.trim()) : (oldValue || '');
+      const statusCode = imported.status_code === 'unknown' && existing?.status_code ? existing.status_code : imported.status_code;
+      return {
+        id: existing?.id || `s-${imported.hull_number}`,
+        class_id: selectedClass.id,
+        hull_number: imported.hull_number,
+        name_zh: keep(imported.name_zh, existing?.name_zh),
+        commissioned_year: keep(imported.commissioned_year, existing?.commissioned_year),
+        commission_precision: imported.commission_precision === 'unknown' && existing?.commission_precision ? existing.commission_precision : imported.commission_precision,
+        fleet: keep(imported.fleet, existing?.fleet),
+        squadron: keep(imported.squadron, existing?.squadron),
+        status_code: statusCode,
+        status: getStatusLabel(statusCode).label
+      };
+    });
+
+    const { error } = await supabase.from('ships').upsert(payload);
     if (error) return alert(`匯入本級單艦失敗: ${error.message}`);
-    alert(`已匯入【${wikiShipBatch.length}】艘單艦至【${selectedClass.code}】名冊！`);
+    alert(`安全匯入完成：已處理【${wikiShipBatch.length}】艘單艦。既有未出現在本次 Wikipedia 資料中的單艦不會被刪除；文字已自動轉為繁體中文。`);
     setWikiShipBatch([]);
     await fetchData();
   };
@@ -1765,10 +1803,12 @@ export default function App() {
               <div className="flex items-center gap-2 min-w-0">
                 <h3 className="font-bold text-base whitespace-nowrap">資訊與系統設定</h3>
                 <a
-                  href={`mailto:pkddqq@gmail.com?subject=${encodeURIComponent('TAIWAN NAVY 使用者意見')}`}
+                  href="https://line.me/ti/g2/vDk6aUBXf-UDIx4R-NWwy9_1RdHQAtS5D_gZ8A?utm_source=invitation&utm_medium=link_copy&utm_campaign=default"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-bold ${currentTheme.btnSecondary}`}
                 >
-                  提供問題或意見
+                  加入LINE社群交流
                 </a>
               </div>
               <button type="button" onClick={() => setShowMoreModal(null)} className={`min-w-[44px] min-h-[44px] flex items-center justify-center ${currentTheme.textMuted} ${hoverText}`}>✕</button>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.11.0';
+const CURRENT_APP_VERSION = '2026.09.28 v5.11.1';
 
 interface ShipClass {
   id: string;
@@ -135,7 +135,7 @@ export default function App() {
   const [panelDragging, setPanelDragging] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [adminEmailInput, setAdminEmailInput] = useState('pkddqq@gmail.com');
+  const [adminEmailInput, setAdminEmailInput] = useState('');
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [isAdminSigningIn, setIsAdminSigningIn] = useState(false);
   const [adminActiveTab, setAdminActiveTab] = useState<'class_edit' | 'ship_add' | 'banner'>('class_edit');
@@ -1604,13 +1604,13 @@ export default function App() {
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className={`w-full max-w-xs border rounded-3xl p-6 shadow-2xl space-y-4 text-center ${currentTheme.modalBg}`}>
-            <h3 className="font-bold text-base">後台管理通行驗證</h3>
+            <h3 className="font-bold text-base">後台管理</h3>
             <form onSubmit={handleVerifyPassword} className="space-y-3">
               <input
                 type="email"
                 required
                 autoComplete="username"
-                placeholder="管理員 Email"
+                placeholder="請輸入 Email"
                 value={adminEmailInput}
                 onChange={e => setAdminEmailInput(e.target.value)}
                 className={`w-full min-h-[48px] rounded-xl px-3 text-center font-mono focus:outline-none ${currentTheme.input}`}
@@ -1619,15 +1619,14 @@ export default function App() {
                 type="password"
                 required
                 autoComplete="current-password"
-                placeholder="管理員密碼"
+                placeholder="請輸入密碼"
                 value={adminPasswordInput}
                 onChange={e => setAdminPasswordInput(e.target.value)}
                 className={`w-full min-h-[48px] rounded-xl text-center text-xl font-mono tracking-widest focus:outline-none ${currentTheme.input}`}
               />
-              <p className={`text-xs ${currentTheme.textMuted}`}>帳號與密碼由 Supabase Auth 驗證，前端不保存管理員密碼。</p>
               <div className="flex gap-2">
                 <button type="button" disabled={isAdminSigningIn} onClick={() => setShowPasswordModal(false)} className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold ${currentTheme.btnSecondary}`}>取消</button>
-                <button type="submit" disabled={isAdminSigningIn} className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold disabled:opacity-50 ${currentTheme.accentBg}`}>{isAdminSigningIn ? '驗證中…' : '登入管理'}</button>
+                <button type="submit" disabled={isAdminSigningIn} className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold disabled:opacity-50 ${currentTheme.accentBg}`}>{isAdminSigningIn ? '登入中…' : '登入'}</button>
               </div>
             </form>
           </div>

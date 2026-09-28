@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.8';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.8.1';
 
 interface ShipClass {
   id: string;
@@ -771,7 +771,7 @@ export default function App() {
     <div
       className={`shipid-app w-full min-h-screen ${currentTheme.bg} ${themeMode === 'red' ? 'text-red-300' : themeMode === 'high_contrast' ? 'text-slate-950' : 'text-slate-100'} flex flex-col items-center select-none ${fontStyle.root} transition-colors duration-300`}
       onTouchStart={(e) => {
-        const isHome = activeBottomTab === 'home' && !selectedClassDetail && !showAdmin && !showMoreModal && !showSettings;
+        const isHome = activeBottomTab === 'classes' && !selectedClassDetail && !showAdmin && !showMoreModal;
         if (!isHome || window.scrollY > 0 || isPullRefreshing) return;
         pullStartY.current = e.touches[0].clientY;
         setPullRefreshDone(false);
@@ -788,10 +788,8 @@ export default function App() {
           setIsPullRefreshing(true);
           setPullDistance(72);
           try {
-            // Reuse the app's existing initial-data loader by dispatching a lightweight refresh event.
-            // If a dedicated loader exists, the listener below will invoke it; otherwise reload safely.
-            window.dispatchEvent(new Event('shipid:refresh-data'));
-            await new Promise(resolve => window.setTimeout(resolve, 650));
+            // 直接重抓 Supabase / App 最新資料，不做整頁 reload，保留 PWA 體驗。
+            await fetchData();
             setPullRefreshDone(true);
           } finally {
             setIsPullRefreshing(false);
@@ -881,7 +879,7 @@ export default function App() {
           .shipid-app .shipid-kicker { font-size: ${fontSize === 'sm' ? '14px' : fontSize === 'md' ? '17px' : fontSize === 'lg' ? '19px' : '16px'} !important; }
         }
       `}</style>
-      {(pullDistance > 2 || isPullRefreshing || pullRefreshDone) && activeBottomTab === 'home' && !selectedClassDetail && (
+      {(pullDistance > 2 || isPullRefreshing || pullRefreshDone) && activeBottomTab === 'classes' && !selectedClassDetail && (
         <div
           className={`fixed left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full border shadow-xl backdrop-blur-md font-bold text-sm ${currentTheme.modalBg}`}
           style={{

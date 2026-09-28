@@ -1826,7 +1826,7 @@ export default function App() {
             </div>
 
             <div className={`flex border-b text-base font-bold p-1.5 mx-4 mt-3 rounded-xl gap-1 ${currentTheme.subPanelBg} ${currentTheme.border}`}>
-              <button type="button" onClick={() => setAdminActiveTab('class_edit')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'class_edit' ? currentTheme.accentBg : currentTheme.textMuted}`}>艦型與外觀特徵</button>
+              <button type="button" onClick={() => setAdminActiveTab('class_edit')} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'class_edit' ? currentTheme.accentBg : currentTheme.textMuted}`}>艦型外觀</button>
               <button type="button" onClick={() => { setEditingShipId(null); setAdminActiveTab('ship_add'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'ship_add' ? currentTheme.accentBg : currentTheme.textMuted}`}>單艦管理</button>
               <button type="button" onClick={() => { setAdminBannerInput(bannerText); setAdminActiveTab('banner'); }} className={`flex-1 min-h-[44px] rounded-lg ${adminActiveTab === 'banner' ? currentTheme.accentBg : currentTheme.textMuted}`}>廣播通報</button>
             </div>

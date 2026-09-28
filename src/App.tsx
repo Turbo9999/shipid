@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
-const CURRENT_APP_VERSION = '2026.09.28 v5.9.4';
+const CURRENT_APP_VERSION = '2026.09.28 v5.9.6';
 
 interface ShipClass {
   id: string;
@@ -80,6 +80,10 @@ export default function App() {
   const [selectedClassDetail, setSelectedClassDetail] = useState<ShipClass | null>(null);
   const [expandedShipList, setExpandedShipList] = useState(false);
   const [detailMenuOpen, setDetailMenuOpen] = useState(false);
+  const detailTouchStartX = useRef<number | null>(null);
+  const detailTouchStartY = useRef<number | null>(null);
+  const [detailDragX, setDetailDragX] = useState(0);
+  const [detailDragging, setDetailDragging] = useState(false);
 
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('tn_theme_mode') as ThemeMode) || 'dark';
@@ -1387,8 +1391,80 @@ export default function App() {
 
       {/* 詳細頁 Modal · Desktop V3 */}
       {selectedClassDetail && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4 lg:p-6">
-          <div className={`w-full sm:w-[96vw] lg:w-[90vw] xl:w-[88vw] max-w-[1560px] h-[94vh] sm:h-[92vh] border-t sm:border rounded-t-3xl sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg}`}>
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center px-2.5 pb-2.5 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:p-4 lg:p-6 transition-colors duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setDetailMenuOpen(false);
+              setSelectedClassDetail(null);
+            }
+          }}
+        >
+          <div
+            className={`relative w-full sm:w-[96vw] lg:w-[90vw] xl:w-[88vw] max-w-[1560px] h-[calc(100dvh-env(safe-area-inset-top,0px)-22px)] sm:h-[92vh] border rounded-[24px] sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden ${currentTheme.modalBg} ${detailDragging ? '' : 'transition-transform duration-200 ease-out'}`}
+            style={{
+              transform: `translateX(${detailDragX}px)`,
+              opacity: Math.max(0.72, 1 - detailDragX / 900)
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => {
+              const touch = e.touches[0];
+              detailTouchStartX.current = touch.clientX;
+              detailTouchStartY.current = touch.clientY;
+              setDetailDragging(false);
+            }}
+            onTouchMove={(e) => {
+              if (detailTouchStartX.current === null || detailTouchStartY.current === null) return;
+              const touch = e.touches[0];
+              const dx = touch.clientX - detailTouchStartX.current;
+              const dy = touch.clientY - detailTouchStartY.current;
+
+              // 只接管明確的向右水平手勢，保留上下捲動。
+              if (dx > 8 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+                setDetailDragging(true);
+                setDetailDragX(Math.max(0, dx));
+              }
+            }}
+            onTouchEnd={(e) => {
+              if (detailTouchStartX.current === null || detailTouchStartY.current === null) return;
+              const touch = e.changedTouches[0];
+              const dx = touch.clientX - detailTouchStartX.current;
+              const dy = touch.clientY - detailTouchStartY.current;
+              detailTouchStartX.current = null;
+              detailTouchStartY.current = null;
+
+              const shouldDismiss =
+                dx >= 100 &&
+                Math.abs(dx) > Math.abs(dy) * 1.25;
+
+              if (shouldDismiss) {
+                setDetailDragX(window.innerWidth);
+                window.setTimeout(() => {
+                  setDetailMenuOpen(false);
+                  setSelectedClassDetail(null);
+                  setDetailDragX(0);
+                  setDetailDragging(false);
+                }, 180);
+              } else {
+                setDetailDragX(0);
+                setDetailDragging(false);
+              }
+            }}
+            onTouchCancel={() => {
+              detailTouchStartX.current = null;
+              detailTouchStartY.current = null;
+              setDetailDragX(0);
+              setDetailDragging(false);
+            }}
+          >
+            {detailDragging && detailDragX > 24 && (
+              <div
+                className="md:hidden fixed left-4 top-1/2 -translate-y-1/2 z-[60] px-3 py-2 rounded-full bg-black/55 backdrop-blur text-white/90 text-sm font-bold pointer-events-none"
+                style={{ opacity: Math.min(1, detailDragX / 100) }}
+              >
+                ‹ 返回
+              </div>
+            )}
             <div className={`px-5 lg:px-8 py-4 lg:py-5 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
               <div className="flex items-center gap-3 lg:gap-4 min-w-0">
                 <span className={`font-mono text-2xl md:text-3xl lg:text-4xl font-black ${currentTheme.accentText}`}>{selectedClassDetail.code}</span>
@@ -1413,13 +1489,13 @@ export default function App() {
                   </div>
                 ) : <div className={`w-full h-32 rounded-2xl border border-dashed flex items-center justify-center ${currentTheme.subPanelBg} ${currentTheme.textMuted}`}>暫無艦影照片</div>}
 
-                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 pt-1">
-                  <div className="min-w-0">
-                    <h2 className="text-2xl lg:text-3xl font-black tracking-tight">{selectedClassDetail.name_zh}</h2>
+                <div className="flex flex-row justify-between items-start gap-2 pt-1">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-2xl lg:text-3xl font-black tracking-tight leading-tight">{selectedClassDetail.name_zh}</h2>
                     <p className={`text-sm lg:text-base font-mono mt-1 ${currentTheme.textMuted}`}>{selectedClassDetail.nato_code} · {selectedClassDetail.category}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button type="button" onClick={() => toggleCompare(selectedClassDetail.id)} className={`min-h-[48px] px-4 lg:px-5 rounded-xl font-bold text-sm lg:text-base transition active:scale-95 ${comparePool.includes(selectedClassDetail.id) ? currentTheme.accentBg : currentTheme.btnSecondary}`}>{comparePool.includes(selectedClassDetail.id) ? '已加入比對' : '＋加入比對'}</button>
+                    <button type="button" onClick={() => toggleCompare(selectedClassDetail.id)} className={`min-h-[48px] px-3 sm:px-4 lg:px-5 rounded-xl font-bold text-sm lg:text-base whitespace-nowrap transition active:scale-95 ${comparePool.includes(selectedClassDetail.id) ? currentTheme.accentBg : currentTheme.btnSecondary}`}>{comparePool.includes(selectedClassDetail.id) ? '已加入比對' : '＋加入比對'}</button>
                     <button type="button" onClick={() => toggleFavorite(selectedClassDetail.id)} className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border ${currentTheme.btnSecondary}`}><StarIcon isFilled={favorites.includes(selectedClassDetail.id)} isRedMode={themeMode === 'red'} /></button>
                   </div>
                 </div>

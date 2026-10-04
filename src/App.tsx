@@ -184,6 +184,9 @@ export default function App() {
   const [adminBannerInput, setAdminBannerInput] = useState('');
   const [editingShipId, setEditingShipId] = useState<string | null>(null);
   const [selectedShipIds, setSelectedShipIds] = useState<string[]>([]);
+  const [shipManagementClass, setShipManagementClass] = useState('');
+  const [shipManagementSearch, setShipManagementSearch] = useState('');
+  const managedShips = ships.filter(ship => (!shipManagementClass || ship.class_id === shipManagementClass) && (!shipManagementSearch.trim() || `${ship.hull_number} ${ship.name_zh}`.includes(shipManagementSearch.trim())));
 
   const [editingClassForm, setEditingClassForm] = useState<Partial<ShipClass>>({
     code: '', name_zh: '', category: '驅逐艦', nato_code: '', image_url: '', overview: '',
@@ -958,7 +961,8 @@ export default function App() {
         const statusIndex = indexOf([/現狀/, /現況/, /狀態/]);
         for (const row of rows.slice(headerRowIndex + 1)) {
           const cells = Array.from(row.querySelectorAll('th,td')).map(cell => toTraditional(cleanWikiText(cell.textContent || '').replace(/\s+/g, ' ').trim()));
-          const hull = (hullIndex >= 0 ? cells[hullIndex] : cells.find(value => /^\d{2,4}[A-Za-z啟]?[-A-Za-z]*$/.test(value))) || '';
+          const hullText = (hullIndex >= 0 ? cells[hullIndex] : cells.find(value => /^\d{2,4}[A-Za-z啟]?[-A-Za-z]*$/.test(value))) || '';
+          const hull = hullText.match(/^\d{2,4}[A-Za-z]*/)?.[0] || '';
           if (!hull || cells.length < 2) continue;
           const name = (nameIndex >= 0 ? cells[nameIndex] : cells.find(value => value && value !== hull && !/^\d{4}/.test(value))) || '';
           if (!name) continue;
@@ -967,7 +971,7 @@ export default function App() {
           // Prefer the declared status column, but fall back to scanning the whole row for a known status keyword.
           const indexedStatusText = statusIndex >= 0 ? cells[statusIndex] || '' : '';
           const rowStatusText = cells.join(' ');
-          const hasKnownStatus = (value: string) => /現役|服役中|退役|除役|海試|航行試驗|試航|計畫|規劃|建造中|建造|舾裝中|舾裝|改裝中|改裝/.test(value);
+          const hasKnownStatus = (value: string) => /在役|現役|服役中|退役|除役|海試|航行試驗|試航|計畫|規劃|建造中|建造|舾裝中|舾裝|改裝中|改裝/.test(value);
           const statusText = hasKnownStatus(indexedStatusText) ? indexedStatusText : rowStatusText;
           const statusCode: Ship['status_code'] =
             /退役|除役/.test(statusText) ? 'retired' :
@@ -976,7 +980,7 @@ export default function App() {
             /改裝中|改裝/.test(statusText) ? 'refit' :
             /建造中|建造/.test(statusText) ? 'under_construction' :
             /計畫|規劃/.test(statusText) ? 'planned' :
-            /現役|服役中/.test(statusText) ? 'active' : 'unknown';
+            /在役|現役|服役中/.test(statusText) ? 'active' : 'unknown';
           if (!extractedShips.some(ship => ship.hull_number === hull)) extractedShips.push({ hull_number: hull, name_zh: name, commissioned_year: commissioned, commission_precision: /\d{4}(?:-|年)\d{1,2}(?:-|月)\d{1,2}日?/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown', fleet: fleetIndex >= 0 ? cells[fleetIndex] || '' : '', squadron: squadronIndex >= 0 ? cells[squadronIndex] || '' : '', status_code: statusCode });
         }
       }
@@ -985,7 +989,7 @@ export default function App() {
       const name = getVal(['艦名', '舰名']) || toTraditional(resolvedTitle);
       const commissioned = getVal(['服役日期', '服役時間', '服役时间', '入役', '服役']);
       const statusText = getVal(['目前狀態', '目前状态', '服役狀態', '服役状态', '艦況', '舰况']);
-      const statusCode = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('海试') || statusText.includes('航行試驗') || statusText.includes('航行试验') || statusText.includes('試航') || statusText.includes('试航') ? 'sea_trial' : statusText.includes('計畫') || statusText.includes('计划') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') || statusText.includes('舾装') ? 'fitting_out' : statusText.includes('改裝') || statusText.includes('改装') ? 'refit' : statusText.includes('現役') || statusText.includes('现役') || statusText.includes('服役') ? 'active' : 'unknown';
+      const statusCode = statusText.includes('退役') ? 'retired' : statusText.includes('海試') || statusText.includes('海试') || statusText.includes('航行試驗') || statusText.includes('航行试验') || statusText.includes('試航') || statusText.includes('试航') ? 'sea_trial' : statusText.includes('計畫') || statusText.includes('计划') ? 'planned' : statusText.includes('建造') ? 'under_construction' : statusText.includes('舾裝') || statusText.includes('舾装') ? 'fitting_out' : statusText.includes('改裝') || statusText.includes('改装') ? 'refit' : statusText.includes('在役') || statusText.includes('現役') || statusText.includes('现役') || statusText.includes('服役') ? 'active' : 'unknown';
       const precision = /\d{4}(?:-|年)\d{1,2}(?:-|月)\d{1,2}日?/.test(commissioned) ? 'exact' : /\d{4}/.test(commissioned) ? 'year' : 'unknown';
       const classCode = resolvedTitle.match(/([0-9A-Za-z-]+)(?:型|級)/)?.[1] || input.match(/[0-9A-Za-z-]+/)?.[0] || '';
       const matchedClass = classes.find(item => item.code.toLowerCase() === classCode.toLowerCase());
@@ -2498,15 +2502,15 @@ export default function App() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <span className={`font-bold block ${currentTheme.accentText}`}>批次管理單艦</span>
-                        <span className={currentTheme.textMuted}>已勾選 {selectedShipIds.length}／{ships.length} 艘</span>
+                        <span className={currentTheme.textMuted}>符合條件 {managedShips.length} 艘 · 已勾選 {selectedShipIds.length} 艘</span>
                       </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => setSelectedShipIds(ships.map(ship => ship.id))}
+                          onClick={() => setSelectedShipIds(managedShips.map(ship => ship.id))}
                           className={`min-h-[40px] px-3 rounded-lg border font-bold ${currentTheme.btnSecondary}`}
                         >
-                          全選
+                          全選篩選結果
                         </button>
                         <button
                           type="button"
@@ -2518,10 +2522,17 @@ export default function App() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <select aria-label="篩選單艦艦型" value={shipManagementClass} onChange={e => { setShipManagementClass(e.target.value); setSelectedShipIds([]); }} className={`min-h-[44px] rounded-xl px-3 ${currentTheme.input}`}>
+                        <option value="">全部艦型</option>
+                        {classes.map(item => <option key={item.id} value={item.id}>{item.code} · {item.name_zh}</option>)}
+                      </select>
+                      <input aria-label="搜尋管理單艦" placeholder="搜尋舷號或艦名" value={shipManagementSearch} onChange={e => { setShipManagementSearch(e.target.value); setSelectedShipIds([]); }} className={`min-h-[44px] rounded-xl px-3 ${currentTheme.input}`} />
+                    </div>
                     <div className={`max-h-60 overflow-y-auto rounded-xl border divide-y ${currentTheme.border}`}>
-                      {ships.length === 0 ? (
+                      {managedShips.length === 0 ? (
                         <div className={`p-4 text-center ${currentTheme.textMuted}`}>目前沒有單艦資料</div>
-                      ) : ships.map(ship => {
+                      ) : managedShips.map(ship => {
                         const parentClass = classes.find(item => item.id === ship.class_id);
                         const checked = selectedShipIds.includes(ship.id);
                         return (
@@ -2535,6 +2546,7 @@ export default function App() {
                             <span className={`font-mono font-black ${currentTheme.accentText}`}>{ship.hull_number}</span>
                             <span className="font-bold flex-1">{ship.name_zh}</span>
                             <span className={`text-[11px] ${currentTheme.textMuted}`}>{parentClass?.code || '未分類'}</span>
+                            <span className={`shrink-0 rounded-md border px-2 py-1 ${getStatusLabel(ship.status_code, ship.status).color}`}>{getStatusLabel(ship.status_code, ship.status).label}</span>
                           </label>
                         );
                       })}

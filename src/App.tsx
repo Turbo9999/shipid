@@ -84,6 +84,37 @@ function StarIcon({ isFilled, isRedMode }: { isFilled: boolean; isRedMode: boole
   );
 }
 
+// Wikimedia 原圖動輒數 MB，清單縮圖改用官方標準寬度縮圖（330px），失敗時自動退回原圖。
+function getWikimediaThumbUrl(url: string, width = 330) {
+  const match = url.match(/^(https?:\/\/upload\.wikimedia\.org\/wikipedia\/[^/]+)\/(?!thumb\/)([0-9a-f]\/[0-9a-f]{2})\/([^/?#]+)$/i);
+  if (!match) return url;
+  const [, base, hashPath, file] = match;
+  const ext = (file.split('.').pop() || '').toLowerCase();
+  const suffix = ext === 'svg' || ext === 'tif' || ext === 'tiff' ? '.png' : '';
+  return `${base}/thumb/${hashPath}/${file}/${width}px-${file}${suffix}`;
+}
+
+function ShipThumb({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const thumb = getWikimediaThumbUrl(src);
+  const [current, setCurrent] = useState(thumb);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setCurrent(getWikimediaThumbUrl(src)); setFailed(false); }, [src]);
+  if (failed) return null;
+  return (
+    <img
+      src={current}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      className={className}
+      onError={() => {
+        if (current !== src) setCurrent(src);
+        else setFailed(true);
+      }}
+    />
+  );
+}
+
 export default function App() {
   const [classes, setClasses] = useState<ShipClass[]>([]);
   const [ships, setShips] = useState<Ship[]>([]);
@@ -93,6 +124,7 @@ export default function App() {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     const saved = localStorage.getItem('tn_recent_searches');
     return saved ? JSON.parse(saved) : [];
@@ -705,6 +737,22 @@ export default function App() {
     displayedClasses = displayedClasses.filter(c => favorites.includes(c.id));
   }
 
+  // 艦種篩選：數量依目前搜尋／收藏範圍計算，切換後清單即時縮小。
+  const categoryCounts = displayedClasses.reduce<Record<string, number>>((acc, c) => {
+    const key = c.category || '未分類';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const categoryOptions = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]);
+  const activeCategory = categoryFilter !== 'all' && categoryCounts[categoryFilter] ? categoryFilter : 'all';
+  if (activeCategory !== 'all') {
+    displayedClasses = displayedClasses.filter(c => (c.category || '未分類') === activeCategory);
+  }
+  const shipCountByClass = ships.reduce<Record<string, number>>((acc, s) => {
+    acc[s.class_id] = (acc[s.class_id] || 0) + 1;
+    return acc;
+  }, {});
+
   const getThemeStyles = () => {
     if (themeMode === 'red') {
       return {
@@ -1170,11 +1218,11 @@ export default function App() {
 
         @media (max-width: 767px) {
           .shipid-app .shipid-top-header {
-            padding-top: calc(env(safe-area-inset-top, 0px) + 18px) !important;
+            padding-top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
           }
           @media (display-mode: browser) {
             .shipid-app .shipid-top-header {
-              padding-top: max(14px, env(safe-area-inset-top, 0px)) !important;
+              padding-top: max(10px, env(safe-area-inset-top, 0px)) !important;
             }
           }
           .shipid-app .shipid-brand-subtitle {
@@ -1257,7 +1305,7 @@ export default function App() {
       )}
       
       {/* 戰術抬頭列 */}
-      <header className={`shipid-top-header w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-6 md:pt-8 pb-5 flex flex-col items-center shadow-lg transition-all`}>
+      <header className={`shipid-top-header w-full ${currentTheme.headerBg} border-b backdrop-blur-md px-4 pt-4 md:pt-8 pb-3 md:pb-5 flex flex-col items-center shadow-lg transition-all`}>
         <div className="w-full max-w-md md:max-w-[1480px] grid grid-cols-[minmax(0,1fr)_auto] md:flex md:justify-between md:items-center gap-x-3 gap-y-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2 whitespace-nowrap">
@@ -1351,15 +1399,12 @@ export default function App() {
             </button>
           </div>
 
-          {/* Mobile 狀態列：獨立佔滿第二列，不再與右側按鈕搶寬度 */}
-          <div className={`md:hidden col-span-2 w-full text-xs font-mono ${themeMode === 'red' ? 'text-red-500' : 'text-slate-400'} flex flex-wrap items-center gap-x-2 gap-y-1 pt-1`}>
-            {isOnline ? (
-              <span className={`${themeMode === 'red' ? 'text-red-400' : 'text-emerald-400'} font-bold whitespace-nowrap`}>✓ 離線資料已就緒</span>
-            ) : (
+          {/* Mobile 狀態列：連線正常時以綠色指示燈表示即可，僅離線時顯示提示，節省首屏高度 */}
+          {!isOnline && (
+            <div className={`md:hidden col-span-2 w-full text-xs font-mono flex items-center gap-2 pt-0.5`}>
               <span className={`${themeMode === 'red' ? 'text-red-400' : 'text-amber-400'} font-black whitespace-nowrap`}>● OFFLINE · 使用本機資料</span>
-            )}
-            <span className={`${currentTheme.textMuted} whitespace-nowrap`}>| {CURRENT_APP_VERSION}</span>
-          </div>
+            </div>
+          )}
         </div>
 
         {bannerText && (
@@ -1371,7 +1416,7 @@ export default function App() {
       </header>
 
       {/* 主內容區 */}
-      <main className="w-full max-w-md md:max-w-[1480px] px-4 md:px-8 pt-5 md:pt-9 pb-48 flex flex-col flex-1 gap-5">
+      <main className="w-full max-w-md md:max-w-[1480px] px-4 md:px-8 pt-4 md:pt-9 pb-48 flex flex-col flex-1 gap-4 md:gap-5">
         {(activeBottomTab === 'classes' || activeBottomTab === 'favorites') && (
           <>
             {searchTerm && matchingShips.length > 0 && (
@@ -1409,21 +1454,62 @@ export default function App() {
                 <span className={`text-xs md:text-sm font-mono font-bold tracking-wider uppercase ${currentTheme.textMuted}`}>
                   {activeBottomTab === 'favorites' ? `我的最愛 (${displayedClasses.length})` : `作戰艦型清單 (${displayedClasses.length})`}
                 </span>
+                {activeCategory !== 'all' && (
+                  <button type="button" onClick={() => setCategoryFilter('all')} className={`text-xs font-bold px-2 py-1 ${currentTheme.accentText}`}>
+                    清除篩選
+                  </button>
+                )}
               </div>
 
-              {isLoading ? (
-                <div className={`text-center py-20 font-mono text-xs animate-pulse ${currentTheme.textMuted}`}>
-                  載入離線艦艇資料庫中...
+              {categoryOptions.length > 1 && (
+                <div
+                  className="-mx-4 md:mx-0 px-4 md:px-0 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  role="tablist"
+                  aria-label="艦種篩選"
+                >
+                  {[['all', categoryOptions.reduce((sum, [, n]) => sum + n, 0)] as [string, number], ...categoryOptions].map(([cat, count]) => {
+                    const isActive = activeCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        onClick={() => setCategoryFilter(cat)}
+                        className={`shrink-0 min-h-[40px] px-3.5 rounded-full border text-sm font-bold transition active:scale-95 ${isActive ? `${currentTheme.accentBg} border-transparent` : currentTheme.btnSecondary}`}
+                      >
+                        {cat === 'all' ? '全部' : cat}
+                        <span className={`ml-1.5 font-mono text-xs ${isActive ? 'opacity-90' : 'opacity-60'}`}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isLoading && displayedClasses.length === 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3 md:gap-5" aria-label="載入離線艦艇資料庫中">
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i} className={`rounded-2xl border p-4 h-[132px] animate-pulse ${currentTheme.cardBg}`}>
+                      <div className={`h-3 w-24 rounded ${themeMode === 'high_contrast' ? 'bg-slate-200' : 'bg-white/10'}`} />
+                      <div className={`mt-3 h-7 w-40 rounded ${themeMode === 'high_contrast' ? 'bg-slate-200' : 'bg-white/10'}`} />
+                      <div className={`mt-6 h-4 w-32 rounded ${themeMode === 'high_contrast' ? 'bg-slate-200' : 'bg-white/10'}`} />
+                    </div>
+                  ))}
                 </div>
               ) : displayedClasses.length === 0 ? (
-                <div className={`text-center py-16 rounded-2xl border border-dashed text-xs ${currentTheme.subPanelBg}`}>
-                  查無符合條件的艦艇資料
+                <div className={`text-center py-16 px-6 rounded-2xl border border-dashed text-sm space-y-3 ${currentTheme.subPanelBg}`}>
+                  <div>{activeBottomTab === 'favorites' && !searchTerm ? '尚未收藏任何艦型，點卡片右下角的 ☆ 即可加入。' : '查無符合條件的艦艇資料'}</div>
+                  {(searchTerm || activeCategory !== 'all') && (
+                    <button type="button" onClick={() => { setSearchTerm(''); setCategoryFilter('all'); }} className={`min-h-[44px] px-4 rounded-xl font-bold ${currentTheme.btnSecondary}`}>
+                      清除搜尋與篩選
+                    </button>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5">
+                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3 md:gap-5">
                 {displayedClasses.map(c => {
                   const isFav = favorites.includes(c.id);
-                  const classShips = ships.filter(s => s.class_id === c.id);
+                  const shipCount = shipCountByClass[c.id] || 0;
 
                   return (
                     <div
@@ -1432,32 +1518,34 @@ export default function App() {
                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleOpenDetail(c); } }}
                       role="button"
                       tabIndex={0}
-                      className={`group relative min-w-0 overflow-hidden rounded-2xl border cursor-pointer transition-all duration-200 shadow-sm hover:shadow-xl hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 ${currentTheme.cardBg}`}
+                      className={`group relative min-w-0 overflow-hidden rounded-2xl border cursor-pointer transition-all duration-200 shadow-sm hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 ${currentTheme.cardBg}`}
                     >
                       <div className={`absolute inset-y-0 left-0 w-1 ${themeMode === 'red' ? 'bg-red-700' : themeMode === 'high_contrast' ? 'bg-cyan-700' : 'bg-cyan-500'}`} />
-                      <div className="p-4 md:p-6 pl-5 md:pl-7 flex flex-col gap-4 min-h-[176px]">
+                      <div className="p-4 md:p-6 pl-5 md:pl-7 flex flex-col gap-3">
                         <div className="flex items-start justify-between gap-3 min-w-0">
                           <div className="min-w-0 flex-1">
-                            <div className={`shipid-kicker text-[14px] font-mono tracking-[0.14em] uppercase mb-2 ${currentTheme.textMuted}`}>
-                              SHIP CLASS / {c.category}
+                            <div className={`shipid-kicker text-[13px] font-mono tracking-[0.12em] uppercase mb-1.5 ${currentTheme.textMuted}`}>
+                              {c.category}{c.nato_code ? ` · ${c.nato_code}` : ''}
                             </div>
-                            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 min-w-0">
-                              <span className={`font-mono font-black tracking-tight ${fontStyle.cardTitle} ${currentTheme.accentText}`}>{c.code}</span>
-                              <span className={`font-bold break-words ${primaryText} ${fontStyle.cardSub}`}>{c.name_zh}</span>
-                            </div>
+                            <div className={`font-mono font-black tracking-tight leading-none ${fontStyle.cardTitle} ${currentTheme.accentText}`}>{c.code}</div>
+                            <div className={`mt-1.5 font-bold break-words leading-snug ${primaryText} ${fontStyle.cardSub}`}>{c.name_zh}</div>
                           </div>
-                          <button
-                            type="button"
-                            aria-label={isFav ? '取消收藏' : '加入收藏'}
-                            onClick={e => toggleFavorite(c.id, e)}
-                            className={`shrink-0 min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border active:scale-95 transition ${currentTheme.btnSecondary}`}
-                          >
-                            <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
-                          </button>
+                          <div className={`relative shrink-0 w-[112px] h-[76px] md:w-[132px] md:h-[88px] rounded-xl overflow-hidden border flex items-center justify-center ${currentTheme.border} ${themeMode === 'high_contrast' ? 'bg-slate-100' : 'bg-black/40'}`}>
+                            <svg className={`w-8 h-8 ${currentTheme.textMuted}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 15l2.5 4h13l2.5-4H3zM6 15V11h12v4M9 11V7h4l2 4M12 7V4" />
+                            </svg>
+                            {c.image_url && (
+                              <ShipThumb
+                                src={c.image_url}
+                                alt={`${c.code} ${c.name_zh}`}
+                                className={`absolute inset-0 w-full h-full object-cover ${themeMode === 'red' ? 'brightness-75 contrast-125 sepia hue-rotate-[320deg]' : ''}`}
+                              />
+                            )}
+                          </div>
                         </div>
                         {(c.identification_features?.length ?? 0) > 0 && (
                           <div
-                            className="-mt-1 -mx-1 px-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            className="-mx-1 px-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {(c.identification_features ?? []).slice(0, 3).map((feature, index) => (
@@ -1477,11 +1565,19 @@ export default function App() {
                             ))}
                           </div>
                         )}
-                        <div className={`mt-auto pt-3 border-t flex flex-wrap items-center gap-x-3 gap-y-2 ${currentTheme.border}`}>
-                          {c.nato_code && <span className={`px-2.5 py-1 rounded-md font-mono text-base ${currentTheme.badge}`}>{c.nato_code}</span>}
-                          <span className={`text-base font-medium ${primaryText}`}>登錄 {classShips.length} 艘</span>
-                          {c.identification_status === 'verified' && <span className={themeMode === 'red' ? 'text-red-400 text-base font-bold' : 'text-emerald-400 text-base font-bold'}>✓ 已查證</span>}
-                          <span className={`ml-auto text-base font-bold ${currentTheme.accentText} whitespace-nowrap`}>查看資料 →</span>
+                        <div className={`pt-2.5 border-t flex items-center gap-x-3 gap-y-2 ${currentTheme.border}`}>
+                          <span className={`text-sm font-medium ${primaryText}`}>登錄 {shipCount} 艘</span>
+                          {c.identification_status === 'verified' && <span className={themeMode === 'red' ? 'text-red-400 text-sm font-bold' : themeMode === 'high_contrast' ? 'text-emerald-700 text-sm font-bold' : 'text-emerald-400 text-sm font-bold'}>✓ 已查證</span>}
+                          {comparePool.includes(c.id) && <span className={`text-sm font-bold ${currentTheme.accentText}`}>⇄ 比對中</span>}
+                          <button
+                            type="button"
+                            aria-label={isFav ? '取消收藏' : '加入收藏'}
+                            aria-pressed={isFav}
+                            onClick={e => toggleFavorite(c.id, e)}
+                            className={`ml-auto -my-1 -mr-1 shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl active:scale-90 transition`}
+                          >
+                            <StarIcon isFilled={isFav} isRedMode={themeMode === 'red'} />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -2052,8 +2148,18 @@ export default function App() {
                 ‹ 返回
               </div>
             )}
-            <div className={`px-5 lg:px-8 py-4 lg:py-5 border-b flex justify-between items-center shrink-0 ${currentTheme.border}`}>
-              <div className="flex items-center gap-3 lg:gap-4 min-w-0">
+            <div className={`px-4 lg:px-8 py-3 lg:py-5 border-b flex justify-between items-center gap-2 shrink-0 ${currentTheme.border}`}>
+              <div className="flex items-center gap-2 lg:gap-4 min-w-0">
+                <button
+                  type="button"
+                  aria-label="返回清單"
+                  onClick={() => { setDetailMenuOpen(false); setSelectedClassDetail(null); }}
+                  className={`-ml-2 shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl ${currentTheme.textMuted} ${hoverText} active:scale-95 transition`}
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                  </svg>
+                </button>
                 <span className={`font-mono text-2xl md:text-3xl lg:text-4xl font-black ${currentTheme.accentText}`}>{selectedClassDetail.code}</span>
                 <span className="font-black text-base md:text-xl lg:text-2xl truncate">{selectedClassDetail.name_zh}</span>
               </div>
@@ -2072,7 +2178,10 @@ export default function App() {
               <div className="space-y-4">
                 {selectedClassDetail.image_url ? (
                   <div className={`w-full h-52 sm:h-72 lg:h-[430px] xl:h-[500px] rounded-2xl lg:rounded-3xl overflow-hidden border bg-black ${currentTheme.border} ${themeMode === 'red' ? 'brightness-75 contrast-125 sepia hue-rotate-[320deg]' : ''}`}>
-                    <img src={selectedClassDetail.image_url} alt={selectedClassDetail.name_zh} className="w-full h-full object-cover object-center" />
+                    <a href={selectedClassDetail.image_url} target="_blank" rel="noopener noreferrer" className="relative block w-full h-full" aria-label="開啟原尺寸艦影照片">
+                      <img src={selectedClassDetail.image_url} alt={selectedClassDetail.name_zh} className="w-full h-full object-cover object-center" />
+                      <span className="absolute right-2.5 bottom-2.5 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur text-white/90 text-xs font-bold">⤢ 原圖</span>
+                    </a>
                   </div>
                 ) : <div className={`w-full h-32 rounded-2xl border border-dashed flex items-center justify-center ${currentTheme.subPanelBg} ${currentTheme.textMuted}`}>暫無艦影照片</div>}
 
@@ -2086,6 +2195,17 @@ export default function App() {
                     <button type="button" onClick={() => toggleFavorite(selectedClassDetail.id)} className={`min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl border ${currentTheme.btnSecondary}`}><StarIcon isFilled={favorites.includes(selectedClassDetail.id)} isRedMode={themeMode === 'red'} /></button>
                   </div>
                 </div>
+
+                {[['排水量', selectedClassDetail.displacement], ['全長', selectedClassDetail.length], ['最高航速', selectedClassDetail.max_speed]].some(([, v]) => v) && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {[['排水量', selectedClassDetail.displacement], ['全長', selectedClassDetail.length], ['最高航速', selectedClassDetail.max_speed]].map(([label, value]) => (
+                      <div key={label} className={`min-w-0 rounded-xl border px-3 py-2.5 ${currentTheme.subPanelBg}`}>
+                        <div className={`text-xs font-bold ${currentTheme.textMuted}`}>{label}</div>
+                        <div className={`mt-0.5 font-mono font-bold text-sm leading-snug line-clamp-2 break-words ${primaryText}`}>{(value || '-').split(/\r?\n/)[0]}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {selectedClassDetail.overview && <p className={`text-[16px] lg:text-[19px] p-4 lg:p-5 rounded-2xl border leading-[1.8] text-justify ${currentTheme.subPanelBg}`}>{selectedClassDetail.overview}</p>}
               </div>
